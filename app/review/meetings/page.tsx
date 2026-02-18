@@ -40,6 +40,7 @@ import {
   BookOpen,
 } from "lucide-react"
 import { cn } from "@/lib/utils"
+import { KpiDimensionFilter, DEFAULT_KPI_DIMENSIONS, type KpiDimensions } from "@/components/kpi-dimension-filter"
 
 // Types
 type MeetingType = "weekly" | "monthly"
@@ -280,6 +281,7 @@ export default function MeetingsPage() {
   const [showDetailView, setShowDetailView] = useState(false)
   const [showCreateDialog, setShowCreateDialog] = useState(false)
   const [showAddAgendaDialog, setShowAddAgendaDialog] = useState(false)
+  const [kpiDimensions, setKpiDimensions] = useState<KpiDimensions>(DEFAULT_KPI_DIMENSIONS)
   const [showAiSummaryDialog, setShowAiSummaryDialog] = useState(false)
   const [agendaMode, setAgendaMode] = useState<"ticket" | "manual">("ticket")
   const [agendaSearch, setAgendaSearch] = useState("")
@@ -487,12 +489,15 @@ export default function MeetingsPage() {
         )}>
           <div className="p-4 border-b">
             <div className="flex items-center justify-between mb-3">
-              <h1 className="text-lg font-bold">회의 관리</h1>
-              <Button size="sm" onClick={() => setShowCreateDialog(true)}>
-                <Plus className="h-4 w-4 mr-1.5" />
-                회의 생성
-              </Button>
-            </div>
+  <h1 className="text-lg font-bold">회의 관리</h1>
+  <Button size="sm" onClick={() => setShowCreateDialog(true)}>
+  <Plus className="h-4 w-4 mr-1.5" />
+  회의 생성
+  </Button>
+  </div>
+  <div className="mb-3 p-2 bg-muted/30 border rounded-lg">
+    <KpiDimensionFilter dimensions={kpiDimensions} onChange={setKpiDimensions} />
+  </div>
             <div className="flex gap-2">
               {(["all", "weekly", "monthly"] as const).map((t) => (
                 <Button

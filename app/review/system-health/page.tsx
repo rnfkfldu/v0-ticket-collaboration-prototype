@@ -9,6 +9,7 @@ import { Button } from "@/components/ui/button"
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs"
 import { cn } from "@/lib/utils"
 import { useUser } from "@/lib/user-context"
+import { KpiDimensionFilter, DEFAULT_KPI_DIMENSIONS, type KpiDimensions } from "@/components/kpi-dimension-filter"
 import {
   Clock,
   AlertTriangle,
@@ -192,6 +193,7 @@ function ScoreBar({ score, target }: { score: number; target: number }) {
 export default function SystemHealthReviewPage() {
   const { scopeMode, currentUser } = useUser()
   const [activeTab, setActiveTab] = useState("governance")
+  const [kpiDimensions, setKpiDimensions] = useState<KpiDimensions>(DEFAULT_KPI_DIMENSIONS)
 
   return (
     <AppShell>
@@ -201,10 +203,13 @@ export default function SystemHealthReviewPage() {
           <div className="flex items-center justify-between">
             <div>
               <h1 className="text-2xl font-bold text-foreground text-balance">System Health Review</h1>
-              <p className="text-sm text-muted-foreground">
-                업무 거버넌스 현황 - 티켓 처리, 알람 관리, SLA 준수율 등
-              </p>
-            </div>
+  <p className="text-sm text-muted-foreground">
+  업무 거버넌스 현황 - 티켓 처리, 알람 관리, SLA 준수율 등
+  </p>
+  <div className="mt-3">
+    <KpiDimensionFilter dimensions={kpiDimensions} onChange={setKpiDimensions} />
+  </div>
+  </div>
             <Badge variant="outline" className="gap-1">
               <span className="w-2 h-2 bg-green-500 rounded-full animate-pulse" />
               기준일: 2025-02-04
