@@ -1,28 +1,65 @@
+"use client"
+
 import { TicketDetail } from "@/components/ticket-detail"
 import { Button } from "@/components/ui/button"
 import { ChevronLeft } from "lucide-react"
 import Link from "next/link"
 import { getTicketById } from "@/lib/storage"
-import { notFound } from "next/navigation"
+import { useParams, useRouter } from "next/navigation"
+import { useState, useEffect } from "react"
+import type { Ticket } from "@/lib/types"
 
-export default async function TicketDetailPage({
-  params,
-}: {
-  params: Promise<{ id: string }>
-}) {
-  const { id } = await params
+export default function TicketDetailPage() {
+  const { id } = useParams<{ id: string }>()
+  const router = useRouter()
+  const [ticket, setTicket] = useState<Ticket | null>(null)
+  const [loading, setLoading] = useState(true)
 
-  const ticket = getTicketById(id)
+  useEffect(() => {
+    const found = getTicketById(id)
+    setTicket(found || null)
+    setLoading(false)
+  }, [id])
+
+  if (loading) {
+    return (
+      <div className="min-h-screen bg-background flex items-center justify-center">
+        <div className="text-muted-foreground animate-pulse">Loading...</div>
+      </div>
+    )
+  }
 
   if (!ticket) {
-    notFound()
+    return (
+      <div className="min-h-screen bg-background">
+        <header className="border-b border-border bg-card">
+          <div className="container mx-auto px-4 py-4 flex items-center gap-4">
+            <Link href="/actions/tickets">
+              <Button variant="ghost" size="sm" className="gap-2">
+                <ChevronLeft className="h-4 w-4" />
+                Back to Tickets
+              </Button>
+            </Link>
+            <h1 className="text-lg font-semibold text-foreground">Ticket Not Found</h1>
+          </div>
+        </header>
+        <main className="container mx-auto px-4 py-12 text-center">
+          <p className="text-muted-foreground mb-4">
+            티켓 #{id}을(를) 찾을 수 없습니다.
+          </p>
+          <Button onClick={() => router.push("/actions/tickets")}>
+            티켓 목록으로 돌아가기
+          </Button>
+        </main>
+      </div>
+    )
   }
 
   return (
     <div className="min-h-screen bg-background">
       <header className="border-b border-border bg-card">
         <div className="container mx-auto px-4 py-4 flex items-center gap-4">
-          <Link href="/">
+          <Link href="/actions/tickets">
             <Button variant="ghost" size="sm" className="gap-2">
               <ChevronLeft className="h-4 w-4" />
               Back to Tickets
