@@ -229,18 +229,18 @@ export function TopNavigation() {
   }
 
   return (
-    <header className="sticky top-0 z-50 w-full border-b bg-background/95 backdrop-blur supports-[backdrop-filter]:bg-background/60">
-      <div className="flex h-14 items-center px-4">
-        {/* 로고 - OOP */}
-        <Link href="/" className="flex items-center gap-2 mr-8">
-          <div className="w-8 h-8 rounded-lg bg-primary flex items-center justify-center">
-            <span className="text-primary-foreground font-bold text-sm">OP</span>
+    <header className="sticky top-0 z-50 w-full border-b border-[#00695C] bg-[#00897B]">
+      <div className="flex h-12 items-center px-4">
+        {/* 로고 */}
+        <Link href="/" className="flex items-center gap-2.5 mr-8">
+          <div className="w-7 h-7 rounded bg-white/20 flex items-center justify-center">
+            <span className="text-white font-bold text-xs">OOP</span>
           </div>
-          <span className="font-semibold text-lg hidden md:block">OOP</span>
+          <span className="font-semibold text-sm text-white hidden md:block tracking-wide">공정운영최적화플랫폼</span>
         </Link>
 
         {/* 메인 메뉴 */}
-        <nav className="flex items-center gap-1 flex-1">
+        <nav className="flex items-center gap-0.5 flex-1">
           {mainMenus.map((menu) => {
             const Icon = menu.icon
             const isActive = activeMenu === menu.id
@@ -249,13 +249,12 @@ export function TopNavigation() {
                 key={menu.id}
                 href={menu.href}
                 className={cn(
-                  "flex items-center gap-2 px-4 py-2 rounded-md text-sm font-medium transition-colors",
+                  "flex items-center gap-1.5 px-3.5 py-1.5 rounded text-sm font-medium transition-colors",
                   isActive 
-                    ? "bg-primary text-primary-foreground" 
-                    : "text-muted-foreground hover:text-foreground hover:bg-muted"
+                    ? "bg-white/20 text-white" 
+                    : "text-white/70 hover:text-white hover:bg-white/10"
                 )}
               >
-                <Icon className="h-4 w-4" />
                 <span>{menu.label}</span>
               </Link>
             )
@@ -264,14 +263,13 @@ export function TopNavigation() {
 
         {/* 우측 액션 */}
         <div className="flex items-center gap-2">
-          {/* Event Request 버튼 - new-ticket 페이지로 이동 */}
+          {/* Event Request 버튼 */}
           <Link href="/new-ticket">
             <Button 
-              variant="default" 
               size="sm" 
-              className="gap-2"
+              className="gap-1.5 bg-white/20 hover:bg-white/30 text-white border-0 h-8 text-xs"
             >
-              <Plus className="h-4 w-4" />
+              <Plus className="h-3.5 w-3.5" />
               <span className="hidden md:inline">Event Request</span>
             </Button>
           </Link>
@@ -279,9 +277,9 @@ export function TopNavigation() {
           {/* OOP Assistant 버튼 */}
           <Sheet open={isAssistantOpen} onOpenChange={setIsAssistantOpen}>
             <SheetTrigger asChild>
-              <Button variant="outline" size="sm" className="gap-2 bg-transparent">
-                <Bot className="h-4 w-4" />
-                <span className="hidden md:inline">OOP Assistant</span>
+              <Button size="sm" className="gap-1.5 bg-white/10 hover:bg-white/20 text-white border-0 h-8 text-xs">
+                <Bot className="h-3.5 w-3.5" />
+                <span className="hidden md:inline">AI Chat</span>
               </Button>
             </SheetTrigger>
             <SheetContent className="w-[400px] sm:w-[500px] flex flex-col p-0">
@@ -378,34 +376,36 @@ export function TopNavigation() {
             </SheetContent>
           </Sheet>
 
-          {/* OOP Outside - 외부 접근용 (지구본 아이콘) */}
+          {/* OOP Outside */}
           <Button 
             variant="ghost" 
             size="icon"
+            className="text-white/70 hover:text-white hover:bg-white/10 h-8 w-8"
             onClick={() => router.push("/oop-outside")}
-            title="OOP Outside (3rd Party 접근)"
+            title="OOP Outside"
           >
-            <Globe className="h-5 w-5" />
+            <Globe className="h-4 w-4" />
           </Button>
 
-          {/* 게시판 - 클릭 시 왼쪽 사이드바 메뉴로 이동 */}
+          {/* 게시판 */}
           <Button 
             variant="ghost" 
             size="icon"
+            className="text-white/70 hover:text-white hover:bg-white/10 h-8 w-8"
             onClick={() => router.push("/help/notice")}
             title="게시판"
           >
-            <CircleHelp className="h-5 w-5" />
+            <CircleHelp className="h-4 w-4" />
           </Button>
 
-          {/* 알림 - Popover로 Alert 정보 표시 */}
+          {/* 알림 */}
           <Popover>
             <PopoverTrigger asChild>
-              <Button variant="ghost" size="icon" className="relative">
-                <Bell className="h-5 w-5" />
-                <Badge className="absolute -top-1 -right-1 h-5 w-5 flex items-center justify-center p-0 text-xs">
+              <Button variant="ghost" size="icon" className="relative text-white/70 hover:text-white hover:bg-white/10 h-8 w-8">
+                <Bell className="h-4 w-4" />
+                <span className="absolute -top-0.5 -right-0.5 h-4 w-4 flex items-center justify-center rounded-full bg-red-500 text-white text-[10px] font-bold">
                   {recentAlerts.length}
-                </Badge>
+                </span>
               </Button>
             </PopoverTrigger>
             <PopoverContent className="w-96 p-0" align="end">
@@ -471,15 +471,14 @@ export function TopNavigation() {
           {/* 사용자 메뉴 */}
           <DropdownMenu>
             <DropdownMenuTrigger asChild>
-              <Button variant="ghost" className="gap-2">
-                <div className="w-7 h-7 rounded-full bg-primary/10 flex items-center justify-center">
-                  <User className="h-4 w-4" />
+              <Button variant="ghost" className="gap-2 text-white/80 hover:text-white hover:bg-white/10 h-8">
+                <div className="w-6 h-6 rounded-full bg-white/20 flex items-center justify-center">
+                  <User className="h-3.5 w-3.5 text-white" />
                 </div>
                 <div className="hidden md:flex flex-col items-start">
-                  <span className="text-sm leading-tight">{currentUser.name}</span>
-                  <span className="text-xs text-muted-foreground leading-tight">{currentUser.roleLabel}</span>
+                  <span className="text-xs leading-tight text-white">{currentUser.name}</span>
                 </div>
-                <ChevronDown className="h-4 w-4" />
+                <ChevronDown className="h-3 w-3 text-white/60" />
               </Button>
             </DropdownMenuTrigger>
             <DropdownMenuContent align="end" className="w-56">

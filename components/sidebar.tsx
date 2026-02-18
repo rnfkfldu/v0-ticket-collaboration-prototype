@@ -99,15 +99,14 @@ export function Sidebar({ unreadAlerts = 3 }: SidebarProps) {
       id: "overview",
       label: "Overview",
       icon: LayoutDashboard,
-      items: [{ label: "Overview", href: "/operations", icon: LayoutDashboard }]
+      items: [{ label: "Overall", href: "/operations/overall", icon: LayoutDashboard }]
     },
     {
       id: "live-monitoring",
       label: "Live Monitoring",
       icon: Monitor,
       items: [
-        { label: "Unit Monitoring", href: "/operations/monitoring/unit", icon: Layers },
-        { label: "Custom Dashboards", href: "/operations/monitoring/custom", icon: LayoutDashboard },
+        { label: "Daily Monitoring", href: "/operations", icon: Layers },
         { 
           label: "DCS Monitoring", 
           href: "/operations/monitoring/dcs", 
@@ -466,9 +465,9 @@ export function Sidebar({ unreadAlerts = 3 }: SidebarProps) {
       )}
     >
       {/* Header */}
-      <div className="h-12 border-b border-border flex items-center justify-between px-4">
+      <div className="h-12 border-b border-border flex items-center justify-between px-4 bg-card">
         {!isCollapsed && (
-          <span className="font-semibold text-sm text-muted-foreground">{menuTitles[currentTopMenu]}</span>
+          <span className="font-semibold text-sm text-foreground">{menuTitles[currentTopMenu]}</span>
         )}
         <Button 
           variant="ghost" 
@@ -549,10 +548,10 @@ export function Sidebar({ unreadAlerts = 3 }: SidebarProps) {
                     <Link
                       href={item.href}
                       className={cn(
-                        "flex items-center gap-3 px-3 py-2 text-sm rounded-md transition-colors",
+                        "flex items-center gap-3 px-3 py-2 text-sm rounded transition-colors",
                         isItemActive(item.href)
-                          ? "bg-primary/10 text-primary font-medium"
-                          : "text-muted-foreground hover:text-foreground hover:bg-muted/50"
+                          ? "bg-primary text-primary-foreground font-medium"
+                          : "text-foreground/70 hover:text-foreground hover:bg-muted/50"
                       )}
                     >
                       <item.icon className="h-4 w-4 flex-shrink-0" />
@@ -572,10 +571,10 @@ export function Sidebar({ unreadAlerts = 3 }: SidebarProps) {
                             key={child.href}
                             href={child.href}
                             className={cn(
-                              "flex items-center gap-2 px-2 py-1.5 text-xs rounded-md transition-colors",
+                              "flex items-center gap-2 px-2 py-1.5 text-xs rounded transition-colors",
                               isItemActive(child.href)
-                                ? "bg-primary/10 text-primary font-medium"
-                                : "text-muted-foreground hover:text-foreground hover:bg-muted/50"
+                                ? "bg-primary/15 text-primary font-medium"
+                                : "text-foreground/60 hover:text-foreground hover:bg-muted/50"
                             )}
                           >
                             <child.icon className="h-3 w-3 flex-shrink-0" />
