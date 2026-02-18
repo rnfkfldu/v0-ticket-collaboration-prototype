@@ -31,10 +31,16 @@ export function TicketsList() {
   const [priorityFilter, setPriorityFilter] = useState<string>("all")
   const [categoryFilter, setCategoryFilter] = useState<string>("all")
   const [searchQuery, setSearchQuery] = useState<string>("")
-  const [tickets, setTickets] = useState(() => getTickets())
+  const [tickets, setTickets] = useState<Ticket[]>([])
+  const [isHydrated, setIsHydrated] = useState(false)
   const [deleteTicketId, setDeleteTicketId] = useState<string | null>(null)
   const [editTicket, setEditTicket] = useState<Ticket | null>(null)
   const router = useRouter()
+
+  useEffect(() => {
+    setTickets(getTickets())
+    setIsHydrated(true)
+  }, [])
 
   useEffect(() => {
     const handleFocus = () => {
@@ -289,6 +295,16 @@ export function TicketsList() {
     )
   }
 
+  if (!isHydrated) {
+    return (
+      <div className="space-y-6">
+        <Card className="p-6 bg-card-highlight border-border">
+          <div className="h-5 bg-muted rounded w-64 animate-pulse" />
+        </Card>
+      </div>
+    )
+  }
+
   return (
     <div className="space-y-6">
       <Card className="p-6 bg-card-highlight border-border">
@@ -404,7 +420,7 @@ export function TicketsList() {
           <AlertDialogHeader>
             <AlertDialogTitle>티켓 삭제</AlertDialogTitle>
             <AlertDialogDescription>
-              정말 이 티켓을 삭제하시겠습니까? 이 작업은 되돌릴 수 없습니다.
+              정말 이 티켓을 삭제하시겠습니까? 이 작업은 되돌릴 수 없습니���.
             </AlertDialogDescription>
           </AlertDialogHeader>
           <AlertDialogFooter>
