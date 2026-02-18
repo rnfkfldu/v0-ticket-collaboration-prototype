@@ -2,7 +2,7 @@
 
 import React from "react"
 
-import { useState, useEffect, useMemo } from "react"
+import { useState, useEffect, useMemo, useCallback } from "react"
 import { Button } from "@/components/ui/button"
 import { Badge } from "@/components/ui/badge"
 import { 
@@ -428,21 +428,38 @@ export function Sidebar({ unreadAlerts = 3 }: SidebarProps) {
     }
   }, [pathname, currentMenu])
 
-  const toggleSection = (sectionId: string) => {
+  const toggleSection = useCallback((sectionId: string) => {
     setExpandedSections(prev => 
       prev.includes(sectionId) 
         ? prev.filter(id => id !== sectionId)
         : [...prev, sectionId]
     )
-  }
+  }, [])
+
+  // 모든 메뉴 항목의 href를 수집하여 가장 구체적인 매칭만 활성화
+  const allHrefs = useMemo(() => {
+    const hrefs: string[] = []
+    currentMenu.forEach(section => {
+      section.items.forEach(item => {
+        hrefs.push(item.href)
+        item.children?.forEach(child => hrefs.push(child.href))
+      })
+    })
+    return hrefs
+  }, [currentMenu])
 
   const isItemActive = (href: string) => {
-    // 홈 경로("/")는 정확히 일치할 때만 활성화
-    if (href === "/") {
-      return pathname === "/"
+    if (href === "/") return pathname === "/"
+    // 정확 일치
+    if (pathname === href) return true
+    // 하위 경로 일치 - 단, 더 구체적인 다른 href가 매칭되면 제외
+    if (pathname.startsWith(href + "/")) {
+      const hasMoreSpecific = allHrefs.some(
+        other => other !== href && other.startsWith(href + "/") && (pathname === other || pathname.startsWith(other + "/"))
+      )
+      return !hasMoreSpecific
     }
-    // 그 외는 정확히 일치하거나 하위 경로일 때 활성화
-    return pathname === href || pathname.startsWith(href + "/")
+    return false
   }
 
   const menuTitles: Record<string, string> = {
@@ -460,7 +477,7 @@ export function Sidebar({ unreadAlerts = 3 }: SidebarProps) {
   return (
     <aside 
       className={cn(
-        "h-full bg-card border-r border-border flex flex-col transition-all duration-300 flex-shrink-0",
+        "h-full bg-card border-r border-border flex flex-col flex-shrink-0 transition-[width] duration-200 ease-out will-change-[width]",
         isCollapsed ? "w-16" : "w-64"
       )}
     >
@@ -524,7 +541,7 @@ export function Sidebar({ unreadAlerts = 3 }: SidebarProps) {
             <button
               onClick={() => toggleSection(section.id)}
               className={cn(
-                "w-full flex items-center gap-3 px-4 py-2 text-sm font-medium text-muted-foreground hover:text-foreground hover:bg-muted/50 transition-colors",
+                "w-full flex items-center gap-3 px-4 py-2 text-sm font-medium text-muted-foreground hover:text-foreground hover:bg-muted/50",
                 isCollapsed && "justify-center px-2"
               )}
             >
@@ -547,8 +564,9 @@ export function Sidebar({ unreadAlerts = 3 }: SidebarProps) {
                   <div key={item.href}>
                     <Link
                       href={item.href}
+                      prefetch={true}
                       className={cn(
-                        "flex items-center gap-3 px-3 py-2 text-sm rounded transition-colors",
+                        "flex items-center gap-3 px-3 py-2 text-sm rounded",
                         isItemActive(item.href)
                           ? "bg-primary text-primary-foreground font-medium"
                           : "text-foreground/70 hover:text-foreground hover:bg-muted/50"
@@ -570,8 +588,9 @@ export function Sidebar({ unreadAlerts = 3 }: SidebarProps) {
                           <Link
                             key={child.href}
                             href={child.href}
+                            prefetch={true}
                             className={cn(
-                              "flex items-center gap-2 px-2 py-1.5 text-xs rounded transition-colors",
+                              "flex items-center gap-2 px-2 py-1.5 text-xs rounded",
                               isItemActive(child.href)
                                 ? "bg-primary/15 text-primary font-medium"
                                 : "text-foreground/60 hover:text-foreground hover:bg-muted/50"

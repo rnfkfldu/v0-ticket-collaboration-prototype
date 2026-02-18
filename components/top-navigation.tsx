@@ -248,8 +248,9 @@ export function TopNavigation() {
               <Link
                 key={menu.id}
                 href={menu.href}
+                prefetch={true}
                 className={cn(
-                  "flex items-center gap-1.5 px-3.5 py-1.5 rounded text-sm font-medium transition-colors",
+                  "flex items-center gap-1.5 px-3.5 py-1.5 rounded text-sm font-medium",
                   isActive 
                     ? "bg-white/20 text-white" 
                     : "text-white/70 hover:text-white hover:bg-white/10"
