@@ -150,7 +150,7 @@ export default function AnomalyDetectionPage() {
                 </div>
                 <div className="flex gap-2 mt-4">
                   <Button size="sm" variant="outline">상세 분석</Button>
-                  <Button size="sm" variant="outline">티켓 생성</Button>
+                  <Button size="sm" variant="outline">이벤트 생성</Button>
                   <Button size="sm" variant="outline">무시</Button>
                 </div>
               </div>

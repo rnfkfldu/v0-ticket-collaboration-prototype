@@ -896,7 +896,7 @@ function DegradationContent() {
               Worklist 항목 생성
             </DialogTitle>
             <DialogDescription>
-              {actionType} 항목을 Worklist에 추가합니다. 필요 시 Tech Deque 티켓으로 전환할 수 있습니다.
+              {actionType} 항목을 Worklist에 추가합니다. 필요 시 Tech Deque 이벤트으로 전환할 수 있습니다.
             </DialogDescription>
           </DialogHeader>
           <div className="space-y-4 py-2">
@@ -913,7 +913,7 @@ function DegradationContent() {
               <Textarea
                 value={actionDesc}
                 onChange={(e) => setActionDesc(e.target.value)}
-                placeholder="조치 내용을 상세히 기술하세요..."
+                placeholder="���치 내용을 상세히 기술하세요..."
                 className="min-h-24"
               />
             </div>

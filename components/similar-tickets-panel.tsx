@@ -115,12 +115,12 @@ export function SimilarTicketsPanel({ ticket }: SimilarTicketsPanelProps) {
     <Card className="p-6">
       <div className="flex items-center gap-2 mb-4">
         <Link2 className="h-5 w-5 text-primary" />
-        <h3 className="text-lg font-semibold text-foreground">관련 티켓 및 레포트</h3>
+        <h3 className="text-lg font-semibold text-foreground">관련 이벤트 및 레포트</h3>
       </div>
 
       <Tabs defaultValue="tickets" className="w-full">
         <TabsList className="grid w-full grid-cols-2">
-          <TabsTrigger value="tickets">관련 티켓</TabsTrigger>
+          <TabsTrigger value="tickets">관련 이벤트</TabsTrigger>
           <TabsTrigger value="reports">관련 레포트</TabsTrigger>
         </TabsList>
 
@@ -177,7 +177,7 @@ export function SimilarTicketsPanel({ ticket }: SimilarTicketsPanelProps) {
           ) : (
             <div className="text-center py-8 text-muted-foreground">
               <Search className="h-8 w-8 mx-auto mb-2 opacity-50" />
-              <p className="text-sm">{searchQuery ? "검색 결과가 없습니다" : "관련 티켓을 찾을 수 없습니다"}</p>
+              <p className="text-sm">{searchQuery ? "검색 결과가 없습니다" : "관련 이벤트을 찾을 수 없습니다"}</p>
             </div>
           )}
 
@@ -188,7 +188,7 @@ export function SimilarTicketsPanel({ ticket }: SimilarTicketsPanelProps) {
               className="w-full bg-transparent"
               onClick={() => setSearchQuery(ticket.unit || "")}
             >
-              모든 {ticket.unit} 티켓 보기
+              모든 {ticket.unit} 이벤트 보기
             </Button>
           )}
         </TabsContent>

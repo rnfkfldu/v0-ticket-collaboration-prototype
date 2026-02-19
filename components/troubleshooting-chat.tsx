@@ -576,7 +576,7 @@ export function TroubleshootingChat() {
       id: Date.now().toString(),
       author: "System",
       team: "",
-      content: "이슈가 해결 완료로 표시되었습니다. 티켓으로 변환하여 저장하세요.",
+      content: "이슈가 해결 완료로 표시되었습니다. 이벤트으로 변환하여 저장하세요.",
       timestamp,
       type: "system"
     }])
@@ -620,7 +620,7 @@ ${urgencyLevel === "high" ? "긴급 대응이 필요했던" : "정기적인"} �
     }, 2000)
   }
 
-  // 티켓으로 변환
+  // 이벤트으로 변환
   const convertToTicket = () => {
     setShowConvertDialog(true)
     generateAISummary()
@@ -965,7 +965,7 @@ return (
               {isResolved ? (
                 <Button className="w-full" onClick={convertToTicket}>
                   <FileText className="h-4 w-4 mr-2" />
-                  티켓으로 변환하여 저장
+                  이벤트으로 변환하여 저장
                 </Button>
               ) : (
                 <div className="space-y-2">
@@ -1114,7 +1114,7 @@ return (
         </DialogContent>
       </Dialog>
 
-      {/* 템플릿 전송 다이얼로그 */}
+      {/* 템��릿 전송 다이얼로그 */}
       <Dialog open={showTemplateDialog} onOpenChange={setShowTemplateDialog}>
         <DialogContent className="max-w-md">
           <DialogHeader>
@@ -1162,22 +1162,22 @@ return (
         </DialogContent>
       </Dialog>
 
-      {/* 티켓 변환 다이얼로그 */}
+      {/* 이벤트 변환 다이얼로그 */}
       <Dialog open={showConvertDialog} onOpenChange={setShowConvertDialog}>
         <DialogContent className="max-w-2xl max-h-[90vh] overflow-y-auto">
           <DialogHeader>
             <DialogTitle className="flex items-center gap-2">
               <FileText className="h-5 w-5" />
-              티켓으로 변환
+              이벤트으로 변환
             </DialogTitle>
           </DialogHeader>
           <div className="space-y-4 py-4">
             <div className="space-y-2">
-              <label className="text-sm font-medium">티켓 제목 *</label>
+              <label className="text-sm font-medium">이벤트 제목 *</label>
               <Input 
                 value={ticketTitle} 
                 onChange={(e) => setTicketTitle(e.target.value)}
-                placeholder="티켓 제목 입력"
+                placeholder="이벤트 제목 입력"
               />
             </div>
             
@@ -1252,7 +1252,7 @@ return (
                     </div>
                   ))}
                 </div>
-                <p className="text-xs text-muted-foreground">위 문서들은 티켓의 Work Package로 자동 저장됩니다.</p>
+                <p className="text-xs text-muted-foreground">위 문서들은 이벤트의 Work Package로 자동 저장됩니다.</p>
               </div>
             )}
           </div>
@@ -1260,7 +1260,7 @@ return (
             <Button variant="outline" onClick={() => setShowConvertDialog(false)}>취소</Button>
             <Button onClick={saveAsTicket} disabled={!ticketTitle || isGeneratingSummary}>
               <FileText className="h-4 w-4 mr-1" />
-              티켓 저장
+              이벤트 저장
             </Button>
           </DialogFooter>
         </DialogContent>

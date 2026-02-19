@@ -45,10 +45,10 @@ export default function TicketDetailPage() {
         </header>
         <main className="container mx-auto px-4 py-12 text-center">
           <p className="text-muted-foreground mb-4">
-            티켓 #{id}을(를) 찾을 수 없습니다.
+            이벤트 #{id}을(를) 찾을 수 없습니다.
           </p>
           <Button onClick={() => router.push("/actions/tickets")}>
-            티켓 목록으로 돌아가기
+            이벤트 목록으로 돌아가기
           </Button>
         </main>
       </div>

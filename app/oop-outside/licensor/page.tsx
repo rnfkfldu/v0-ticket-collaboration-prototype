@@ -190,7 +190,7 @@ export default function LicensorQueryPage() {
       workPackages: []
     }
     saveTicket(newTicket)
-    alert("라이센서 질의가 티켓으로 변환되었습니다.")
+    alert("라이센서 질의가 이벤트으로 변환되었습니다.")
     router.push("/")
   }
 
@@ -222,7 +222,7 @@ export default function LicensorQueryPage() {
             <CardContent className="py-4">
               <p className="text-sm text-amber-800">
                 <strong>중요:</strong> 라이센서(UOP, Axens, Shell 등)와의 기술 질의 내용은 정유공장의 핵심 기술 자산입니다. 
-                모든 질의 내용은 티켓으로 변환하여 영구적으로 보관하시기 바랍니다.
+                모든 질의 내용은 이벤트으로 변환하여 영구적으로 보관하시기 바랍니다.
               </p>
             </CardContent>
           </Card>
@@ -392,7 +392,7 @@ export default function LicensorQueryPage() {
                       </div>
                     )}
 
-                    {/* 티켓 변환 */}
+                    {/* 이벤트 변환 */}
                     <Button 
                       variant="outline" 
                       size="sm" 
@@ -400,7 +400,7 @@ export default function LicensorQueryPage() {
                       onClick={() => convertToTicket(selectedQuery)}
                     >
                       <FileText className="h-3 w-3 mr-1" />
-                      티켓으로 자산화
+                      이벤트으로 자산화
                     </Button>
                   </CardContent>
                 </Card>

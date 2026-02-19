@@ -58,7 +58,7 @@ export function TicketHistoryTimeline({ messages }: TicketHistoryTimelineProps) 
 
   return (
     <Card className="p-6">
-      <h3 className="text-lg font-semibold text-foreground mb-4">티켓 히스토리</h3>
+      <h3 className="text-lg font-semibold text-foreground mb-4">이벤트 히스토리</h3>
 
       <div className="space-y-4">
         {sortedMessages.length === 0 ? (

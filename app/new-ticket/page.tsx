@@ -57,7 +57,7 @@ export default function NewTicketPage() {
                   </div>
                   <CardTitle className="text-base">기술검토 요청</CardTitle>
                   <CardDescription className="text-xs leading-relaxed">
-                    공정 개선, 분석 요청, 변경 요청 등 일반적인 기술 검토 티켓
+                    공정 개선, 분석 요청, 변경 요청 등 일반적인 기술 검토 이벤트
                   </CardDescription>
                 </CardHeader>
                 <CardContent className="pt-0">
@@ -297,7 +297,7 @@ export default function NewTicketPage() {
                 <ChevronLeft className="h-4 w-4" />
                 유형 선택으로
               </Button>
-              <h1 className="text-lg font-semibold text-foreground">분석 요청 티켓 생성</h1>
+              <h1 className="text-lg font-semibold text-foreground">분석 요청 이벤트 생성</h1>
             </div>
           </header>
           <main className="px-6 py-6 max-w-3xl">
@@ -370,7 +370,7 @@ export default function NewTicketPage() {
                 </div>
                 <div className="flex justify-end gap-2 pt-4 border-t">
                   <Button variant="outline" className="bg-transparent" onClick={() => setSelectedType(null)}>취소</Button>
-                  <Button className="bg-emerald-600 hover:bg-emerald-700" onClick={() => { alert("분석 요청 티켓이 생성되었습니다."); setSelectedType(null) }}>
+                  <Button className="bg-emerald-600 hover:bg-emerald-700" onClick={() => { alert("분석 요청 이벤트이 생성되었습니다."); setSelectedType(null) }}>
                     <FlaskConical className="h-4 w-4 mr-2" />
                     분석 요청 생성
                   </Button>
@@ -402,7 +402,7 @@ export default function NewTicketPage() {
             <ChevronLeft className="h-4 w-4" />
             유형 선택으로
           </Button>
-          <h1 className="text-lg font-semibold text-foreground">기술검토 요청 티켓 생성</h1>
+          <h1 className="text-lg font-semibold text-foreground">기술검토 요청 이벤트 생성</h1>
         </div>
       </header>
       <main className="container mx-auto px-4 py-6 max-w-3xl">

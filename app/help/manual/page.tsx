@@ -7,7 +7,7 @@ import Link from "next/link"
 
 const MANUALS = [
   { title: "Operations 모니터링", desc: "실시간 운전 현황 모니터링 및 DCS 연동 가이드", icon: Monitor, href: "#" },
-  { title: "Actions & 티켓 관리", desc: "알람 관리, 티켓 생성, Work Package 운영 가이드", icon: Bell, href: "#" },
+  { title: "Actions & 이벤트 관리", desc: "알람 관리, 이벤트 생성, Work Package 운영 가이드", icon: Bell, href: "#" },
   { title: "Optimization 분석", desc: "AI/ML 모델, What-if 시뮬레이션, Insight 분석 가이드", icon: TrendingUp, href: "#" },
   { title: "Workbench (TA/Scorpions)", desc: "TA Worklist 및 Scorpions 개선과제 관리 가이드", icon: Target, href: "#" },
   { title: "Data & Admin", desc: "데이터 품질 관리, Master Data, 시스템 설정 가이드", icon: Database, href: "#" },

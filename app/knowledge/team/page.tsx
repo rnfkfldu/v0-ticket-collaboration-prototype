@@ -89,7 +89,7 @@ const folderStructure: Record<string, FileItem[]> = {
     { id: "7-1", name: "종료 Report", type: "folder", modified: "2025-02-05", modifiedBy: "OOP 시스템" },
     { id: "7-2", name: "월간 Report", type: "folder", modified: "2025-02-01", modifiedBy: "OOP 시스템" },
     { id: "7-3", name: "분석 자료", type: "folder", modified: "2025-01-20", modifiedBy: "OOP 시스템" },
-    { id: "7-4", name: "티켓 첨부파일", type: "folder", modified: "2025-02-03", modifiedBy: "OOP 시스템" },
+    { id: "7-4", name: "이벤트 첨부파일", type: "folder", modified: "2025-02-03", modifiedBy: "OOP 시스템" },
   ],
   "1": [
     { id: "1-1", name: "CDU 운전 매뉴얼", type: "folder", modified: "2025-01-15", modifiedBy: "시스템" },

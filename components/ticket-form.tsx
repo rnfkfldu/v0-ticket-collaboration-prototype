@@ -240,7 +240,7 @@ export function TicketForm() {
     <Card className="p-6">
       <form onSubmit={handleSubmit} className="space-y-6">
         <div className="space-y-2">
-          <Label htmlFor="title">티켓 제목</Label>
+          <Label htmlFor="title">이벤트 제목</Label>
           <Input
             id="title"
             placeholder="문제 또는 개선사항에 대한 간략한 설명"
@@ -254,7 +254,7 @@ export function TicketForm() {
           <Label htmlFor="description">상세 설명</Label>
           <Textarea
             id="description"
-            placeholder="티켓에 대한 상세 설명"
+            placeholder="이벤트에 대한 상세 설명"
             rows={4}
             value={formData.description}
             onChange={(e) => setFormData({ ...formData, description: e.target.value })}
@@ -471,7 +471,7 @@ export function TicketForm() {
 
         <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
           <div className="space-y-2">
-            <Label htmlFor="ticketType">티켓 유형</Label>
+            <Label htmlFor="ticketType">이벤트 유형</Label>
             <Select
               value={formData.ticketType}
               onValueChange={(value) => setFormData({ ...formData, ticketType: value })}
@@ -565,9 +565,9 @@ export function TicketForm() {
               </SelectContent>
             </Select>
             <p className="text-xs text-muted-foreground">
-              {formData.accessLevel === "Private" && "나만 이 티켓을 보고 편집할 수 있습니다"}
-              {formData.accessLevel === "Team" && "선택된 팀이 이 티켓을 보고 협업할 수 있습니다"}
-              {formData.accessLevel === "Public" && "모든 팀이 이 티켓을 보고 협업할 수 있습니다"}
+              {formData.accessLevel === "Private" && "나만 이 이벤트을 보고 편집할 수 있습니다"}
+              {formData.accessLevel === "Team" && "선택된 팀이 이 이벤트을 보고 협업할 수 있습니다"}
+              {formData.accessLevel === "Public" && "모든 팀이 이 이벤트을 보고 협업할 수 있습니다"}
             </p>
           </div>
 
@@ -597,7 +597,7 @@ export function TicketForm() {
 
         <div className="flex gap-3 pt-4">
           <Button type="submit" className="flex-1">
-            티켓 생성
+            이벤트 생성
           </Button>
           <Button type="button" variant="outline" onClick={() => router.push("/")}>
             취소

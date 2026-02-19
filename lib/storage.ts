@@ -186,7 +186,7 @@ export function addLogToWorkPackage(
 
       wp.logs.push(newLog)
 
-      // 티켓 히스토리에도 메시지 추가
+      // 이벤트 히스토리에도 메시지 추가
       const historyMessage: TicketMessage = {
         id: `msg-${Date.now()}`,
         ticketId,
@@ -268,7 +268,7 @@ export function closeTicket(ticketId: string): void {
               return `**${wp.wpType} - ${wp.title}** (${wp.ownerTeam})\nStatus: ${wp.status}\n${logSummary}\nAttachments: ${wp.attachments?.length || 0} file(s)`
             })
             .join("\n\n")
-        : "티켓이 종결되었습니다."
+        : "이벤트이 종결되었습니다."
 
     tickets[index].status = "Closed"
     tickets[index].closedDate = new Date().toISOString()
@@ -405,7 +405,7 @@ export function addInquiryToTicket(ticketId: string, content: string, author: st
     content,
   })
 
-  // 티켓 상태를 다시 Open으로 변경
+  // 이벤트 상태를 다시 Open으로 변경
   const tickets = getTickets()
   const index = tickets.findIndex((t) => t.id === ticketId)
   if (index !== -1) {

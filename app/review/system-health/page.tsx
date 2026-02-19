@@ -111,7 +111,7 @@ const alarmTrend = MONTHS_6.map((m, i) => ({
 
 // Overall system governance scores
 const governanceScores = [
-  { category: "티켓 처리 속도", score: 78, target: 85, trend: "up" as const },
+  { category: "이벤트 처리 속도", score: 78, target: 85, trend: "up" as const },
   { category: "알람 Rationalization", score: 82, target: 80, trend: "up" as const },
   { category: "Shelved Alarm 관리", score: 65, target: 75, trend: "up" as const },
   { category: "Standing Alarm 해소율", score: 71, target: 80, trend: "down" as const },
@@ -204,7 +204,7 @@ export default function SystemHealthReviewPage() {
             <div>
               <h1 className="text-2xl font-bold text-foreground text-balance">System Health Review</h1>
   <p className="text-sm text-muted-foreground">
-  업무 거버넌스 현황 - 티켓 처리, 알람 관리, SLA 준수율 등
+  업무 거버넌스 현황 - 이벤트 처리, 알람 관리, SLA 준수율 등
   </p>
   <div className="mt-3">
     <KpiDimensionFilter dimensions={kpiDimensions} onChange={setKpiDimensions} />
@@ -257,7 +257,7 @@ export default function SystemHealthReviewPage() {
 
               {/* Summary cards */}
               <div className="grid grid-cols-2 lg:grid-cols-4 gap-4">
-                <MetricCard label="Overdue 티켓" value={ticketMetrics.overdue} unit="건" prev={10} flip icon={XCircle} color="bg-red-100 text-red-600" />
+                <MetricCard label="Overdue 이벤트" value={ticketMetrics.overdue} unit="건" prev={10} flip icon={XCircle} color="bg-red-100 text-red-600" />
                 <MetricCard label="Shelved Alarm" value={alarmMetrics.shelved} unit="건" prev={alarmMetrics.shelvedPrev} flip icon={Bell} color="bg-amber-100 text-amber-600" />
                 <MetricCard label="Standing Alarm" value={alarmMetrics.standing} unit="건" prev={alarmMetrics.standingPrev} flip icon={AlertTriangle} color="bg-orange-100 text-orange-600" />
                 <MetricCard label="SLA 준수율" value={ticketMetrics.slaCompliance} unit="%" prev={ticketMetrics.slaPrev} icon={CheckCircle} color="bg-green-100 text-green-600" />
@@ -266,7 +266,7 @@ export default function SystemHealthReviewPage() {
               {/* Dual chart */}
               <div className="grid grid-cols-2 gap-6">
                 <Card>
-                  <CardHeader className="pb-2"><CardTitle className="text-sm">평균 티켓 처리 일수 (6개월)</CardTitle></CardHeader>
+                  <CardHeader className="pb-2"><CardTitle className="text-sm">평균 이벤트 처리 일수 (6개월)</CardTitle></CardHeader>
                   <CardContent>
                     <div className="h-48">
                       <ResponsiveContainer width="100%" height="100%">
@@ -307,7 +307,7 @@ export default function SystemHealthReviewPage() {
             <TabsContent value="tickets" className="space-y-6">
               {/* Summary */}
               <div className="grid grid-cols-2 lg:grid-cols-5 gap-4">
-                <MetricCard label="Open 티켓" value={ticketMetrics.totalOpen} unit="건" prev={25} flip icon={Inbox} color="bg-blue-100 text-blue-600" />
+                <MetricCard label="Open 이벤트" value={ticketMetrics.totalOpen} unit="건" prev={25} flip icon={Inbox} color="bg-blue-100 text-blue-600" />
                 <MetricCard label="Overdue" value={ticketMetrics.overdue} unit="건" prev={10} flip icon={XCircle} color="bg-red-100 text-red-600" />
                 <MetricCard label="평균 처리 일수" value={ticketMetrics.avgResolutionDays} unit="일" prev={ticketMetrics.avgResolutionPrev} flip icon={Timer} color="bg-emerald-100 text-emerald-600" />
                 <MetricCard label="금월 완료" value={ticketMetrics.closedThisMonth} unit="건" prev={ticketMetrics.closedPrev} icon={CheckCircle} color="bg-green-100 text-green-600" />
@@ -378,7 +378,7 @@ export default function SystemHealthReviewPage() {
                 <CardHeader className="pb-3">
                   <CardTitle className="text-base flex items-center gap-2">
                     <XCircle className="h-4 w-4 text-red-500" />
-                    Overdue 티켓 목록
+                    Overdue 이벤트 목록
                     <Badge variant="destructive" className="text-xs ml-1">{overdueTickets.length}</Badge>
                   </CardTitle>
                 </CardHeader>
@@ -561,7 +561,7 @@ export default function SystemHealthReviewPage() {
 
               {/* Workload chart */}
               <Card>
-                <CardHeader className="pb-2"><CardTitle className="text-sm">팀원별 티켓 분포</CardTitle></CardHeader>
+                <CardHeader className="pb-2"><CardTitle className="text-sm">팀원별 이벤트 분포</CardTitle></CardHeader>
                 <CardContent>
                   <div className="h-56">
                     <ResponsiveContainer width="100%" height="100%">

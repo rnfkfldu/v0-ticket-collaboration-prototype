@@ -58,7 +58,7 @@ export default function WorkItemDetailPage() {
     setItem(prev => prev ? {
       ...prev,
       linkedTickets: [...prev.linkedTickets, newLinked],
-      notes: [{ id: `n-${Date.now()}`, date: new Date().toISOString().split("T")[0], author: "시스템", content: `티켓 #${ticket.id} "${ticket.title}" 연결됨`, type: "ticket-update" as const }, ...prev.notes]
+      notes: [{ id: `n-${Date.now()}`, date: new Date().toISOString().split("T")[0], author: "시스템", content: `이벤트 #${ticket.id} "${ticket.title}" 연결됨`, type: "ticket-update" as const }, ...prev.notes]
     } : null)
     setShowTicketSearch(false)
     setTicketSearchQuery("")
@@ -68,7 +68,7 @@ export default function WorkItemDetailPage() {
     setItem(prev => prev ? {
       ...prev,
       linkedTickets: prev.linkedTickets.filter(t => t.id !== ticketId),
-      notes: [{ id: `n-${Date.now()}`, date: new Date().toISOString().split("T")[0], author: "시스템", content: `티켓 #${ticketId} 연결 해제됨`, type: "ticket-update" as const }, ...prev.notes]
+      notes: [{ id: `n-${Date.now()}`, date: new Date().toISOString().split("T")[0], author: "시스템", content: `이벤트 #${ticketId} 연결 해제됨`, type: "ticket-update" as const }, ...prev.notes]
     } : null)
   }
 
@@ -163,7 +163,7 @@ export default function WorkItemDetailPage() {
                   <div className="grid grid-cols-3 gap-4 mb-4">
                     <div className="text-center p-4 rounded-lg bg-blue-50 border border-blue-100">
                       <div className="text-2xl font-bold text-blue-600">{item.linkedTickets.length}</div>
-                      <p className="text-xs text-blue-600 mt-1">연결 티켓</p>
+                      <p className="text-xs text-blue-600 mt-1">연결 이벤트</p>
                     </div>
                     <div className="text-center p-4 rounded-lg bg-amber-50 border border-amber-100">
                       <div className="text-2xl font-bold text-amber-600">
@@ -179,7 +179,7 @@ export default function WorkItemDetailPage() {
                   {item.linkedTickets.length > 0 && (
                     <div>
                       <div className="flex justify-between text-xs text-muted-foreground mb-1.5">
-                        <span>티켓 진행률</span>
+                        <span>이벤트 진행률</span>
                         <span className="font-medium">{progressPct}%</span>
                       </div>
                       <div className="h-2.5 bg-muted rounded-full overflow-hidden">
@@ -193,7 +193,7 @@ export default function WorkItemDetailPage() {
               {/* Tabs: Tickets + Notes */}
               <Tabs defaultValue="tickets">
                 <TabsList>
-                  <TabsTrigger value="tickets">연결 티켓 ({item.linkedTickets.length})</TabsTrigger>
+                  <TabsTrigger value="tickets">연결 이벤트 ({item.linkedTickets.length})</TabsTrigger>
                   <TabsTrigger value="notes">관리 이력 ({item.notes.length})</TabsTrigger>
                 </TabsList>
 
@@ -226,7 +226,7 @@ export default function WorkItemDetailPage() {
                   {item.linkedTickets.length === 0 && (
                     <div className="text-center py-10 text-muted-foreground">
                       <Link className="h-8 w-8 mx-auto mb-2 opacity-30" />
-                      <p className="text-sm">연결된 티켓이 없습니다.</p>
+                      <p className="text-sm">연결된 이벤트이 없습니다.</p>
                     </div>
                   )}
 
@@ -237,7 +237,7 @@ export default function WorkItemDetailPage() {
                           <div className="flex items-center gap-2">
                             <Search className="h-4 w-4 text-muted-foreground" />
                             <Input
-                              placeholder="티켓 검색 (ID 또는 제목)..."
+                              placeholder="이벤트 검색 (ID 또는 제목)..."
                               value={ticketSearchQuery}
                               onChange={e => setTicketSearchQuery(e.target.value)}
                               className="text-sm"
@@ -269,7 +269,7 @@ export default function WorkItemDetailPage() {
                       ) : (
                         <Button variant="outline" className="w-full bg-transparent gap-2" onClick={() => setShowTicketSearch(true)}>
                           <Plus className="h-4 w-4" />
-                          티켓 연결
+                          이벤트 연결
                         </Button>
                       )}
                     </>

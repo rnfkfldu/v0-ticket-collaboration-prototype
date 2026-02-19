@@ -156,7 +156,7 @@ export default function ReportsPage() {
                             <div className="flex items-center gap-3 mt-1 text-sm text-muted-foreground">
                               <span className="flex items-center gap-1"><User className="h-3 w-3" />{report.author}</span>
                               <span className="flex items-center gap-1"><Calendar className="h-3 w-3" />{report.createdDate}</span>
-                              <Badge variant="outline" className="text-xs">{report.sourceType === "ticket" ? "티켓" : "워크리스트"}</Badge>
+                              <Badge variant="outline" className="text-xs">{report.sourceType === "ticket" ? "이벤트" : "워크리스트"}</Badge>
                             </div>
                           </div>
                         </div>
@@ -194,7 +194,7 @@ export default function ReportsPage() {
                           <div className="flex items-center gap-3 mt-1 text-sm text-muted-foreground">
                             <span className="flex items-center gap-1"><User className="h-3 w-3" />{report.author}</span>
                             <span className="flex items-center gap-1"><Calendar className="h-3 w-3" />{report.approvedDate}</span>
-                            <Badge variant="outline" className="text-xs">{report.sourceType === "ticket" ? "티켓" : "워크리스트"}</Badge>
+                            <Badge variant="outline" className="text-xs">{report.sourceType === "ticket" ? "이벤트" : "워크리스트"}</Badge>
                           </div>
                         </div>
                       </div>
@@ -291,7 +291,7 @@ export default function ReportsPage() {
                   )}>
                     {selectedReport.status === "approved" ? "승인됨" : "결재 대기"}
                   </Badge>
-                  <Badge variant="outline" className="text-xs">{selectedReport.sourceType === "ticket" ? "티켓" : "워크리스트"}</Badge>
+                  <Badge variant="outline" className="text-xs">{selectedReport.sourceType === "ticket" ? "이벤트" : "워크리스트"}</Badge>
                 </div>
                 <DialogTitle className="text-lg mt-1">{selectedReport.title}</DialogTitle>
                 <DialogDescription>

@@ -14,7 +14,7 @@ import { MessageCircleQuestion, Send, Bug, Lightbulb } from "lucide-react"
 const FEEDBACK_HISTORY = [
   { id: 1, type: "bug", title: "DCS Screen View 로딩 지연", status: "resolved", date: "2025-01-20", reply: "v2.3.5 패치로 해결되었습니다." },
   { id: 2, type: "suggestion", title: "Trend 비교 시 다중 Tag 선택 기능 요청", status: "reviewing", date: "2025-01-25", reply: "" },
-  { id: 3, type: "bug", title: "티켓 목록 필터 초기화 문제", status: "resolved", date: "2025-01-15", reply: "v2.3.4에서 수정 완료되었습니다." },
+  { id: 3, type: "bug", title: "이벤트 목록 필터 초기화 문제", status: "resolved", date: "2025-01-15", reply: "v2.3.4에서 수정 완료되었습니다." },
 ]
 
 export default function FeedbackPage() {

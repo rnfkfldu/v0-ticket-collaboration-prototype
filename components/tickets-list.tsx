@@ -314,7 +314,7 @@ export function TicketsList() {
         </div>
         <p className="text-foreground">
           <span className="font-semibold">
-            {assignedTickets.length}개의 오픈 티켓 중 {blockedCount}개
+            {assignedTickets.length}개의 오픈 이벤트 중 {blockedCount}개
           </span>{" "}
           가 차단 상태입니다
         </p>
@@ -387,20 +387,20 @@ export function TicketsList() {
 
       <Tabs defaultValue="assigned" className="w-full">
         <TabsList>
-          <TabsTrigger value="assigned">나에게 할당된 티켓 ({filteredAssignedTickets.length})</TabsTrigger>
-          <TabsTrigger value="closed">완료된 티켓 ({filteredClosedTickets.length})</TabsTrigger>
+          <TabsTrigger value="assigned">나에게 할당된 이벤트 ({filteredAssignedTickets.length})</TabsTrigger>
+          <TabsTrigger value="closed">완료된 이벤트 ({filteredClosedTickets.length})</TabsTrigger>
         </TabsList>
 
         <TabsContent value="assigned" className="space-y-4">
           <div className="text-sm text-muted-foreground">
-            {assignedTickets.length}개 중 {filteredAssignedTickets.length}개의 오픈 티켓 표시
+            {assignedTickets.length}개 중 {filteredAssignedTickets.length}개의 오픈 이벤트 표시
           </div>
           <TicketsTable ticketsList={filteredAssignedTickets} />
         </TabsContent>
 
         <TabsContent value="closed" className="space-y-4">
           <div className="text-sm text-muted-foreground">
-            {closedTickets.length}개 중 {filteredClosedTickets.length}개의 완료된 티켓 표시
+            {closedTickets.length}개 중 {filteredClosedTickets.length}개의 완료된 이벤트 표시
           </div>
           <TicketsTable ticketsList={filteredClosedTickets} />
         </TabsContent>
@@ -418,9 +418,9 @@ export function TicketsList() {
       <AlertDialog open={deleteTicketId !== null} onOpenChange={() => setDeleteTicketId(null)}>
         <AlertDialogContent>
           <AlertDialogHeader>
-            <AlertDialogTitle>티켓 삭제</AlertDialogTitle>
+            <AlertDialogTitle>이벤트 삭제</AlertDialogTitle>
             <AlertDialogDescription>
-              정말 이 티켓을 삭제하시겠습니까? 이 작업은 되돌릴 수 없습니���.
+              정말 이 이벤트을 삭제하시겠습니까? 이 작업은 되돌릴 수 없습니���.
             </AlertDialogDescription>
           </AlertDialogHeader>
           <AlertDialogFooter>

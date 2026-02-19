@@ -2,7 +2,7 @@ import type { Ticket } from "./types"
 
 export function getMockTickets(): Ticket[] {
   return [
-    // 진행 중 티켓 (30개)
+    // 진행 중 이벤트 (30개)
     {
       id: "1",
       title: "VDU Overhead Temperature 가이드 검토",
@@ -520,7 +520,7 @@ export function getMockTickets(): Ticket[] {
     },
     {
       id: "23",
-      title: "CDU Overhead Condenser 청소 계획",
+      title: "CDU Overhead Condenser 청소 ��획",
       description: "CDU Overhead Condenser 청소 시기 및 방법 계획 수립",
       ticketType: "Request",
       priority: "P3",
@@ -903,7 +903,7 @@ export function getMockTickets(): Ticket[] {
       messages: [],
     },
 
-    // 모델 개선 요청 티켓
+    // 모델 개선 요청 이벤트
     {
       id: "model-1",
       title: "HCR RTO 모델 성능 저하 - 재구성 요청",
@@ -986,7 +986,7 @@ export function getMockTickets(): Ticket[] {
       messages: [],
     },
 
-    // 실공정 테스트 티켓
+    // 실공정 테스트 이벤트
     {
       id: "test-1",
       title: "HCR Quench 분배 비율 변경 테스트",
@@ -1086,7 +1086,7 @@ export function getMockTickets(): Ticket[] {
       messages: [],
     },
 
-    // 완료된 티켓 (20개)
+    // 완료된 이벤트 (20개)
     {
       id: "c1",
       title: "CDU Feed Preheat 온도 조정",

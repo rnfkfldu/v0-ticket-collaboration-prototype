@@ -105,7 +105,7 @@ const AGENDA_STATUS_CONFIG: Record<AgendaStatus, { label: string; icon: React.El
 }
 
 const SOURCE_LABELS: Record<AgendaSource, { label: string; color: string }> = {
-  ticket: { label: "티켓", color: "bg-primary/10 text-primary" },
+  ticket: { label: "이벤트", color: "bg-primary/10 text-primary" },
   manual: { label: "수동추가", color: "bg-muted text-muted-foreground" },
   carryover: { label: "캐리오버", color: "bg-amber-100 text-amber-700" },
 }
@@ -181,7 +181,7 @@ const INITIAL_MEETINGS: Meeting[] = [
         presenter: "박안전",
         status: "follow-up",
         decision: "6월 TA scope에 포함 확정.",
-        followUpNote: "Catalyst 발주 품의 진행 (담당: 박안전, 기한: 2/28)",
+        followUpNote: "Catalyst 발주 품의 진행 (담���: 박안전, 기한: 2/28)",
       },
     ],
   },
@@ -656,7 +656,7 @@ export default function MeetingsPage() {
                     <div className="p-12 text-center border border-dashed rounded-lg">
                       <FileText className="h-10 w-10 mx-auto mb-3 text-muted-foreground/30" />
                       <p className="text-sm text-muted-foreground mb-1">안건이 없습니다</p>
-                      <p className="text-xs text-muted-foreground">티켓을 안건화하거나 수동으로 추가하세요</p>
+                      <p className="text-xs text-muted-foreground">이벤트을 안건화하거나 수동으로 추가하세요</p>
                     </div>
                   ) : (
                     selectedMeeting.agendas.map((agenda, idx) => {
@@ -737,7 +737,7 @@ export default function MeetingsPage() {
                                     <div className="grid grid-cols-2 gap-4">
                                       {/* Left: Ticket Content */}
                                       <div className="space-y-3">
-                                        <h4 className="text-xs font-semibold text-muted-foreground flex items-center gap-1.5"><Ticket className="h-3.5 w-3.5" />티켓 상세</h4>
+                                        <h4 className="text-xs font-semibold text-muted-foreground flex items-center gap-1.5"><Ticket className="h-3.5 w-3.5" />이벤트 상세</h4>
                                         {agenda.ticketId ? (
                                           <div className="p-3 bg-muted/30 rounded-lg border space-y-2">
                                             <div className="flex items-center gap-2">
@@ -745,10 +745,10 @@ export default function MeetingsPage() {
                                               {agenda.ticketType && <Badge variant="outline" className="text-xs">{TICKET_TYPE_LABELS[agenda.ticketType] || agenda.ticketType}</Badge>}
                                             </div>
                                             <p className="text-sm font-medium">{agenda.title}</p>
-                                            <p className="text-xs text-muted-foreground">{agenda.description || "상세 내용은 티켓을 참조하세요."}</p>
+                                            <p className="text-xs text-muted-foreground">{agenda.description || "상세 내용은 이벤트을 참조하세요."}</p>
                                             <div className="text-xs text-muted-foreground">발표자: {agenda.presenter || "-"}</div>
                                             {agenda.decision && <div className="p-2 bg-green-50 border border-green-200 rounded text-xs text-green-800"><strong>결정사항:</strong> {agenda.decision}</div>}
-                                            <Button variant="outline" size="sm" className="text-xs bg-transparent gap-1"><ExternalLink className="h-3 w-3" />티켓 전체보기</Button>
+                                            <Button variant="outline" size="sm" className="text-xs bg-transparent gap-1"><ExternalLink className="h-3 w-3" />이벤트 전체보기</Button>
                                           </div>
                                         ) : (
                                           <div className="p-3 bg-muted/30 rounded-lg border">
@@ -883,18 +883,18 @@ export default function MeetingsPage() {
         <DialogContent className="max-w-lg max-h-[75vh]">
           <DialogHeader>
             <DialogTitle>안건 추가</DialogTitle>
-            <DialogDescription>티켓을 안건화하거나 수동으로 안건을 추가합니다.</DialogDescription>
+            <DialogDescription>이벤트을 안건화하거나 수동으로 안건을 추가합니다.</DialogDescription>
           </DialogHeader>
 
           <Tabs value={agendaMode} onValueChange={(v) => setAgendaMode(v as typeof agendaMode)}>
             <TabsList className="w-full">
-              <TabsTrigger value="ticket" className="flex-1">티켓에서 추가</TabsTrigger>
+              <TabsTrigger value="ticket" className="flex-1">이벤트에서 추가</TabsTrigger>
               <TabsTrigger value="manual" className="flex-1">수동 추가</TabsTrigger>
             </TabsList>
 
             <TabsContent value="ticket" className="space-y-3 mt-3">
               <Input
-                placeholder="티켓 ID 또는 제목 검색..."
+                placeholder="이벤트 ID 또는 제목 검색..."
                 value={agendaSearch}
                 onChange={(e) => setAgendaSearch(e.target.value)}
               />

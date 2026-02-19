@@ -303,7 +303,7 @@ export default function MonthlyReviewPage() {
 
               {/* Ticket throughput */}
               <Card>
-                <CardHeader className="pb-2"><CardTitle className="text-sm">티켓 처리 현황 (6개월)</CardTitle></CardHeader>
+                <CardHeader className="pb-2"><CardTitle className="text-sm">이벤트 처리 현황 (6개월)</CardTitle></CardHeader>
                 <CardContent>
                   <div className="h-48">
                     <ResponsiveContainer width="100%" height="100%">

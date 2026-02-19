@@ -90,7 +90,7 @@ export function TeamDashboard() {
         <Card className="p-4 border-2">
           <div className="flex items-center justify-between">
             <div>
-              <p className="text-sm text-muted-foreground">전체 티켓</p>
+              <p className="text-sm text-muted-foreground">전체 이벤트</p>
               <p className="text-2xl font-bold text-foreground">{stats.total}</p>
             </div>
             <div className="h-10 w-10 rounded-full bg-primary/10 flex items-center justify-center">
@@ -221,7 +221,7 @@ export function TeamDashboard() {
       </Card>
 
       <Card className="p-6">
-        <h3 className="text-lg font-semibold text-foreground mb-4">전체 티켓</h3>
+        <h3 className="text-lg font-semibold text-foreground mb-4">전체 이벤트</h3>
         <div className="space-y-3">
           {tickets.map((ticket) => (
             <Link key={ticket.id} href={`/tickets/${ticket.id}`}>

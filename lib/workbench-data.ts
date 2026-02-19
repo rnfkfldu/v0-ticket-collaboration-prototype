@@ -47,7 +47,7 @@ export const INITIAL_WORK_ITEMS: WorkItem[] = [
     ],
     notes: [
       { id: "n1", date: "2025-02-10", author: "김철수", content: "Bio Diesel 원료 샘플 테스트 결과 수령. CFPP 분석 진행 중.", type: "manual" },
-      { id: "n2", date: "2025-01-20", author: "시스템", content: "관련 티켓 #1 상태 변경: Open → In Progress", type: "ticket-update" },
+      { id: "n2", date: "2025-01-20", author: "시스템", content: "관련 이벤트 #1 상태 변경: Open → In Progress", type: "ticket-update" },
     ],
   },
   {

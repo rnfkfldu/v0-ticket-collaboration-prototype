@@ -64,7 +64,7 @@ const mainMenus = [
     label: "Actions", 
     href: "/alerts",
     icon: Zap,
-    description: "티켓 및 업무 관리"
+    description: "이벤트 및 업무 관리"
   },
   { 
     id: "optimization",
@@ -151,7 +151,7 @@ export function TopNavigation() {
     {
       id: "1",
       role: "assistant",
-      content: "안녕하세요! OOP Assistant입니다. 공정 운전 현황, 데이터 분석, 티켓 관리 등에 대해 질문해 주세요.",
+      content: "안녕하세요! OOP Assistant입니다. 공정 운전 현황, 데이터 분석, 이벤트 관리 등에 대해 질문해 주세요.",
       timestamp: new Date().toLocaleTimeString("ko-KR", { hour: "2-digit", minute: "2-digit" })
     }
   ])
@@ -194,8 +194,8 @@ export function TopNavigation() {
         responseContent = "현재 주요 온도 현황입니다:\n\n- HCR Reactor Inlet: 392°C (Guide: 390°C) - 주의\n- VDU Column Top: 125°C (정상)\n- CDU Preheater Outlet: 365°C (정상)\n\nHCR Reactor Inlet 온도가 Guide 대비 2°C 높은 상황입니다. 상세 트렌드를 확인하시겠습니까?"
       } else if (lowerInput.includes("알람") || lowerInput.includes("alert")) {
         responseContent = "현재 활성 알람 현황:\n\n- Critical: 1건 (HCR Reactor Temp High)\n- Warning: 2건\n- Standing Alert: 3건\n\nMy Alert 페이지에서 상세 내용을 확인하실 수 있습니다."
-      } else if (lowerInput.includes("티켓") || lowerInput.includes("ticket")) {
-        responseContent = "현재 티켓 현황입니다:\n\n- Open: 5건\n- In Progress: 8건\n- 마감 임박 (7일 이내): 3건\n\n가장 우선순위가 높은 티켓은 'HCR 촉매 성능 저하 분석' (P1)입니다."
+      } else if (lowerInput.includes("이벤트") || lowerInput.includes("ticket")) {
+        responseContent = "현재 이벤트 현황입니다:\n\n- Open: 5건\n- In Progress: 8건\n- 마감 임박 (7일 이내): 3건\n\n가장 우선순위가 높은 이벤트은 'HCR 촉매 성능 저하 분석' (P1)입니다."
       } else if (lowerInput.includes("촉매") || lowerInput.includes("catalyst")) {
         responseContent = "HCR 촉매 현황 요약:\n\n- 현재 WABT: 385°C\n- SOR WABT: 370°C\n- EOR Target: 400°C\n- 예상 수명: 약 8개월\n\n최근 WABT 상승률이 증가하고 있어 주의가 필요합니다."
       } else {
@@ -368,9 +368,9 @@ export function TopNavigation() {
                     variant="outline" 
                     size="sm" 
                     className="text-xs bg-transparent"
-                    onClick={() => setChatInput("내 티켓 현황")}
+                    onClick={() => setChatInput("내 이벤트 현황")}
                   >
-                    티켓 현황
+                    이벤트 현황
                   </Button>
                 </div>
               </div>

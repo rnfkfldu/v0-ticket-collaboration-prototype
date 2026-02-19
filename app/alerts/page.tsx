@@ -220,7 +220,7 @@ const SAMPLE_ALERTS: AlertItem[] = [
     triggerSetpoint: { high: 400, low: 350 },
     alarmHistory: [
       { timestamp: "2025-01-15 09:20", value: 405, action: "인지 후 조치" },
-      { timestamp: "2025-01-28 14:45", value: 402, action: "티켓 발행 (TKT-2025-0128)" },
+      { timestamp: "2025-01-28 14:45", value: 402, action: "이벤트 발행 (TKT-2025-0128)" },
       { timestamp: "2024-12-20 11:30", value: 408, action: "Shelved (계획정비)" }
     ],
     alarmBackground: "HCR Reactor 안전운전을 위해 설정. 온도 초과 시 촉매 비활성화 및 코킹 가능성 증가. Safety Study(2023) 결과 반영.",
@@ -247,7 +247,7 @@ const SAMPLE_ALERTS: AlertItem[] = [
     triggerSetpoint: { high: 3.5, low: 2.5 },
     alarmHistory: [
       { timestamp: "2025-02-01 08:10", value: 2.4, action: "인지" },
-      { timestamp: "2025-01-20 16:30", value: 2.3, action: "티켓 발행" }
+      { timestamp: "2025-01-20 16:30", value: 2.3, action: "이벤트 발행" }
     ],
     alarmBackground: "CCR Regenerator 정상 운전 압력 범위. 저압 시 촉매 재생 효율 저하 우려.",
     data: {
@@ -383,7 +383,7 @@ const SAMPLE_ALERTS: AlertItem[] = [
     id: "NTC-004",
     type: "notice",
     subType: "communication",
-    title: "티켓 업데이트: HCR 촉매 교체 검토",
+    title: "이벤트 업데이트: HCR 촉매 교체 검토",
     description: "Process Engineering팀 박영희님이 의견을 추가했습니다.",
     timestamp: "2025-02-02 11:30",
     status: "unread",
@@ -524,7 +524,7 @@ const SAMPLE_ALERTS: AlertItem[] = [
         { title: "2. 에너지 효율 (EII)", content: "EII: 98.2 (목표 97 이하 - 미달). CDU Heater Efficiency 91.3%. 한파로 인한 증기 소모량 증가가 주요 원인.", hasChange: true },
         { title: "3. 안전/환경", content: "무사고 연속 432일. SO2 배출 월평균 12.3 ppm (허용 35 ppm). 폐수 COD 85 mg/L (허용 120 mg/L).", hasChange: false },
         { title: "4. 주요 이슈 및 대응", content: "HCR WABT 상승 추세 지속 (月末 395C). E-101 Fouling 진행 UA값 88%. P-201B Seal Oil Leak 발견 (경미).", hasChange: true },
-        { title: "5. 다음 달 계획", content: "Arabian Medium 전환 운전 예정. HCR 촉매 활성 모니터링 강화. E-101 세정 시기 검토.", hasChange: false }
+        { title: "5. 다음 달 계획", content: "Arabian Medium 전환 운전 예정. HCR 촉매 활성 모니터링 강화. E-101 ���정 시기 검토.", hasChange: false }
       ],
       reviewHistory: [
         { date: "2025-01-06", reviewer: "김철수", version: "2024년 12월 Report v1.0", comment: "CDU 처리량 소폭 증가 확인, 에너지 효율 개선 필요" },
@@ -698,7 +698,7 @@ export default function AlertsPage() {
       case "anomaly": return "이상징후"
       case "long-term": return "장기 모니터링"
       case "efficiency": return "효율성"
-      case "communication": return "티켓 업데이트"
+      case "communication": return "이벤트 업데이트"
       case "custom-alarm": return "커스텀 알람"
       case "external-data": return "외부 데이터"
       case "auto-calc": return "자동 계산"
@@ -838,7 +838,7 @@ export default function AlertsPage() {
     setTicketImpact("Throughput")
     setTicketDueDate("")
     
-    // 생성된 티켓으로 이동
+    // 생성된 이벤트으로 이동
     router.push(`/tickets/${newTicket.id}`)
   }
 
@@ -861,7 +861,7 @@ export default function AlertsPage() {
         // 상세 설명에 엔지니어 의견과 관련 데이터 포함
         let desc = alertItem.description
         desc += "\n\n### 엔지니어 검토 의견"
-        desc += `\n- 판정: 티켓화 (즉시 조치 필요)`
+        desc += `\n- 판정: 이벤트화 (즉시 조치 필요)`
         desc += `\n- 검토일시: ${new Date().toLocaleString("ko-KR")}`
         if (engineerLog) {
           desc += `\n- 검토 의견: ${engineerLog}`
@@ -1593,7 +1593,7 @@ export default function AlertsPage() {
                                 <span className="text-green-600 ml-2">Feed Flow 감소 조치 (120 → 105 m3/h), 15분 후 정상 복귀</span>
                               </div>
                               <Button variant="link" className="text-xs p-0 h-auto" onClick={() => router.push("/tickets/1")}>
-                                관련 티켓 TKT-2024-0892 보기
+                                관련 이벤트 TKT-2024-0892 보기
                               </Button>
                             </div>
                           </div>
@@ -1619,7 +1619,7 @@ export default function AlertsPage() {
                                 <span className="text-green-600 ml-2">긴급 감량 운전 실시, Quench 주입량 증가, 촉매 활성도 점검 후 정상화</span>
                               </div>
                               <Button variant="link" className="text-xs p-0 h-auto" onClick={() => router.push("/tickets/1")}>
-                                관련 티켓 TKT-2024-0654 보기
+                                관련 이벤트 TKT-2024-0654 보기
                               </Button>
                             </div>
                           </div>
@@ -1645,7 +1645,7 @@ export default function AlertsPage() {
                                 <span className="text-green-600 ml-2">Thermocouple 오작동으로 확인, 센서 교체 후 정상화 (계기 문제)</span>
                               </div>
                               <Button variant="link" className="text-xs p-0 h-auto" onClick={() => router.push("/tickets/1")}>
-                                관련 티켓 TKT-2024-0421 보기
+                                관련 이벤트 TKT-2024-0421 보기
                               </Button>
                             </div>
                           </div>
@@ -1869,7 +1869,7 @@ export default function AlertsPage() {
                                 <div className="p-3 space-y-2">
                                   <p className="text-sm text-muted-foreground">{issue.description}</p>
                                   
-                                  {/* 연결 티켓 */}
+                                  {/* 연결 이벤트 */}
                                   {issue.linkedTicketId && (
                                     <button
                                       onClick={() => router.push(`/tickets/${issue.linkedTicketId}`)}
@@ -2081,7 +2081,7 @@ export default function AlertsPage() {
                                       {isExpanded ? <ChevronDown className="h-3.5 w-3.5 text-muted-foreground" /> : <ChevronRight className="h-3.5 w-3.5 text-muted-foreground" />}
                                       <span className="text-sm font-medium">{section.title}</span>
                                       {section.hasChange && (
-                                        <Badge variant="outline" className="text-xs h-5 border-amber-400 text-amber-700 bg-amber-50">변경사항</Badge>
+                                        <Badge variant="outline" className="text-xs h-5 border-amber-400 text-amber-700 bg-amber-50">���경사항</Badge>
                                       )}
                                     </div>
                                   </button>
@@ -2256,7 +2256,7 @@ export default function AlertsPage() {
                               )}
                             >
                               <FileText className={cn("h-5 w-5 mx-auto mb-1", engineerOpinion === "ticket" ? "text-red-500" : "text-muted-foreground")} />
-                              <span className="text-sm font-medium">티켓화</span>
+                              <span className="text-sm font-medium">이벤트화</span>
                               <p className="text-xs text-muted-foreground mt-1">즉시 조치 필요</p>
                             </button>
                           </div>
@@ -2282,7 +2282,7 @@ export default function AlertsPage() {
                                 engineerOpinion === "ticket" && "bg-red-600 hover:bg-red-700"
                               )}
                             >
-                              {engineerOpinion === "ticket" ? "티켓 생성하기" : "의견 저장"}
+                              {engineerOpinion === "ticket" ? "이벤트 생성하기" : "의견 저장"}
                             </Button>
                           </div>
                         )}
@@ -2290,7 +2290,7 @@ export default function AlertsPage() {
                     </Card>
                   )}
 
-                  {/* 티켓 업데이트 상세 */}
+                  {/* 이벤트 업데이트 상세 */}
                   {selectedAlert.subType === "communication" && (
                     <Card className="border-blue-200 bg-blue-50/50">
                       <CardHeader className="pb-2">
@@ -2329,7 +2329,7 @@ export default function AlertsPage() {
                             onClick={() => router.push(`/tickets/${selectedAlert.linkedTicketId}`)}
                           >
                             <ExternalLink className="h-4 w-4 mr-2" />
-                            티켓 상세 페이지로 이동
+                            이벤트 상세 페이지로 이동
                           </Button>
                         )}
                       </CardContent>
@@ -2490,10 +2490,10 @@ export default function AlertsPage() {
                                 </div>
                                 <div className="p-2 bg-green-50 border border-green-100 rounded text-sm">
                                   <span className="font-medium text-green-700">조치:</span>
-                                  <span className="text-green-600 ml-2">Feed 변경(Medium → Light)에 따른 일시적 증가, 티켓 발행하여 추적</span>
+                                  <span className="text-green-600 ml-2">Feed 변경(Medium → Light)에 따른 일시적 증가, 이벤트 발행하여 추적</span>
                                 </div>
                                 <Button variant="link" className="text-xs p-0 h-auto" onClick={() => router.push("/tickets/1")}>
-                                  관련 티켓 TKT-2024-1205 보기
+                                  관련 이벤트 TKT-2024-1205 보기
                                 </Button>
                               </div>
                             </div>
@@ -2599,12 +2599,12 @@ export default function AlertsPage() {
                     </Button>
                   )}
 
-                  {/* Alert 타입: Standing Alert인 경우 - 티켓 발행 / Shelved 처리 */}
+                  {/* Alert 타입: Standing Alert인 경우 - 이벤트 발행 / Shelved 처리 */}
                   {selectedAlert.type === "alert" && selectedAlert.alertState === "standing" && (
                     <>
                       <Button onClick={() => handleCreateTicket(selectedAlert)}>
                         <FileText className="h-4 w-4 mr-2" />
-                        티켓 발행
+                        이벤트 발행
                       </Button>
                       <Button variant="outline" onClick={() => setShowShelvedDialog(true)}>
                         <Clock className="h-4 w-4 mr-2" />
@@ -2627,7 +2627,7 @@ export default function AlertsPage() {
                   {selectedAlert.subType === "communication" && selectedAlert.linkedTicketId && (
                     <Button onClick={() => router.push(`/tickets/${selectedAlert.linkedTicketId}`)}>
                       <ExternalLink className="h-4 w-4 mr-2" />
-                      티켓 확인하기
+                      이벤트 확인하기
                     </Button>
                   )}
 
@@ -2640,7 +2640,7 @@ export default function AlertsPage() {
                       </Button>
                       <Button onClick={() => handleCreateTicket(selectedAlert)}>
                         <FileText className="h-4 w-4 mr-2" />
-                        티켓 형성
+                        이벤트 형성
                       </Button>
                     </>
                   )}
@@ -2685,7 +2685,7 @@ export default function AlertsPage() {
                         onClick={() => handleCreateTicket(selectedAlert)}
                       >
                         <FileText className="h-4 w-4 mr-2" />
-                        티켓화
+                        이벤트화
                       </Button>
                     </>
                   )}
@@ -2806,18 +2806,18 @@ export default function AlertsPage() {
           </DialogContent>
         </Dialog>
 
-        {/* 티켓 생성 다이얼로그 - 새 티켓과 동일한 양식 */}
+        {/* 이벤트 생성 다이얼로그 - 새 이벤트과 동일한 양식 */}
         <Dialog open={showTicketDialog} onOpenChange={setShowTicketDialog}>
           <DialogContent className="max-w-2xl max-h-[90vh] overflow-y-auto">
             <DialogHeader>
               <DialogTitle className="flex items-center gap-2">
                 <FileText className="h-5 w-5" />
-                티켓 생성
+                이벤트 생성
               </DialogTitle>
             </DialogHeader>
             <div className="space-y-6 py-4">
               <div className="space-y-2">
-                <Label htmlFor="ticket-title">티켓 제목 *</Label>
+                <Label htmlFor="ticket-title">이벤트 제목 *</Label>
                 <Input 
                   id="ticket-title"
                   value={ticketTitle} 
@@ -2833,13 +2833,13 @@ export default function AlertsPage() {
                   value={ticketDescription} 
                   onChange={(e) => setTicketDescription(e.target.value)}
                   className="min-h-32"
-                  placeholder="티켓에 대한 상세 설명"
+                  placeholder="이벤트에 대한 상세 설명"
                 />
               </div>
 
               <div className="grid grid-cols-2 gap-4">
                 <div className="space-y-2">
-                  <Label>티켓 유형</Label>
+                  <Label>이벤트 유형</Label>
                   <Select value={ticketType} onValueChange={(v: typeof ticketType) => setTicketType(v)}>
                     <SelectTrigger>
                       <SelectValue />
@@ -2922,7 +2922,7 @@ export default function AlertsPage() {
               <Button variant="outline" onClick={() => setShowTicketDialog(false)}>취소</Button>
               <Button onClick={handleSubmitTicket} disabled={!ticketTitle.trim()}>
                 <FileText className="h-4 w-4 mr-2" />
-                티켓 생성
+                이벤트 생성
               </Button>
             </DialogFooter>
           </DialogContent>
@@ -3246,12 +3246,12 @@ export default function AlertsPage() {
                 </div>
               </div>
 
-              {/* 관련 티켓 링크 */}
+              {/* 관련 이벤트 링크 */}
               <div className="space-y-2">
-                <Label>관련 티켓 연결 (선택)</Label>
+                <Label>관련 이벤트 연결 (선택)</Label>
                 <Select value={dailyReportLinkedTicketId} onValueChange={setDailyReportLinkedTicketId}>
                   <SelectTrigger>
-                    <SelectValue placeholder="연결할 티켓 선택..." />
+                    <SelectValue placeholder="연결할 이벤트 선택..." />
                   </SelectTrigger>
                   <SelectContent>
                     <SelectItem value="none">연결하지 않음</SelectItem>

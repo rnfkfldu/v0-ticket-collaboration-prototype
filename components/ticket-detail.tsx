@@ -299,7 +299,7 @@ export function TicketDetail({ ticket: initialTicket }: TicketDetailProps) {
                     <DialogContent className="max-w-4xl max-h-[80vh] overflow-y-auto">
                       <DialogHeader>
                         <DialogTitle>추가 설명 정보</DialogTitle>
-                        <DialogDescription>티켓 생성자가 입력한 추가 설명 및 참조 데이터입니다.</DialogDescription>
+                        <DialogDescription>이벤트 생성자가 입력한 추가 설명 및 참조 데이터입니다.</DialogDescription>
                       </DialogHeader>
                       <div className="space-y-4">
                         {ticket.additionalDetails.text && (
@@ -440,7 +440,7 @@ export function TicketDetail({ ticket: initialTicket }: TicketDetailProps) {
               <div className="flex gap-2 justify-center">
                 <Button variant="outline" className="gap-2 bg-transparent" onClick={() => setShowReopenDialog(true)}>
                   <RotateCcw className="h-4 w-4" />
-                  티켓 재오픈
+                  이벤트 재오픈
                 </Button>
               </div>
             </Card>
@@ -451,9 +451,9 @@ export function TicketDetail({ ticket: initialTicket }: TicketDetailProps) {
       <AlertDialog open={showCloseDialog} onOpenChange={setShowCloseDialog}>
         <AlertDialogContent>
           <AlertDialogHeader>
-            <AlertDialogTitle>티켓 종결</AlertDialogTitle>
+            <AlertDialogTitle>이벤트 종결</AlertDialogTitle>
             <AlertDialogDescription>
-              티켓을 종결 처리합니다. 티켓 유형 및 중요도에 따라 종료 Report 작성이 요구될 수 있습니다. 진행하시겠습니까?
+              이벤트을 종결 처리합니다. 이벤트 유형 및 중요도에 따라 종료 Report 작성이 요구될 수 있습니다. 진행하시겠습니까?
             </AlertDialogDescription>
           </AlertDialogHeader>
           <AlertDialogFooter>
@@ -478,9 +478,9 @@ export function TicketDetail({ ticket: initialTicket }: TicketDetailProps) {
       <AlertDialog open={showReopenDialog} onOpenChange={setShowReopenDialog}>
         <AlertDialogContent>
           <AlertDialogHeader>
-            <AlertDialogTitle>티켓 재오픈</AlertDialogTitle>
+            <AlertDialogTitle>이벤트 재오픈</AlertDialogTitle>
             <AlertDialogDescription>
-              완료된 티켓을 다시 열겠습니까? 기존 완료 보고서는 참고용으로 유지됩니다.
+              완료된 이벤트을 다시 열겠습니까? 기존 완료 보고서는 참고용으로 유지됩니다.
             </AlertDialogDescription>
           </AlertDialogHeader>
           <AlertDialogFooter>

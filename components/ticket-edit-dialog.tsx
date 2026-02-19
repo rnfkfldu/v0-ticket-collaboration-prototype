@@ -86,13 +86,13 @@ export function TicketEditDialog({ ticket, open, onOpenChange, onSuccess }: Tick
     <Dialog open={open} onOpenChange={onOpenChange}>
       <DialogContent className="max-w-2xl max-h-[90vh] overflow-y-auto">
         <DialogHeader>
-          <DialogTitle>티켓 수정</DialogTitle>
-          <DialogDescription>티켓 정보를 수정합니다.</DialogDescription>
+          <DialogTitle>이벤트 수정</DialogTitle>
+          <DialogDescription>이벤트 정보를 수정합니다.</DialogDescription>
         </DialogHeader>
 
         <div className="space-y-4 py-4">
           <div className="space-y-2">
-            <Label htmlFor="edit-title">티켓 제목</Label>
+            <Label htmlFor="edit-title">이벤트 제목</Label>
             <Input
               id="edit-title"
               value={formData.title}
@@ -112,7 +112,7 @@ export function TicketEditDialog({ ticket, open, onOpenChange, onSuccess }: Tick
 
           <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
             <div className="space-y-2">
-              <Label htmlFor="edit-ticketType">티켓 유형</Label>
+              <Label htmlFor="edit-ticketType">이벤트 유형</Label>
               <Select
                 value={formData.ticketType}
                 onValueChange={(value) => setFormData({ ...formData, ticketType: value })}

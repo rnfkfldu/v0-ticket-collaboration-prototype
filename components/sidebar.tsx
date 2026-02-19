@@ -147,7 +147,7 @@ export function Sidebar({ unreadAlerts = 3 }: SidebarProps) {
   const actionsMenu: MenuSection[] = [
     {
       id: "alerts",
-      label: "Deviation & Alerts",
+      label: "My Alert",
       icon: Bell,
       items: [
         { label: "전체 알람", href: "/alerts", icon: Bell, count: 12 },
@@ -156,10 +156,10 @@ export function Sidebar({ unreadAlerts = 3 }: SidebarProps) {
     },
     {
       id: "workspace",
-      label: "My Action",
+      label: "My Activity",
       icon: Inbox,
       items: [
-        { label: "내 티켓", href: "/actions/tickets", icon: Inbox },
+        { label: "내 이벤트", href: "/actions/tickets", icon: Inbox },
         { label: "대시보드", href: "/dashboard", icon: LayoutDashboard },
       ]
     },
