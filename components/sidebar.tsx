@@ -496,40 +496,58 @@ export function Sidebar({ unreadAlerts = 3 }: SidebarProps) {
         </Button>
       </div>
 
-      {/* Scope Toggle - 담당공정 / 전체공정 */}
-      {!isCollapsed && (
-        <div className="px-3 py-2 border-b border-border">
-          <div className="flex items-center rounded-md bg-muted p-0.5">
-            <button
-              className={cn(
-                "flex-1 text-xs py-1.5 px-2 rounded-sm font-medium transition-colors text-center",
-                scopeMode === "my-processes"
-                  ? "bg-background text-foreground shadow-sm"
-                  : "text-muted-foreground hover:text-foreground"
-              )}
-              onClick={() => setScopeMode("my-processes")}
-            >
-              담당공정 ({currentUser.assignedProcessIds.length})
-            </button>
-            <button
-              className={cn(
-                "flex-1 text-xs py-1.5 px-2 rounded-sm font-medium transition-colors text-center",
-                scopeMode === "all-processes"
-                  ? "bg-background text-foreground shadow-sm"
-                  : "text-muted-foreground hover:text-foreground"
-              )}
-              onClick={() => setScopeMode("all-processes")}
-            >
-              전체공정 (50)
-            </button>
+      {/* Scope Toggle - 담당공정 / 전체공정 (Operations Live Monitoring, Long-Term Health, Optimization Model/Experiment 에서만 표시) */}
+      {!isCollapsed && (() => {
+        const showScopeToggle = 
+          // Operations: Live Monitoring (/, /operations, /operations/monitoring/*) 
+          (currentTopMenu === "operations" && (
+            pathname === "/operations" ||
+            pathname.startsWith("/operations/monitoring") ||
+            pathname.startsWith("/operations/unit") ||
+            // Long-Term Health
+            pathname.startsWith("/operations/health")
+          )) ||
+          // Optimization: Model-Based Optimization & Experiments
+          (currentTopMenu === "optimization" && (
+            pathname.startsWith("/optimization/ai-ml") ||
+            pathname.startsWith("/optimization/rto") ||
+            pathname.startsWith("/optimization/experiments")
+          ))
+        
+        return showScopeToggle ? (
+          <div className="px-3 py-2 border-b border-border">
+            <div className="flex items-center rounded-md bg-muted p-0.5">
+              <button
+                className={cn(
+                  "flex-1 text-xs py-1.5 px-2 rounded-sm font-medium text-center",
+                  scopeMode === "my-processes"
+                    ? "bg-background text-foreground shadow-sm"
+                    : "text-muted-foreground hover:text-foreground"
+                )}
+                onClick={() => setScopeMode("my-processes")}
+              >
+                담당공정 ({currentUser.assignedProcessIds.length})
+              </button>
+              <button
+                className={cn(
+                  "flex-1 text-xs py-1.5 px-2 rounded-sm font-medium text-center",
+                  scopeMode === "all-processes"
+                    ? "bg-background text-foreground shadow-sm"
+                    : "text-muted-foreground hover:text-foreground"
+                )}
+                onClick={() => setScopeMode("all-processes")}
+              >
+                전체공정 (50)
+              </button>
+            </div>
+            {scopeMode === "my-processes" && (
+              <p className="text-xs text-muted-foreground mt-1.5 px-1">
+                {currentUser.roleLabel} {currentUser.name}
+              </p>
+            )}
           </div>
-          {!isCollapsed && scopeMode === "my-processes" && (
-            <p className="text-xs text-muted-foreground mt-1.5 px-1">
-              {currentUser.roleLabel} {currentUser.name}
-            </p>
-          )}
-        </div>
-      )}
+        ) : null
+      })()}
 
       {/* Navigation */}
       <nav className="flex-1 overflow-y-auto py-2">
