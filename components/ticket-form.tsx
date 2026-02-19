@@ -18,6 +18,38 @@ import type { DataInsertBox } from "@/lib/types"
 import { DataInsertBoxConfig } from "@/components/data-insert-box-config"
 import { DataVisualization } from "@/components/data-visualization"
 import { UNIT_OWNERS, AVAILABLE_TAGS } from "@/lib/process-data"
+import { cn } from "@/lib/utils"
+
+// 우선순위 자동 판정 로직
+function autoDeterminePriority(unit: string, equipment: string): { priority: string; label: string; reason: string } {
+  // Safety-critical units or reactor equipment -> P1
+  if (unit === "HCR" && equipment.toLowerCase().includes("reactor")) {
+    return { priority: "P1", label: "P1 - 긴급", reason: "HCR Reactor 관련 → Safety Critical" }
+  }
+  // Reactor-related
+  if (["HCR", "CCR"].includes(unit)) {
+    return { priority: "P2", label: "P2 - 높음", reason: `${unit} Unit → 공정 영향도 높음` }
+  }
+  // Main distillation
+  if (["CDU", "VDU"].includes(unit)) {
+    return { priority: "P2", label: "P2 - 높음", reason: `${unit} Unit → 처리량 직접 영향` }
+  }
+  return { priority: "P3", label: "P3 - 보통", reason: "일반 공정 기술검토" }
+}
+
+// 이벤트 유형 자동 판정
+function autoMapEventType(unit: string): { type: string; impact: string } {
+  if (["HCR", "CCR"].includes(unit)) return { type: "Trouble", impact: "Safety" }
+  if (["CDU", "VDU"].includes(unit)) return { type: "Improvement", impact: "Throughput" }
+  return { type: "Improvement", impact: "Cost" }
+}
+
+const IMPACT_LABELS: Record<string, string> = {
+  Safety: "안전", Quality: "품질", Throughput: "처리량", Cost: "비용", Energy: "에너지",
+}
+const TYPE_LABELS: Record<string, string> = {
+  Improvement: "개선", Trouble: "문제", Change: "변경", Analysis: "분석",
+}
 
 export function TicketForm() {
   const router = useRouter()
@@ -28,14 +60,12 @@ export function TicketForm() {
     priority: "P3",
     unit: "VDU",
     area: "",
-    equipment: "", // Added equipment field
+    equipment: "",
     tags: [] as string[],
     tagInput: "",
-    fromTime: "",
-    toTime: "",
+    timePeriods: [{ from: "", to: "" }] as { from: string; to: string }[],
     impact: "Throughput",
-    owner: UNIT_OWNERS["VDU"] || "", // Auto-populate owner based on unit
-    dueDate: "", // Added dueDate field
+    owner: UNIT_OWNERS["VDU"] || "",
     accessLevel: "Team",
     allowedTeams: [] as string[],
   })
@@ -45,6 +75,11 @@ export function TicketForm() {
   const [additionalDataBoxes, setAdditionalDataBoxes] = useState<DataInsertBox[]>([])
   const [showDataBoxConfig, setShowDataBoxConfig] = useState(false)
   const [attachments, setAttachments] = useState<{ fileName: string; fileUrl: string }[]>([])
+
+  // Auto-determined values
+  const autoPriority = autoDeterminePriority(formData.unit, formData.equipment)
+  const autoEvent = autoMapEventType(formData.unit)
+  const currentUser = "김철수 (Hydroprocessing기술팀)"
 
   const availableTeams = ["Engineering", "Operations", "Maintenance", "QA", "Management"]
 
@@ -124,11 +159,28 @@ export function TicketForm() {
   }
 
   const handleUnitChange = (value: string) => {
+    const mapped = autoMapEventType(value)
     setFormData({
       ...formData,
       unit: value,
       owner: UNIT_OWNERS[value] || "",
+      ticketType: mapped.type,
+      impact: mapped.impact,
     })
+  }
+
+  const addTimePeriod = () => {
+    setFormData({ ...formData, timePeriods: [...formData.timePeriods, { from: "", to: "" }] })
+  }
+
+  const removeTimePeriod = (index: number) => {
+    if (formData.timePeriods.length <= 1) return
+    setFormData({ ...formData, timePeriods: formData.timePeriods.filter((_, i) => i !== index) })
+  }
+
+  const updateTimePeriod = (index: number, field: "from" | "to", value: string) => {
+    const updated = formData.timePeriods.map((tp, i) => i === index ? { ...tp, [field]: value } : tp)
+    setFormData({ ...formData, timePeriods: updated })
   }
 
   const handleSubmit = (e: React.FormEvent) => {
@@ -156,26 +208,26 @@ export function TicketForm() {
       id: Date.now().toString(),
       title: formData.title,
       description: finalDescription,
-      ticketType: formData.ticketType as "Improvement" | "Trouble" | "Change" | "Analysis",
-      priority: formData.priority as "P1" | "P2" | "P3" | "P4",
-      impact: formData.impact as "Safety" | "Quality" | "Throughput" | "Cost" | "Energy",
+      ticketType: autoPriority.priority === "P1" ? "Trouble" : autoEvent.type as "Improvement" | "Trouble" | "Change" | "Analysis",
+      priority: autoPriority.priority as "P1" | "P2" | "P3" | "P4",
+      impact: autoEvent.impact as "Safety" | "Quality" | "Throughput" | "Cost" | "Energy",
       owner: formData.owner || "미배정",
       status: "Open" as const,
       createdDate: new Date().toISOString().split("T")[0],
-      dueDate: formData.dueDate, // Include dueDate
+      dueDate: "",
       bottleneck: "시작 전",
       accessLevel: formData.accessLevel as "Private" | "Team" | "Public",
       allowedTeams: formData.accessLevel === "Team" ? formData.allowedTeams : undefined,
       unit: formData.unit,
       area: formData.area || undefined,
-      equipment: formData.equipment || undefined, // Include equipment
+      equipment: formData.equipment || undefined,
       tags: formData.tags.length > 0 ? formData.tags : undefined,
-      fromTime: formData.fromTime || undefined,
-      toTime: formData.toTime || undefined,
+      fromTime: formData.timePeriods[0]?.from || undefined,
+      toTime: formData.timePeriods[0]?.to || undefined,
       context: {
         unit: formData.unit,
         area: formData.area || undefined,
-        equipment: formData.equipment || undefined, // Include equipment in context
+        equipment: formData.equipment || undefined,
         tags: formData.tags.length > 0 ? formData.tags : undefined,
       },
       workPackages: [],
@@ -239,29 +291,188 @@ export function TicketForm() {
   return (
     <Card className="p-6">
       <form onSubmit={handleSubmit} className="space-y-6">
+        {/* ===== ROW 1: 공정명(기능위치) / 설비번호 ===== */}
+        <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+          <div className="space-y-2">
+            <Label htmlFor="unit" className="flex items-center gap-1">
+              <span className="text-destructive">*</span> 공정명 (기능위치)
+            </Label>
+            <div className="flex gap-2">
+              <Select value={formData.unit} onValueChange={handleUnitChange}>
+                <SelectTrigger id="unit" className="flex-1">
+                  <SelectValue />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="CDU">CDU</SelectItem>
+                  <SelectItem value="VDU">VDU</SelectItem>
+                  <SelectItem value="HCR">HCR</SelectItem>
+                  <SelectItem value="CCR">CCR</SelectItem>
+                  <SelectItem value="DHT">DHT</SelectItem>
+                  <SelectItem value="NHT">NHT</SelectItem>
+                  <SelectItem value="Utilities">Utilities</SelectItem>
+                </SelectContent>
+              </Select>
+              <Input
+                placeholder="Area (예: Reactor Section)"
+                value={formData.area}
+                onChange={(e) => setFormData({ ...formData, area: e.target.value })}
+                className="flex-1"
+              />
+            </div>
+          </div>
+          <div className="space-y-2">
+            <Label htmlFor="equipment" className="flex items-center gap-1">
+              설비번호
+            </Label>
+            <Input
+              id="equipment"
+              placeholder="입력 후 엔터.. (예: R-2001, E-101)"
+              value={formData.equipment}
+              onChange={(e) => setFormData({ ...formData, equipment: e.target.value })}
+            />
+          </div>
+        </div>
+
+        {/* ===== ROW 2: 제목 (full width) ===== */}
         <div className="space-y-2">
-          <Label htmlFor="title">이벤트 제목</Label>
+          <Label htmlFor="title" className="flex items-center gap-1">
+            <span className="text-destructive">*</span> 제목
+          </Label>
           <Input
             id="title"
-            placeholder="문제 또는 개선사항에 대한 간략한 설명"
+            placeholder="기술검토 요청 제목을 입력하세요"
             value={formData.title}
             onChange={(e) => setFormData({ ...formData, title: e.target.value })}
             required
+            className="text-base"
           />
         </div>
 
+        {/* ===== ROW 3: 자동 판정 영역 (우선순위, 요청자, 수신자, 유형/영향) ===== */}
+        <div className="grid grid-cols-1 md:grid-cols-2 gap-x-6 gap-y-3 p-4 border border-border rounded-lg bg-muted/30">
+          <div className="flex items-center justify-between">
+            <Label className="text-sm text-muted-foreground">우선순위</Label>
+            <div className="flex items-center gap-2">
+              <Badge className={cn("text-xs",
+                autoPriority.priority === "P1" ? "bg-red-500 hover:bg-red-500" :
+                autoPriority.priority === "P2" ? "bg-orange-500 hover:bg-orange-500" : "bg-blue-500 hover:bg-blue-500"
+              )}>
+                {autoPriority.label}
+              </Badge>
+              <span className="text-xs text-muted-foreground">자동판정</span>
+            </div>
+          </div>
+          <div className="flex items-center justify-between">
+            <Label className="text-sm text-muted-foreground">요청자</Label>
+            <div className="flex items-center gap-2">
+              <span className="text-sm font-medium">{currentUser}</span>
+              <Badge variant="outline" className="text-xs">자동</Badge>
+            </div>
+          </div>
+          <div className="flex items-center justify-between">
+            <Label className="text-sm text-muted-foreground">수신자 (담당자)</Label>
+            <div className="flex items-center gap-2">
+              <span className="text-sm font-medium">{formData.owner || "미배정"}</span>
+              <Badge variant="outline" className="text-xs">자동 맵핑</Badge>
+            </div>
+          </div>
+          <div className="flex items-center justify-between">
+            <Label className="text-sm text-muted-foreground">이벤트 유형 / 영향 범위</Label>
+            <div className="flex items-center gap-2">
+              <Badge variant="secondary" className="text-xs">{TYPE_LABELS[autoEvent.type] || autoEvent.type}</Badge>
+              <span className="text-xs text-muted-foreground">/</span>
+              <Badge variant="secondary" className="text-xs">{IMPACT_LABELS[autoEvent.impact] || autoEvent.impact}</Badge>
+              <Badge variant="outline" className="text-xs">자동</Badge>
+            </div>
+          </div>
+          <div className="col-span-1 md:col-span-2 pt-1 border-t border-border/50">
+            <p className="text-xs text-muted-foreground italic">
+              {autoPriority.reason}
+            </p>
+          </div>
+        </div>
+
+        {/* ===== ROW 4: 발생 기간 (복수 추가/삭제 가능) ===== */}
+        <div className="space-y-3 p-4 border border-border rounded-lg bg-muted/30">
+          <div className="flex items-center justify-between">
+            <Label className="text-sm font-semibold flex items-center gap-1">
+              <span className="text-destructive">*</span> 발생 기간
+            </Label>
+            <Button type="button" variant="outline" size="sm" className="gap-1.5 text-xs bg-transparent" onClick={addTimePeriod}>
+              <PlusCircle className="h-3.5 w-3.5" />
+              기간 추가
+            </Button>
+          </div>
+          <p className="text-xs text-muted-foreground -mt-1">동일 이벤트가 여러 차례 발생한 경우 각 기간을 추가하세요</p>
+          <div className="space-y-2">
+            {formData.timePeriods.map((tp, index) => (
+              <div key={index} className="flex items-center gap-2">
+                <span className="text-xs text-muted-foreground w-6 shrink-0 text-center">{index + 1}</span>
+                <Input
+                  type="date"
+                  value={tp.from}
+                  onChange={(e) => updateTimePeriod(index, "from", e.target.value)}
+                  className="flex-1"
+                />
+                <span className="text-muted-foreground text-sm shrink-0">~</span>
+                <Input
+                  type="date"
+                  value={tp.to}
+                  onChange={(e) => updateTimePeriod(index, "to", e.target.value)}
+                  className="flex-1"
+                />
+                {formData.timePeriods.length > 1 && (
+                  <Button type="button" variant="ghost" size="sm" className="shrink-0 h-8 w-8 p-0 text-destructive hover:text-destructive" onClick={() => removeTimePeriod(index)}>
+                    <Trash2 className="h-3.5 w-3.5" />
+                  </Button>
+                )}
+              </div>
+            ))}
+          </div>
+          {formData.timePeriods.length > 1 && (
+            <p className="text-xs text-muted-foreground">
+              총 {formData.timePeriods.length}개 발생 기간이 등록되었습니다
+            </p>
+          )}
+        </div>
+
+        {/* ===== ROW 5: 태그 (공정 데이터 참조) ===== */}
         <div className="space-y-2">
-          <Label htmlFor="description">상세 설명</Label>
-          <Textarea
-            id="description"
-            placeholder="이벤트에 대한 상세 설명"
-            rows={4}
-            value={formData.description}
-            onChange={(e) => setFormData({ ...formData, description: e.target.value })}
-            required
-          />
+          <Label htmlFor="tags">관련 태그</Label>
+          <div className="flex gap-2">
+            <Select
+              value=""
+              onValueChange={(value) => {
+                if (value && !formData.tags.includes(value)) {
+                  setFormData({ ...formData, tags: [...formData.tags, value] })
+                }
+              }}
+            >
+              <SelectTrigger>
+                <SelectValue placeholder="태그 선택" />
+              </SelectTrigger>
+              <SelectContent>
+                {AVAILABLE_TAGS[formData.unit]?.map((tag) => (
+                  <SelectItem key={tag} value={tag}>{tag}</SelectItem>
+                ))}
+              </SelectContent>
+            </Select>
+          </div>
+          {formData.tags.length > 0 && (
+            <div className="flex flex-wrap gap-2 mt-2">
+              {formData.tags.map((tag) => (
+                <Badge key={tag} variant="secondary" className="flex items-center gap-1">
+                  {tag}
+                  <button type="button" onClick={() => removeTag(tag)} className="ml-1 hover:bg-muted rounded-full">
+                    <X className="h-3 w-3" />
+                  </button>
+                </Badge>
+              ))}
+            </div>
+          )}
         </div>
 
+        {/* ===== ROW 6: 추가 설명 기입 (데이터 삽입, 첨부 등) ===== */}
         <div className="space-y-4">
           <Button
             type="button"
@@ -269,7 +480,7 @@ export function TicketForm() {
             onClick={() => setShowAdditionalDetails(!showAdditionalDetails)}
             className="w-full"
           >
-            {showAdditionalDetails ? "추가 설명 숨기기" : "추가 설명 기입"}
+            {showAdditionalDetails ? "추가 설명 숨기기" : "추가 설명 기입 (태그/DCS 화면/데이터 삽입)"}
           </Button>
 
           {showAdditionalDetails && (
@@ -357,192 +568,16 @@ export function TicketForm() {
                 placeholder="추가 설명을 입력하세요..."
                 value={additionalContent}
                 onChange={(e) => setAdditionalContent(e.target.value)}
-                rows={6}
+                rows={4}
               />
             </Card>
           )}
         </div>
 
-        <div className="space-y-4 p-4 border border-border rounded-lg bg-muted/30">
-          <h3 className="text-sm font-semibold text-foreground">공정 정보</h3>
-
-          <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-            <div className="space-y-2">
-              <Label htmlFor="unit">Unit *</Label>
-              <Select value={formData.unit} onValueChange={handleUnitChange}>
-                <SelectTrigger id="unit">
-                  <SelectValue />
-                </SelectTrigger>
-                <SelectContent>
-                  <SelectItem value="CDU">CDU</SelectItem>
-                  <SelectItem value="VDU">VDU</SelectItem>
-                  <SelectItem value="HCR">HCR</SelectItem>
-                  <SelectItem value="CCR">CCR</SelectItem>
-                  <SelectItem value="DHT">DHT</SelectItem>
-                  <SelectItem value="NHT">NHT</SelectItem>
-                  <SelectItem value="Utilities">Utilities</SelectItem>
-                </SelectContent>
-              </Select>
-            </div>
-
-            <div className="space-y-2">
-              <Label htmlFor="area">Area (선택사항)</Label>
-              <Input
-                id="area"
-                placeholder="예: Furnace section, Reactor zone"
-                value={formData.area}
-                onChange={(e) => setFormData({ ...formData, area: e.target.value })}
-              />
-            </div>
-          </div>
-
-          <div className="space-y-2">
-            <Label htmlFor="equipment">장치명 (선택사항)</Label>
-            <Input
-              id="equipment"
-              placeholder="예: Furnace-101, Reactor-A"
-              value={formData.equipment}
-              onChange={(e) => setFormData({ ...formData, equipment: e.target.value })}
-            />
-          </div>
-
-          <div className="space-y-2">
-            <Label htmlFor="tags">태그</Label>
-            <div className="flex gap-2">
-              <Select
-                value=""
-                onValueChange={(value) => {
-                  if (value && !formData.tags.includes(value)) {
-                    setFormData({
-                      ...formData,
-                      tags: [...formData.tags, value],
-                    })
-                  }
-                }}
-              >
-                <SelectTrigger>
-                  <SelectValue placeholder="태그 선택" />
-                </SelectTrigger>
-                <SelectContent>
-                  {AVAILABLE_TAGS[formData.unit]?.map((tag) => (
-                    <SelectItem key={tag} value={tag}>
-                      {tag}
-                    </SelectItem>
-                  ))}
-                </SelectContent>
-              </Select>
-            </div>
-            {formData.tags.length > 0 && (
-              <div className="flex flex-wrap gap-2 mt-2">
-                {formData.tags.map((tag) => (
-                  <Badge key={tag} variant="secondary" className="flex items-center gap-1">
-                    {tag}
-                    <button type="button" onClick={() => removeTag(tag)} className="ml-1 hover:bg-muted rounded-full">
-                      <X className="h-3 w-3" />
-                    </button>
-                  </Badge>
-                ))}
-              </div>
-            )}
-          </div>
-
-          <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-            <div className="space-y-2">
-              <Label htmlFor="fromTime">시작 시간</Label>
-              <Input
-                id="fromTime"
-                type="datetime-local"
-                value={formData.fromTime}
-                onChange={(e) => setFormData({ ...formData, fromTime: e.target.value })}
-              />
-            </div>
-
-            <div className="space-y-2">
-              <Label htmlFor="toTime">종료 시간</Label>
-              <Input
-                id="toTime"
-                type="datetime-local"
-                value={formData.toTime}
-                onChange={(e) => setFormData({ ...formData, toTime: e.target.value })}
-              />
-            </div>
-          </div>
-        </div>
-
-        <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
-          <div className="space-y-2">
-            <Label htmlFor="ticketType">이벤트 유형</Label>
-            <Select
-              value={formData.ticketType}
-              onValueChange={(value) => setFormData({ ...formData, ticketType: value })}
-            >
-              <SelectTrigger id="ticketType">
-                <SelectValue />
-              </SelectTrigger>
-              <SelectContent>
-                <SelectItem value="Improvement">개선</SelectItem>
-                <SelectItem value="Trouble">문제</SelectItem>
-                <SelectItem value="Change">변경</SelectItem>
-                <SelectItem value="Analysis">분석</SelectItem>
-              </SelectContent>
-            </Select>
-          </div>
-
-          <div className="space-y-2">
-            <Label htmlFor="priority">우선순위</Label>
-            <Select value={formData.priority} onValueChange={(value) => setFormData({ ...formData, priority: value })}>
-              <SelectTrigger id="priority">
-                <SelectValue />
-              </SelectTrigger>
-              <SelectContent>
-                <SelectItem value="P1">P1 - 긴급</SelectItem>
-                <SelectItem value="P2">P2 - 높음</SelectItem>
-                <SelectItem value="P3">P3 - 보통</SelectItem>
-                <SelectItem value="P4">P4 - 낮음</SelectItem>
-              </SelectContent>
-            </Select>
-          </div>
-
-          <div className="space-y-2">
-            <Label htmlFor="impact">영향 범위</Label>
-            <Select value={formData.impact} onValueChange={(value) => setFormData({ ...formData, impact: value })}>
-              <SelectTrigger id="impact">
-                <SelectValue />
-              </SelectTrigger>
-              <SelectContent>
-                <SelectItem value="Safety">안전</SelectItem>
-                <SelectItem value="Quality">품질</SelectItem>
-                <SelectItem value="Throughput">처리량</SelectItem>
-                <SelectItem value="Cost">비용</SelectItem>
-                <SelectItem value="Energy">에너지</SelectItem>
-              </SelectContent>
-            </Select>
-          </div>
-
-          <div className="space-y-2">
-            <Label htmlFor="dueDate">희망 마감일</Label>
-            <Input
-              id="dueDate"
-              type="date"
-              value={formData.dueDate}
-              onChange={(e) => setFormData({ ...formData, dueDate: e.target.value })}
-            />
-          </div>
-        </div>
-
-        <div className="space-y-2">
-          <Label htmlFor="owner">담당자</Label>
-          <Input
-            id="owner"
-            value={formData.owner}
-            onChange={(e) => setFormData({ ...formData, owner: e.target.value })}
-          />
-          <p className="text-xs text-muted-foreground">Unit 선택 시 자동 설정됩니다</p>
-        </div>
-
+        {/* ===== ROW 7: 접근 권한 ===== */}
         <div className="space-y-4 p-4 border border-border rounded-lg bg-muted/30">
           <div className="space-y-2">
-            <Label htmlFor="accessLevel" className="text-base font-semibold">
+            <Label htmlFor="accessLevel" className="text-sm font-semibold">
               접근 권한
             </Label>
             <Select
@@ -565,9 +600,9 @@ export function TicketForm() {
               </SelectContent>
             </Select>
             <p className="text-xs text-muted-foreground">
-              {formData.accessLevel === "Private" && "나만 이 이벤트을 보고 편집할 수 있습니다"}
-              {formData.accessLevel === "Team" && "선택된 팀이 이 이벤트을 보고 협업할 수 있습니다"}
-              {formData.accessLevel === "Public" && "모든 팀이 이 이벤트을 보고 협업할 수 있습니다"}
+              {formData.accessLevel === "Private" && "나만 이 이벤트를 보고 편집할 수 있습니다"}
+              {formData.accessLevel === "Team" && "선택된 팀이 이 이벤트를 보고 협업할 수 있습니다"}
+              {formData.accessLevel === "Public" && "모든 팀이 이 이벤트를 보고 협업할 수 있습니다"}
             </p>
           </div>
 
@@ -593,6 +628,18 @@ export function TicketForm() {
               </div>
             </div>
           )}
+        </div>
+
+        {/* ===== ROW 8: 상세 설명 (맨 아래) ===== */}
+        <div className="space-y-2">
+          <Label htmlFor="description">상세 설명</Label>
+          <Textarea
+            id="description"
+            placeholder="세부내용을 입력하여 주십시오."
+            rows={6}
+            value={formData.description}
+            onChange={(e) => setFormData({ ...formData, description: e.target.value })}
+          />
         </div>
 
         <div className="flex gap-3 pt-4">

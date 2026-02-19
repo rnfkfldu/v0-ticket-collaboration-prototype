@@ -405,7 +405,7 @@ export default function NewTicketPage() {
           <h1 className="text-lg font-semibold text-foreground">기술검토 요청 이벤트 생성</h1>
         </div>
       </header>
-      <main className="container mx-auto px-4 py-6 max-w-3xl">
+      <main className="container mx-auto px-4 py-6 max-w-4xl">
         <TicketForm />
       </main>
     </div>
