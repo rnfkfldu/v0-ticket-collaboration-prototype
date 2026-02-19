@@ -482,7 +482,7 @@ const SAMPLE_ALERTS: AlertItem[] = [
     data: {
       items: [
         { name: "변경 DCS 화면", status: "warning", value: "HCR-001: Reactor Temperature Control" },
-        { name: "변경 내용", status: "warning", value: "TIC-2001 PID: P=2.5→3.0, I=120→90s, D=0→5s" },
+        { name: "변경 ���용", status: "warning", value: "TIC-2001 PID: P=2.5→3.0, I=120→90s, D=0→5s" },
         { name: "연결 ESR", status: "normal", value: "ESR-2025-0042: HCR APC 고도화 프로젝트" },
         { name: "변경 요청자", status: "normal", value: "DX팀 이민수 (ESR 담당)" },
         { name: "적용 일시", status: "normal", value: "2025-02-02 06:00 (야간 작업)" }
@@ -616,8 +616,15 @@ export default function AlertsPage() {
   
   // Shelved Alert 다이얼로그 상태
   const [showShelvedDialog, setShowShelvedDialog] = useState(false)
+  const [shelvedCategory, setShelvedCategory] = useState<string>("")
   const [shelvedReason, setShelvedReason] = useState("")
   const [shelvedUntil, setShelvedUntil] = useState("")
+  const shelvedCategories = [
+    { id: "known-issue", label: "공지된 이슈", desc: "이미 알려진 문제로 별도 조치 불필요" },
+    { id: "no-action", label: "액션 없음", desc: "현재 조치가 필요하지 않은 상태" },
+    { id: "project", label: "프로젝트", desc: "프로젝트/정비 등 계획된 작업 관련" },
+    { id: "temporary", label: "일시 문제", desc: "일시적 상황으로 자연 해소 예상" },
+  ]
   
   // 이상징후 카테고리 상세 팝업 상태
   const [showAnomalyCategoryDialog, setShowAnomalyCategoryDialog] = useState(false)
@@ -716,21 +723,24 @@ export default function AlertsPage() {
   }
 
   const handleShelveAlert = (alertId: string) => {
-    if (!shelvedReason || !shelvedUntil) {
-      alert("Shelved 처리 이유와 재개 시점을 입력해주세요.")
+    if (!shelvedCategory || !shelvedUntil) {
+      alert("Shelved 처리 사유와 재검토 시점을 선택해주세요.")
       return
     }
+    const categoryLabel = shelvedCategories.find(c => c.id === shelvedCategory)?.label || shelvedCategory
+    const fullReason = shelvedReason.trim() ? `[${categoryLabel}] ${shelvedReason.trim()}` : `[${categoryLabel}]`
     setAlerts(alerts.map(a => a.id === alertId ? { 
       ...a, 
       status: "resolved", 
       alertState: "shelved" as AlertState,
-      shelvedReason: shelvedReason,
+      shelvedReason: fullReason,
       shelvedUntil: shelvedUntil
     } : a))
     setShowShelvedDialog(false)
+    setShelvedCategory("")
     setShelvedReason("")
     setShelvedUntil("")
-    alert(`알람이 Shelved 처리되었습니다.\n재개 시점: ${shelvedUntil}`)
+    alert(`알람이 Shelved 처리되었습니다.\n사유: ${categoryLabel}\n재개 시점: ${shelvedUntil}`)
   }
 
   const getAlertGradeLabel = (grade?: AlertGrade) => {
@@ -3329,15 +3339,45 @@ export default function AlertsPage() {
                   해당 시점이 되면 자동으로 다시 활성화됩니다.
                 </p>
               </div>
+
+              {selectedAlert && (
+                <div className="p-3 bg-muted/50 rounded-lg space-y-1">
+                  <span className="text-xs text-muted-foreground">대상 알람</span>
+                  <p className="text-sm font-medium">{selectedAlert.title}</p>
+                  <p className="text-xs text-muted-foreground">{selectedAlert.data?.tagId}</p>
+                </div>
+              )}
               
               <div className="space-y-2">
-                <Label htmlFor="shelved-reason">Shelved 처리 사유 *</Label>
+                <Label>Shelved 처리 사유 *</Label>
+                <div className="grid grid-cols-2 gap-2">
+                  {shelvedCategories.map((cat) => (
+                    <button
+                      key={cat.id}
+                      type="button"
+                      className={cn(
+                        "flex flex-col items-start p-3 rounded-lg border text-left transition-colors",
+                        shelvedCategory === cat.id
+                          ? "border-primary bg-primary/5 ring-1 ring-primary"
+                          : "border-border hover:border-muted-foreground/30 hover:bg-muted/50"
+                      )}
+                      onClick={() => setShelvedCategory(cat.id)}
+                    >
+                      <span className={cn("text-sm font-medium", shelvedCategory === cat.id ? "text-primary" : "text-foreground")}>{cat.label}</span>
+                      <span className="text-xs text-muted-foreground mt-0.5 leading-snug">{cat.desc}</span>
+                    </button>
+                  ))}
+                </div>
+              </div>
+
+              <div className="space-y-2">
+                <Label htmlFor="shelved-reason">상세 사유 (선택)</Label>
                 <Textarea
                   id="shelved-reason"
                   value={shelvedReason}
                   onChange={(e) => setShelvedReason(e.target.value)}
-                  placeholder="예: 계획 정비 기간 중 의도된 운전 조건, 임시 감량 운전 등"
-                  className="min-h-24"
+                  placeholder="추가 메모가 있으면 입력하세요..."
+                  className="min-h-16"
                 />
               </div>
 
@@ -3354,20 +3394,12 @@ export default function AlertsPage() {
                   이 날짜가 되면 알람이 자동으로 재활성화됩니다.
                 </p>
               </div>
-
-              {selectedAlert && (
-                <div className="p-3 bg-muted/50 rounded-lg space-y-1">
-                  <span className="text-xs text-muted-foreground">대상 알람</span>
-                  <p className="text-sm font-medium">{selectedAlert.title}</p>
-                  <p className="text-xs text-muted-foreground">{selectedAlert.data?.tagId}</p>
-                </div>
-              )}
             </div>
             <DialogFooter>
-              <Button variant="outline" onClick={() => setShowShelvedDialog(false)}>취소</Button>
+              <Button variant="outline" onClick={() => { setShowShelvedDialog(false); setShelvedCategory(""); setShelvedReason(""); setShelvedUntil(""); }}>취소</Button>
               <Button 
                 onClick={() => selectedAlert && handleShelveAlert(selectedAlert.id)}
-                disabled={!shelvedReason.trim() || !shelvedUntil}
+                disabled={!shelvedCategory || !shelvedUntil}
               >
                 <Clock className="h-4 w-4 mr-2" />
                 Shelved 처리
