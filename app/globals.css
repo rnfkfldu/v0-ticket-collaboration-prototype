@@ -148,6 +148,25 @@
     @apply bg-background text-foreground antialiased;
   }
 
+  /* Ensure all interactive elements show pointer cursor */
+  button,
+  [role="button"],
+  [type="button"],
+  [type="submit"],
+  [type="reset"],
+  a[href],
+  select,
+  summary,
+  [tabindex]:not([tabindex="-1"]),
+  [onclick] {
+    cursor: pointer;
+  }
+  
+  /* Clickable elements with onClick in React */
+  [data-clickable="true"] {
+    cursor: pointer;
+  }
+
   /* 텍스트 가독성 개선을 위한 기본 스타일 추가 */
   h1,
   h2,
