@@ -42,7 +42,11 @@ import {
   Plus,
   Link,
   Save,
-  X
+  X,
+  ShieldCheck,
+  BookOpen,
+  History,
+  RotateCcw
 } from "lucide-react"
 import { cn } from "@/lib/utils"
 
@@ -99,6 +103,19 @@ interface AlertItem {
     changeItems: { item: string; before: string; after: string }[]
     requestor: string
     appliedDate: string
+  }
+  // 문서 리뷰 요청 상세 (월간 리포트, Contingency Plan 등)
+  documentReview?: {
+    docType: "monthly-report" | "contingency-plan" | "living-document"
+    docTitle: string
+    docVersion: string
+    latestVersion: string
+    period?: string
+    frequency: string  // "월 1회", "연 2회" 등
+    deadline: string
+    sections: { title: string; content: string; hasChange?: boolean }[]
+    reviewHistory: { date: string; reviewer: string; version: string; comment: string }[]
+    isReviewed?: boolean
   }
 }
 
@@ -483,9 +500,73 @@ const SAMPLE_ALERTS: AlertItem[] = [
       appliedDate: "2025-02-02 06:00"
     }
   },
+  // 월간 리포트 리뷰 요청
+  {
+    id: "NTC-010",
+    type: "notice",
+    subType: "monthly-report-review",
+    title: "월간 Operation Report 리뷰 요청 (2025년 1월)",
+    description: "2025년 1월 월간 운전 실적 보고서가 발행되었습니다. 담당 책임자 리뷰 후 Knowledge Asset에 최종 반영됩니다.",
+    timestamp: "2025-02-03 09:00",
+    status: "unread",
+    severity: "info",
+    unit: "전체",
+    documentReview: {
+      docType: "monthly-report",
+      docTitle: "2025년 1월 월간 Operation Report",
+      docVersion: "v1.0 (Draft)",
+      latestVersion: "v1.0",
+      period: "2025-01-01 ~ 2025-01-31",
+      frequency: "월 1회",
+      deadline: "2025-02-07",
+      sections: [
+        { title: "1. 생산 실적 요약", content: "CDU 월평균 처리량 52,100 bbl/d (계획 대비 100.2%). VDU 월평균 28,300 bbl/d (99.6%). HCR Feed 120.3 m3/h, Conversion 88.2%.", hasChange: false },
+        { title: "2. 에너지 효율 (EII)", content: "EII: 98.2 (목표 97 이하 - 미달). CDU Heater Efficiency 91.3%. 한파로 인한 증기 소모량 증가가 주요 원인.", hasChange: true },
+        { title: "3. 안전/환경", content: "무사고 연속 432일. SO2 배출 월평균 12.3 ppm (허용 35 ppm). 폐수 COD 85 mg/L (허용 120 mg/L).", hasChange: false },
+        { title: "4. 주요 이슈 및 대응", content: "HCR WABT 상승 추세 지속 (月末 395C). E-101 Fouling 진행 UA값 88%. P-201B Seal Oil Leak 발견 (경미).", hasChange: true },
+        { title: "5. 다음 달 계획", content: "Arabian Medium 전환 운전 예정. HCR 촉매 활성 모니터링 강화. E-101 세정 시기 검토.", hasChange: false }
+      ],
+      reviewHistory: [
+        { date: "2025-01-06", reviewer: "김철수", version: "2024년 12월 Report v1.0", comment: "CDU 처리량 소폭 증가 확인, 에너지 효율 개선 필요" },
+        { date: "2024-12-05", reviewer: "김철수", version: "2024년 11월 Report v1.0", comment: "동절기 운전 대비 점검 완료" }
+      ]
+    }
+  },
+  // Contingency Plan 리뷰 요청 (Living Document)
+  {
+    id: "NTC-011",
+    type: "notice",
+    subType: "contingency-plan-review",
+    title: "Contingency Plan 리뷰 요청: HCR 비상운전 절차서",
+    description: "HCR 비상운전 절차서의 반기 정기 리뷰가 필요합니다. 최신 운전 조건 반영 여부를 확인하고 승인해주세요.",
+    timestamp: "2025-02-01 10:00",
+    status: "unread",
+    severity: "warning",
+    unit: "HCR",
+    documentReview: {
+      docType: "contingency-plan",
+      docTitle: "HCR 비상운전 절차서 (Emergency Operation Procedure)",
+      docVersion: "v3.2",
+      latestVersion: "v3.2",
+      frequency: "연 2회 (반기)",
+      deadline: "2025-02-15",
+      sections: [
+        { title: "1. 적용 범위", content: "HCR Unit (Reactor Section, Fractionation Section, H2 System) 비상 상황 발생 시 대응 절차.", hasChange: false },
+        { title: "2. 비상 시나리오별 대응", content: "Scenario A: Reactor Runaway - WABT 급상승 시 Quench Gas 주입 및 Feed Cut 절차. Scenario B: H2 Compressor Trip - 단계별 Reactor Depressuring 절차.", hasChange: true },
+        { title: "3. 운전 조건 변경 반영", content: "2024년 하반기 촉매 교체 후 Max WABT 한계 변경: 405C -> 410C. Quench Gas 주입 기준 WABT 변경: 395C -> 400C.", hasChange: true },
+        { title: "4. 비상 연락 체계", content: "1차: 당직 Operation Supervisor → 2차: Process Engineer → 3차: Plant Manager. 외부: 소방서, 환경부 신고 기준 유지.", hasChange: false },
+        { title: "5. 훈련 이력", content: "최근 훈련: 2024-11-15 (Reactor Runaway Drill). 참여 인원: 생산팀 A/B조, 공정기술팀. 결과: 양호 (대응시간 12분, 목표 15분 이내).", hasChange: false }
+      ],
+      reviewHistory: [
+        { date: "2024-08-10", reviewer: "박영희", version: "v3.1", comment: "촉매 교체 전 기준으로 리뷰 완료. 교체 후 WABT 한계 재검토 필요" },
+        { date: "2024-02-05", reviewer: "김철수", version: "v3.0", comment: "H2 Compressor Trip 시나리오 추가. 연락 체계 업데이트" },
+        { date: "2023-08-12", reviewer: "김철수", version: "v2.5", comment: "정기 리뷰 - 특이사항 없음" }
+      ]
+    }
+  },
   // Event 타입
   {
-    id: "EVT-001",
+  id: "EVT-001",
     type: "event",
     subType: "licensor-review",
     title: "라이센서 분기 리뷰 예정",
@@ -557,6 +638,11 @@ export default function AlertsPage() {
   const [editingIssueId, setEditingIssueId] = useState<string | null>(null)
   const [issueUpdateContent, setIssueUpdateContent] = useState("")
   
+  // 문서 리뷰 상태
+  const [docReviewComment, setDocReviewComment] = useState("")
+  const [docReviewConfirmed, setDocReviewConfirmed] = useState(false)
+  const [expandedReviewSections, setExpandedReviewSections] = useState<string[]>([])
+
   // Standing Issue 추가 등록 다이얼로그 상태
   const [showDailyReportDialog, setShowDailyReportDialog] = useState(false)
   const [dailyReportText, setDailyReportText] = useState("")
@@ -824,6 +910,14 @@ export default function AlertsPage() {
     setIssueUpdateContent("")
   }
 
+  // 알림 선택 시 리뷰 상태 초기화
+  const handleSelectAlert = (alert: AlertItem) => {
+    setSelectedAlert(alert)
+    setDocReviewComment("")
+    setDocReviewConfirmed(false)
+    setExpandedReviewSections([])
+  }
+
   // Standing Issue 추가 등록 핸들러
   const handleDailyReportSubmit = () => {
     if (!dailyReportTitle.trim() || !dailyReportText.trim()) return
@@ -854,7 +948,7 @@ export default function AlertsPage() {
   }
 
   // Notice 정렬: daily-monitoring을 최상위, 그 다음 anomaly, 나머지는 시간순
-  const noticeSortOrder: Record<string, number> = { "daily-monitoring": 0, "anomaly": 1, "dcs-modification": 2 }
+  const noticeSortOrder: Record<string, number> = { "daily-monitoring": 0, "monthly-report-review": 1, "contingency-plan-review": 2, "anomaly": 3, "dcs-modification": 4 }
   const sortedNotices = alerts.filter(a => a.type === "notice").sort((a, b) => {
     const orderA = noticeSortOrder[a.subType] ?? 99
     const orderB = noticeSortOrder[b.subType] ?? 99
@@ -910,7 +1004,7 @@ export default function AlertsPage() {
                       return (
                         <button
                           key={item.id}
-                          onClick={() => setSelectedAlert(item)}
+                          onClick={() => handleSelectAlert(item)}
                           className={cn(
                             "w-full text-left p-2 rounded-lg transition-colors",
                             selectedAlert?.id === item.id ? "bg-primary/10 border border-primary/30" : "hover:bg-muted/50",
@@ -949,7 +1043,7 @@ export default function AlertsPage() {
                     {alertsByType.notice.map(item => (
                       <button
                         key={item.id}
-                        onClick={() => setSelectedAlert(item)}
+                        onClick={() => handleSelectAlert(item)}
                         className={cn(
                           "w-full text-left p-2 rounded-lg transition-colors",
                           selectedAlert?.id === item.id ? "bg-primary/10 border border-primary/30" : "hover:bg-muted/50",
@@ -986,7 +1080,7 @@ export default function AlertsPage() {
                     {alertsByType.event.map(item => (
                       <button
                         key={item.id}
-                        onClick={() => setSelectedAlert(item)}
+                        onClick={() => handleSelectAlert(item)}
                         className={cn(
                           "w-full text-left p-2 rounded-lg transition-colors",
                           selectedAlert?.id === item.id ? "bg-primary/10 border border-primary/30" : "hover:bg-muted/50",
@@ -1727,7 +1821,7 @@ export default function AlertsPage() {
                   )}
 
                   {/* 기존 Notice 타입 (이상징후/DCS/Daily Monitoring 제외): 아이템 리스트 */}
-                  {selectedAlert.data?.items && !["anomaly", "daily-monitoring", "dcs-modification"].includes(selectedAlert.subType) && (
+                  {selectedAlert.data?.items && !["anomaly", "daily-monitoring", "dcs-modification", "monthly-report-review", "contingency-plan-review"].includes(selectedAlert.subType) && (
                     <Card>
                       <CardHeader className="pb-2">
                         <CardTitle className="text-sm">상세 항목</CardTitle>
@@ -1749,6 +1843,206 @@ export default function AlertsPage() {
                       </CardContent>
                     </Card>
                   )}
+
+                  {/* 문서 리뷰 요청 상세 (월간 리포트, Contingency Plan) */}
+                  {["monthly-report-review", "contingency-plan-review"].includes(selectedAlert.subType) && selectedAlert.documentReview && (() => {
+                    const doc = selectedAlert.documentReview
+                    const isContingency = doc.docType === "contingency-plan"
+                    return (
+                      <>
+                        {/* 문서 정보 헤더 */}
+                        <Card className={isContingency ? "border-amber-300/50 bg-amber-50/30" : "border-primary/30 bg-primary/5"}>
+                          <CardContent className="p-4">
+                            <div className="flex items-start justify-between gap-4">
+                              <div className="flex-1">
+                                <div className="flex items-center gap-2 mb-2">
+                                  {isContingency ? <ShieldCheck className="h-5 w-5 text-amber-600" /> : <BookOpen className="h-5 w-5 text-primary" />}
+                                  <h3 className="font-semibold text-sm">{doc.docTitle}</h3>
+                                </div>
+                                <div className="grid grid-cols-2 gap-x-6 gap-y-1.5 text-xs">
+                                  <div className="flex items-center gap-1.5">
+                                    <span className="text-muted-foreground">현재 버전:</span>
+                                    <Badge variant="outline" className="text-xs h-5">{doc.docVersion}</Badge>
+                                  </div>
+                                  <div className="flex items-center gap-1.5">
+                                    <span className="text-muted-foreground">최신 버전:</span>
+                                    <Badge variant={doc.docVersion === doc.latestVersion ? "secondary" : "destructive"} className="text-xs h-5">{doc.latestVersion}</Badge>
+                                  </div>
+                                  {doc.period && (
+                                    <div className="flex items-center gap-1.5">
+                                      <span className="text-muted-foreground">대상 기간:</span>
+                                      <span>{doc.period}</span>
+                                    </div>
+                                  )}
+                                  <div className="flex items-center gap-1.5">
+                                    <span className="text-muted-foreground">리뷰 주기:</span>
+                                    <span>{doc.frequency}</span>
+                                  </div>
+                                  <div className="flex items-center gap-1.5 col-span-2">
+                                    <Clock className="h-3 w-3 text-muted-foreground" />
+                                    <span className="text-muted-foreground">리뷰 마감:</span>
+                                    <span className="font-medium text-destructive">{doc.deadline}</span>
+                                  </div>
+                                </div>
+                              </div>
+                              {doc.docVersion !== doc.latestVersion && (
+                                <Badge variant="destructive" className="flex items-center gap-1 shrink-0">
+                                  <RotateCcw className="h-3 w-3" />
+                                  버전 불일치
+                                </Badge>
+                              )}
+                            </div>
+                          </CardContent>
+                        </Card>
+
+                        {/* 문서 섹션별 내용 */}
+                        <Card>
+                          <CardHeader className="pb-2">
+                            <CardTitle className="text-sm flex items-center gap-2">
+                              <FileText className="h-4 w-4" />
+                              문서 내용
+                            </CardTitle>
+                          </CardHeader>
+                          <CardContent className="space-y-1">
+                            {doc.sections.map((section, i) => {
+                              const isExpanded = expandedReviewSections.includes(section.title)
+                              return (
+                                <div key={i} className={cn("border rounded-lg overflow-hidden", section.hasChange && "border-amber-300")}>
+                                  <button
+                                    className="w-full flex items-center justify-between px-3 py-2.5 text-left hover:bg-muted/50"
+                                    onClick={() => setExpandedReviewSections(prev => 
+                                      isExpanded ? prev.filter(t => t !== section.title) : [...prev, section.title]
+                                    )}
+                                  >
+                                    <div className="flex items-center gap-2">
+                                      {isExpanded ? <ChevronDown className="h-3.5 w-3.5 text-muted-foreground" /> : <ChevronRight className="h-3.5 w-3.5 text-muted-foreground" />}
+                                      <span className="text-sm font-medium">{section.title}</span>
+                                      {section.hasChange && (
+                                        <Badge variant="outline" className="text-xs h-5 border-amber-400 text-amber-700 bg-amber-50">변경사항</Badge>
+                                      )}
+                                    </div>
+                                  </button>
+                                  {isExpanded && (
+                                    <div className="px-4 pb-3 text-sm text-muted-foreground leading-relaxed border-t bg-muted/20 pt-2.5">
+                                      {section.content}
+                                    </div>
+                                  )}
+                                </div>
+                              )
+                            })}
+                          </CardContent>
+                        </Card>
+
+                        {/* 리뷰 이력 */}
+                        <Card>
+                          <CardHeader className="pb-2">
+                            <CardTitle className="text-sm flex items-center gap-2">
+                              <History className="h-4 w-4" />
+                              리뷰 이력
+                            </CardTitle>
+                          </CardHeader>
+                          <CardContent>
+                            <div className="space-y-3">
+                              {doc.reviewHistory.map((hist, i) => (
+                                <div key={i} className="flex gap-3 text-sm">
+                                  <div className="flex flex-col items-center">
+                                    <div className={cn("w-2 h-2 rounded-full mt-1.5 shrink-0", i === 0 ? "bg-primary" : "bg-muted-foreground/30")} />
+                                    {i < doc.reviewHistory.length - 1 && <div className="w-px h-full bg-border mt-1" />}
+                                  </div>
+                                  <div className="pb-3">
+                                    <div className="flex items-center gap-2 text-xs text-muted-foreground">
+                                      <span>{hist.date}</span>
+                                      <span className="font-medium text-foreground">{hist.reviewer}</span>
+                                      <Badge variant="outline" className="text-xs h-4">{hist.version}</Badge>
+                                    </div>
+                                    <p className="text-xs text-muted-foreground mt-1">{hist.comment}</p>
+                                  </div>
+                                </div>
+                              ))}
+                            </div>
+                          </CardContent>
+                        </Card>
+
+                        {/* 리뷰 액션 */}
+                        <Card className="border-primary/30">
+                          <CardHeader className="pb-2">
+                            <CardTitle className="text-sm flex items-center gap-2">
+                              <Pencil className="h-4 w-4 text-primary" />
+                              리뷰 의견 및 승인
+                            </CardTitle>
+                            <p className="text-xs text-muted-foreground">
+                              {isContingency
+                                ? "문서 내용을 검토하고 최신 운전 조건이 반영되었는지 확인 후 승인해주세요."
+                                : "리포트를 검토하고 의견을 작성해주세요. 승인 시 Knowledge Asset에 최종 저장됩니다."}
+                            </p>
+                          </CardHeader>
+                          <CardContent className="space-y-3">
+                            {docReviewConfirmed ? (
+                              <div className="p-4 bg-green-50 border border-green-200 rounded-lg space-y-1">
+                                <p className="text-sm font-medium text-green-800 flex items-center gap-2">
+                                  <CheckCircle className="h-4 w-4" />
+                                  리뷰가 완료되었습니다
+                                </p>
+                                <p className="text-xs text-green-700">
+                                  {isContingency
+                                    ? `${doc.docTitle} ${doc.latestVersion} 버전이 최신으로 확인되었습니다. 다음 리뷰 예정: 6개월 후`
+                                    : `리뷰 내용과 함께 Knowledge Asset에 저장되었습니다. (${doc.docTitle})`}
+                                </p>
+                              </div>
+                            ) : (
+                              <>
+                                {isContingency && (
+                                  <div className="flex items-start gap-2 p-3 bg-amber-50 border border-amber-200 rounded-lg">
+                                    <AlertTriangle className="h-4 w-4 text-amber-600 mt-0.5 shrink-0" />
+                                    <div className="text-xs text-amber-800">
+                                      <p className="font-medium">Living Document 최신 버전 확인 필수</p>
+                                      <p className="mt-0.5">이 문서는 Living Document로 관리됩니다. 변경사항이 표시된 섹션을 반드시 확인하고, 현재 운전 조건과 일치하는지 검증해주세요.</p>
+                                    </div>
+                                  </div>
+                                )}
+                                <Textarea
+                                  value={docReviewComment}
+                                  onChange={(e) => setDocReviewComment(e.target.value)}
+                                  placeholder={isContingency
+                                    ? "리뷰 의견을 작성하세요... (예: 운전 조건 변경 반영 확인, 추가 수정 필요사항 등)"
+                                    : "리포트에 대한 리뷰 의견을 작성하세요... (예: EII 미달 원인 분석 보완 필요 등)"}
+                                  className="min-h-20"
+                                />
+                                <div className="flex items-center justify-between">
+                                  <p className="text-xs text-muted-foreground">
+                                    리뷰 마감: <span className="font-medium text-destructive">{doc.deadline}</span>
+                                  </p>
+                                  <div className="flex gap-2">
+                                    <Button
+                                      variant="outline"
+                                      size="sm"
+                                      disabled={!docReviewComment.trim()}
+                                      onClick={() => {
+                                        alert("수정 요청이 전달되었습니다. 문서 담당자에게 통보됩니다.")
+                                      }}
+                                    >
+                                      수정 요청
+                                    </Button>
+                                    <Button
+                                      size="sm"
+                                      disabled={!docReviewComment.trim()}
+                                      onClick={() => {
+                                        setDocReviewConfirmed(true)
+                                        setAlerts(alerts.map(a => a.id === selectedAlert.id ? { ...a, status: "resolved" } : a))
+                                      }}
+                                    >
+                                      <CheckCircle className="h-4 w-4 mr-1.5" />
+                                      {isContingency ? "최신 확인 및 승인" : "리뷰 완료 및 승인"}
+                                    </Button>
+                                  </div>
+                                </div>
+                              </>
+                            )}
+                          </CardContent>
+                        </Card>
+                      </>
+                    )
+                  })()}
 
                   {/* 이상징후/장기모니터링/효율성 - 엔지니어 의견 섹션 (daily-monitoring은 별도 처리) */}
                   {selectedAlert.type === "notice" && ["anomaly", "long-term", "efficiency"].includes(selectedAlert.subType) && (
