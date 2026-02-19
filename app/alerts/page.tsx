@@ -638,6 +638,10 @@ export default function AlertsPage() {
   const [editingIssueId, setEditingIssueId] = useState<string | null>(null)
   const [issueUpdateContent, setIssueUpdateContent] = useState("")
   
+  // DCS 화면 및 장치 정보 상태
+  const [activeDcsScreen, setActiveDcsScreen] = useState(0)
+  const [showEquipmentDialog, setShowEquipmentDialog] = useState(false)
+
   // 문서 리뷰 상태
   const [docReviewComment, setDocReviewComment] = useState("")
   const [docReviewConfirmed, setDocReviewConfirmed] = useState(false)
@@ -916,6 +920,8 @@ export default function AlertsPage() {
     setDocReviewComment("")
     setDocReviewConfirmed(false)
     setExpandedReviewSections([])
+    setActiveDcsScreen(0)
+    setShowEquipmentDialog(false)
   }
 
   // Standing Issue 추가 등록 핸들러
@@ -1132,12 +1138,12 @@ export default function AlertsPage() {
 
               {/* 콘텐츠 */}
               <ScrollArea className="flex-1 p-6">
-                <div className="max-w-3xl space-y-6">
+                <div className="space-y-6">
                   <p className="text-muted-foreground">{selectedAlert.description}</p>
 
-                  {/* Alert 타입: 알람 정보 + 장치 정보 (나란히 배치) */}
+                  {/* Alert 타입: 알람 정보 + Operation 컨텍스트 */}
                   {selectedAlert.type === "alert" && (
-                    <div className="grid grid-cols-2 gap-4">
+                    <div className="grid grid-cols-1 lg:grid-cols-3 gap-4">
                       {/* 알람 정보 */}
                       <Card>
                         <CardHeader className="pb-2">
@@ -1151,7 +1157,7 @@ export default function AlertsPage() {
                             <div className="grid grid-cols-2 gap-3">
                               <div className="space-y-1">
                                 <span className="text-xs text-muted-foreground">Tag ID</span>
-                                <p className="font-medium text-sm">{selectedAlert.data?.tagId || "-"}</p>
+                                <p className="font-medium text-sm font-mono">{selectedAlert.data?.tagId || "-"}</p>
                               </div>
                               <div className="space-y-1">
                                 <span className="text-xs text-muted-foreground">알람 등급</span>
@@ -1181,55 +1187,73 @@ export default function AlertsPage() {
                                 <p className="text-xs mt-1">{selectedAlert.alarmBackground}</p>
                               </div>
                             )}
+                            <Button variant="outline" size="sm" className="w-full text-xs mt-2" onClick={() => setShowEquipmentDialog(true)}>
+                              <BarChart3 className="h-3.5 w-3.5 mr-1.5" />
+                              장치 정보 및 정비이력 보기
+                            </Button>
                           </div>
                         </CardContent>
                       </Card>
 
-                      {/* 장치 정보 및 이력 */}
-                      <Card>
+                      {/* Operation 컨텍스트 - 알람 발생 당시 공정 상태 */}
+                      <Card className="lg:col-span-2">
                         <CardHeader className="pb-2">
                           <CardTitle className="text-sm flex items-center gap-2">
-                            <BarChart3 className="h-4 w-4" />
-                            장치 정보 및 이력
+                            <Activity className="h-4 w-4 text-primary" />
+                            Operation Context (알람 발생 시점)
                           </CardTitle>
                         </CardHeader>
                         <CardContent>
-                          <div className="space-y-3">
-                            <div className="grid grid-cols-2 gap-2">
-                              <div className="p-2 bg-muted/30 rounded-lg">
-                                <span className="text-xs text-muted-foreground">Unit / 위치</span>
-                                <p className="font-medium text-sm">{selectedAlert.unit} / Reactor Section</p>
-                              </div>
-                              <div className="p-2 bg-muted/30 rounded-lg">
-                                <span className="text-xs text-muted-foreground">관련 장치</span>
-                                <p className="font-medium text-sm">R-2001 (HCR Reactor)</p>
-                              </div>
+                          <div className="grid grid-cols-2 lg:grid-cols-4 gap-3 mb-4">
+                            <div className="p-2.5 bg-muted/30 rounded-lg">
+                              <span className="text-xs text-muted-foreground">운전 모드</span>
+                              <p className="font-medium text-sm mt-0.5">Normal Operation</p>
+                              <Badge variant="secondary" className="text-xs mt-1">Arabian Medium 전환 중</Badge>
                             </div>
-                            <div className="space-y-2">
-                              <span className="text-xs font-medium text-muted-foreground">정비 / 검사 이력</span>
-                              <div className="space-y-1.5">
-                                <div className="flex items-center justify-between p-1.5 bg-blue-50 rounded border border-blue-100">
-                                  <div className="flex items-center gap-1.5">
-                                    <Badge variant="outline" className="bg-blue-100 text-blue-700 border-blue-200 text-xs px-1.5 py-0">정비</Badge>
-                                    <span className="text-xs">Thermocouple 교체</span>
-                                  </div>
-                                  <span className="text-xs text-muted-foreground">2024-11-15</span>
-                                </div>
-                                <div className="flex items-center justify-between p-1.5 bg-green-50 rounded border border-green-100">
-                                  <div className="flex items-center gap-1.5">
-                                    <Badge variant="outline" className="bg-green-100 text-green-700 border-green-200 text-xs px-1.5 py-0">검사</Badge>
-                                    <span className="text-xs">정기 Calibration</span>
-                                  </div>
-                                  <span className="text-xs text-muted-foreground">2024-12-20</span>
-                                </div>
-                                <div className="flex items-center justify-between p-1.5 bg-amber-50 rounded border border-amber-100">
-                                  <div className="flex items-center gap-1.5">
-                                    <Badge variant="outline" className="bg-amber-100 text-amber-700 border-amber-200 text-xs px-1.5 py-0">점검</Badge>
-                                    <span className="text-xs">T/A 중 내부 검사</span>
-                                  </div>
-                                  <span className="text-xs text-muted-foreground">2024-06-15</span>
-                                </div>
+                            <div className="p-2.5 bg-muted/30 rounded-lg">
+                              <span className="text-xs text-muted-foreground">처리량 (Feed Rate)</span>
+                              <p className="font-medium text-sm mt-0.5">120.5 m3/h</p>
+                              <span className="text-xs text-green-600">Guide: 100~130 m3/h</span>
+                            </div>
+                            <div className="p-2.5 bg-muted/30 rounded-lg">
+                              <span className="text-xs text-muted-foreground">Operation Guide</span>
+                              <div className="flex items-center gap-1.5 mt-0.5">
+                                <span className="w-2 h-2 rounded-full bg-red-500" />
+                                <p className="font-medium text-sm text-red-600">1건 위반</p>
                               </div>
+                              <span className="text-xs text-muted-foreground">TI-2001 High</span>
+                            </div>
+                            <div className="p-2.5 bg-muted/30 rounded-lg">
+                              <span className="text-xs text-muted-foreground">원유 종류</span>
+                              <p className="font-medium text-sm mt-0.5">Arabian Medium</p>
+                              <span className="text-xs text-amber-600">S: 2.59% (Heavy)</span>
+                            </div>
+                          </div>
+                          {/* 주요 변수 상태 */}
+                          <div className="border rounded-lg overflow-hidden">
+                            <div className="px-3 py-2 bg-muted/50 text-xs font-medium text-muted-foreground flex items-center gap-2">
+                              <Gauge className="h-3.5 w-3.5" />
+                              알람 발생 시점 주요 변수 상태
+                            </div>
+                            <div className="divide-y">
+                              {[
+                                { tag: "TI-2001", name: "Reactor Inlet Temp", value: "412°C", guide: "< 400°C", status: "critical" as const },
+                                { tag: "FI-2001", name: "Feed Flow Rate", value: "120.5 m3/h", guide: "100~130", status: "normal" as const },
+                                { tag: "PI-2001", name: "Reactor Pressure", value: "35.2 bar", guide: "33~37", status: "normal" as const },
+                                { tag: "TI-2003", name: "Reactor WABT", value: "396.5°C", guide: "< 410°C", status: "warning" as const },
+                                { tag: "AI-2001", name: "H2/Oil Ratio", value: "1,050 Nm3/m3", guide: "> 950", status: "normal" as const },
+                                { tag: "FI-2010", name: "Quench Gas Flow", value: "15,200 Nm3/h", guide: "12K~18K", status: "normal" as const },
+                              ].map((v, i) => (
+                                <div key={i} className="flex items-center px-3 py-1.5 text-xs hover:bg-muted/20">
+                                  <span className="font-mono w-20 text-muted-foreground">{v.tag}</span>
+                                  <span className="flex-1">{v.name}</span>
+                                  <span className={cn("font-medium w-28 text-right", v.status === "critical" ? "text-red-600" : v.status === "warning" ? "text-amber-600" : "text-foreground")}>{v.value}</span>
+                                  <span className="text-muted-foreground w-24 text-right">{v.guide}</span>
+                                  <span className="w-6 flex justify-end">
+                                    {v.status === "critical" ? <AlertCircle className="h-3.5 w-3.5 text-red-500" /> : v.status === "warning" ? <AlertTriangle className="h-3.5 w-3.5 text-amber-500" /> : <CheckCircle className="h-3.5 w-3.5 text-green-500" />}
+                                  </span>
+                                </div>
+                              ))}
                             </div>
                           </div>
                         </CardContent>
@@ -1237,165 +1261,304 @@ export default function AlertsPage() {
                     </div>
                   )}
 
-                  {/* Alert 타입: DCS 화면 스냅샷 */}
-                  {selectedAlert.type === "alert" && (
-                    <Card>
-                      <CardHeader className="pb-2">
-                        <CardTitle className="text-sm flex items-center gap-2">
-                          <Monitor className="h-4 w-4" />
-                          DCS 화면 스냅샷 (알람 발생 시점)
-                        </CardTitle>
-                      </CardHeader>
-                      <CardContent>
-                        <div className="relative aspect-video bg-slate-900 rounded-lg overflow-hidden">
-                          {/* DCS 화면 시뮬레이션 */}
-                          <div className="absolute inset-0 p-4">
-                            <div className="h-full flex flex-col">
-                              {/* DCS 헤더 */}
-                              <div className="flex items-center justify-between mb-2 text-slate-400 text-xs">
-                                <span>{selectedAlert.unit} - Reactor Overview</span>
-                                <span>{selectedAlert.timestamp}</span>
-                              </div>
-                              {/* DCS 그래픽 영역 */}
-                              <div className="flex-1 grid grid-cols-3 gap-3">
-                                {/* 프로세스 블록 1 */}
-                                <div className="bg-slate-800 rounded p-2 flex flex-col">
-                                  <span className="text-slate-500 text-xs mb-1">Feed Section</span>
-                                  <div className="flex-1 flex items-center justify-center">
-                                    <div className="w-16 h-12 border-2 border-slate-600 rounded flex items-center justify-center">
-                                      <span className="text-slate-400 text-xs">P-2001</span>
-                                    </div>
-                                  </div>
-                                  <div className="text-xs text-green-400 mt-1">120.5 m3/h</div>
-                                </div>
-                                {/* 프로세스 블록 2 - 알람 발생 위치 */}
-                                <div className="bg-slate-800 rounded p-2 flex flex-col border-2 border-red-500">
-                                  <span className="text-slate-500 text-xs mb-1">Reactor</span>
-                                  <div className="flex-1 flex items-center justify-center relative">
-                                    <div className="w-20 h-16 border-2 border-red-500 rounded-lg flex flex-col items-center justify-center bg-red-900/30">
-                                      <span className="text-red-400 text-xs font-bold">R-2001</span>
-                                      <span className="text-red-300 text-xs">{selectedAlert.data?.tagId}</span>
-                                    </div>
-                                    <div className="absolute -top-1 -right-1 w-4 h-4 bg-red-500 rounded-full animate-pulse" />
-                                  </div>
-                                  <div className="text-xs text-red-400 mt-1 font-bold">{selectedAlert.data?.value}°C (HIGH)</div>
-                                </div>
-                                {/* 프로세스 블록 3 */}
-                                <div className="bg-slate-800 rounded p-2 flex flex-col">
-                                  <span className="text-slate-500 text-xs mb-1">Product</span>
-                                  <div className="flex-1 flex items-center justify-center">
-                                    <div className="w-16 h-12 border-2 border-slate-600 rounded flex items-center justify-center">
-                                      <span className="text-slate-400 text-xs">V-2001</span>
-                                    </div>
-                                  </div>
-                                  <div className="text-xs text-green-400 mt-1">35.2 bar</div>
-                                </div>
-                              </div>
-                              {/* 하단 태그 값들 */}
-                              <div className="mt-2 grid grid-cols-4 gap-2">
-                                <div className="bg-slate-800 p-1.5 rounded text-center">
-                                  <span className="text-slate-500 text-xs block">FI-2001</span>
-                                  <span className="text-green-400 text-xs">120.5</span>
-                                </div>
-                                <div className="bg-red-900/50 p-1.5 rounded text-center border border-red-500">
-                                  <span className="text-slate-500 text-xs block">{selectedAlert.data?.tagId}</span>
-                                  <span className="text-red-400 text-xs font-bold">{selectedAlert.data?.value}</span>
-                                </div>
-                                <div className="bg-slate-800 p-1.5 rounded text-center">
-                                  <span className="text-slate-500 text-xs block">PI-2001</span>
-                                  <span className="text-green-400 text-xs">35.2</span>
-                                </div>
-                                <div className="bg-slate-800 p-1.5 rounded text-center">
-                                  <span className="text-slate-500 text-xs block">LI-2001</span>
-                                  <span className="text-amber-400 text-xs">65.3</span>
-                                </div>
-                              </div>
+                  {/* Alert 타입: 관련 트렌드 (SVG 라인 차트) */}
+                  {selectedAlert.type === "alert" && selectedAlert.data?.trend && (() => {
+                    const trend = selectedAlert.data.trend
+                    const limit = selectedAlert.data.limit || 0
+                    const lowLimit = selectedAlert.triggerSetpoint?.low
+                    const allVals = [...trend, limit, ...(lowLimit ? [lowLimit] : [])]
+                    const maxV = Math.max(...allVals) * 1.08
+                    const minV = Math.min(...allVals) * 0.92
+                    const range = maxV - minV || 1
+                    const W = 600
+                    const H = 180
+                    const pad = { t: 16, b: 28, l: 48, r: 16 }
+                    const cw = W - pad.l - pad.r
+                    const ch = H - pad.t - pad.b
+                    const toX = (i: number) => pad.l + (i / (trend.length - 1)) * cw
+                    const toY = (v: number) => pad.t + (1 - (v - minV) / range) * ch
+                    const linePoints = trend.map((v, i) => `${toX(i)},${toY(v)}`).join(" ")
+                    // smooth path
+                    const pathD = trend.reduce((acc, v, i) => {
+                      const x = toX(i)
+                      const y = toY(v)
+                      if (i === 0) return `M ${x} ${y}`
+                      const px = toX(i - 1)
+                      const py = toY(trend[i - 1])
+                      const cpx = (px + x) / 2
+                      return `${acc} C ${cpx} ${py}, ${cpx} ${y}, ${x} ${y}`
+                    }, "")
+                    // fill area
+                    const areaD = `${pathD} L ${toX(trend.length - 1)} ${pad.t + ch} L ${toX(0)} ${pad.t + ch} Z`
+                    // find first violation index
+                    const firstViolIdx = trend.findIndex((v, i) => {
+                      const overHigh = limit && v > limit
+                      const underLow = lowLimit && v < lowLimit
+                      return (overHigh || underLow) && (i === 0 || ((!limit || trend[i-1] <= limit) && (!lowLimit || trend[i-1] >= lowLimit)))
+                    })
+                    const timeLabels = ["12:00", "12:30", "13:00", "13:30", "14:00", "14:15", "14:32"]
+
+                    return (
+                      <Card>
+                        <CardHeader className="pb-2">
+                          <CardTitle className="text-sm flex items-center justify-between">
+                            <div className="flex items-center gap-2">
+                              <TrendingUp className="h-4 w-4" />
+                              관련 트렌드 - {selectedAlert.data.tagId}
+                            </div>
+                            <div className="flex items-center gap-3 text-xs font-normal text-muted-foreground">
+                              <span className="flex items-center gap-1"><span className="w-3 h-0.5 bg-primary inline-block rounded" /> Actual</span>
+                              <span className="flex items-center gap-1"><span className="w-3 h-0.5 bg-red-400 inline-block rounded border-t border-dashed" /> Guide Max</span>
+                              {lowLimit && <span className="flex items-center gap-1"><span className="w-3 h-0.5 bg-blue-400 inline-block rounded border-t border-dashed" /> Guide Min</span>}
+                            </div>
+                          </CardTitle>
+                        </CardHeader>
+                        <CardContent>
+                          <svg viewBox={`0 0 ${W} ${H}`} className="w-full h-52" preserveAspectRatio="xMidYMid meet">
+                            {/* Grid lines */}
+                            {[0.25, 0.5, 0.75].map(frac => {
+                              const y = pad.t + frac * ch
+                              const val = maxV - frac * range
+                              return (
+                                <g key={frac}>
+                                  <line x1={pad.l} y1={y} x2={W - pad.r} y2={y} stroke="currentColor" strokeOpacity={0.07} />
+                                  <text x={pad.l - 6} y={y + 3} fontSize="9" fill="currentColor" fillOpacity={0.4} textAnchor="end">{val.toFixed(0)}</text>
+                                </g>
+                              )
+                            })}
+                            {/* Y-axis labels */}
+                            <text x={pad.l - 6} y={toY(maxV) + 3} fontSize="9" fill="currentColor" fillOpacity={0.4} textAnchor="end">{maxV.toFixed(0)}</text>
+                            <text x={pad.l - 6} y={toY(minV) + 3} fontSize="9" fill="currentColor" fillOpacity={0.4} textAnchor="end">{minV.toFixed(0)}</text>
+                            {/* Guide High line */}
+                            {limit > 0 && (
+                              <g>
+                                <line x1={pad.l} y1={toY(limit)} x2={W - pad.r} y2={toY(limit)} stroke="#f87171" strokeWidth="1.5" strokeDasharray="6 3" />
+                                <text x={W - pad.r + 4} y={toY(limit) + 3} fontSize="9" fill="#ef4444">Max {limit}</text>
+                              </g>
+                            )}
+                            {/* Guide Low line */}
+                            {lowLimit && (
+                              <g>
+                                <line x1={pad.l} y1={toY(lowLimit)} x2={W - pad.r} y2={toY(lowLimit)} stroke="#60a5fa" strokeWidth="1.5" strokeDasharray="6 3" />
+                                <text x={W - pad.r + 4} y={toY(lowLimit) + 3} fontSize="9" fill="#3b82f6">Min {lowLimit}</text>
+                              </g>
+                            )}
+                            {/* Area fill */}
+                            <path d={areaD} fill="url(#trendGrad)" opacity="0.3" />
+                            <defs>
+                              <linearGradient id="trendGrad" x1="0" y1="0" x2="0" y2="1">
+                                <stop offset="0%" stopColor="#0d9488" stopOpacity="0.5" />
+                                <stop offset="100%" stopColor="#0d9488" stopOpacity="0" />
+                              </linearGradient>
+                            </defs>
+                            {/* Trend line */}
+                            <path d={pathD} fill="none" stroke="#0d9488" strokeWidth="2.5" strokeLinecap="round" />
+                            {/* Over-limit segments in red */}
+                            {trend.map((v, i) => {
+                              if (i === 0) return null
+                              const overNow = (limit && v > limit) || (lowLimit && v < lowLimit)
+                              const overPrev = (limit && trend[i-1] > limit) || (lowLimit && trend[i-1] < lowLimit)
+                              if (!overNow && !overPrev) return null
+                              const px = toX(i - 1), py = toY(trend[i-1])
+                              const x = toX(i), y = toY(v)
+                              const cpx = (px + x) / 2
+                              return <path key={i} d={`M ${px} ${py} C ${cpx} ${py}, ${cpx} ${y}, ${x} ${y}`} fill="none" stroke="#ef4444" strokeWidth="2.5" strokeLinecap="round" />
+                            })}
+                            {/* Data points */}
+                            {trend.map((v, i) => {
+                              const isOver = (limit && v > limit) || (lowLimit && v < lowLimit)
+                              return (
+                                <g key={i}>
+                                  <circle cx={toX(i)} cy={toY(v)} r={isOver ? 4.5 : 3} fill={isOver ? "#ef4444" : "#0d9488"} stroke="white" strokeWidth="1.5" />
+                                  <text x={toX(i)} y={toY(v) - 8} fontSize="8" fill={isOver ? "#ef4444" : "currentColor"} fillOpacity={isOver ? 1 : 0.5} textAnchor="middle" fontWeight={isOver ? "bold" : "normal"}>{v}</text>
+                                </g>
+                              )
+                            })}
+                            {/* Violation hairline */}
+                            {firstViolIdx >= 0 && (
+                              <g>
+                                <line x1={toX(firstViolIdx)} y1={pad.t - 4} x2={toX(firstViolIdx)} y2={pad.t + ch + 4} stroke="#dc2626" strokeWidth="1.5" strokeDasharray="4 2" />
+                                <rect x={toX(firstViolIdx) - 22} y={pad.t - 14} width="44" height="14" rx="3" fill="#dc2626" />
+                                <text x={toX(firstViolIdx)} y={pad.t - 4} fontSize="8" fill="white" textAnchor="middle" fontWeight="bold">위반 시점</text>
+                              </g>
+                            )}
+                            {/* Time labels */}
+                            {trend.map((_, i) => (
+                              <text key={i} x={toX(i)} y={H - 4} fontSize="8" fill="currentColor" fillOpacity={0.4} textAnchor="middle">{timeLabels[i] || `T-${trend.length - 1 - i}`}</text>
+                            ))}
+                          </svg>
+                          <div className="flex justify-between mt-3 p-3 bg-muted/30 rounded-lg">
+                            <div>
+                              <span className="text-xs text-muted-foreground">현재값 (Actual)</span>
+                              <p className="text-base font-bold">{selectedAlert.data.value}</p>
+                            </div>
+                            <div className="text-center">
+                              <span className="text-xs text-muted-foreground">편차</span>
+                              <p className={cn("text-base font-bold", selectedAlert.data.value > limit ? "text-red-500" : lowLimit && selectedAlert.data.value < lowLimit ? "text-blue-500" : "text-green-500")}>
+                                {limit ? `${selectedAlert.data.value > limit ? "+" : ""}${(selectedAlert.data.value - limit).toFixed(1)}` : "-"}
+                              </p>
+                            </div>
+                            <div className="text-right">
+                              <span className="text-xs text-muted-foreground">Guide</span>
+                              <p className="text-base font-bold text-muted-foreground">{limit || "-"}</p>
                             </div>
                           </div>
-                        </div>
-                        <div className="mt-3 flex items-center justify-between">
-                          <span className="text-xs text-muted-foreground">캡처 시간: {selectedAlert.timestamp}</span>
-                          <Button variant="outline" size="sm" className="text-xs bg-transparent">
-                            <ExternalLink className="h-3 w-3 mr-1" />
-                            DCS 화면 열기
-                          </Button>
-                        </div>
-                      </CardContent>
-                    </Card>
-                  )}
+                        </CardContent>
+                      </Card>
+                    )
+                  })()}
 
-                  {/* Alert 타입: 관련 트렌드 (Guide, Actual, 위반시점 헤어라인) */}
-                  {selectedAlert.type === "alert" && selectedAlert.data?.trend && (
-                    <Card>
-                      <CardHeader className="pb-2">
-                        <CardTitle className="text-sm flex items-center gap-2">
-                          <TrendingUp className="h-4 w-4" />
-                          관련 트렌드 - {selectedAlert.data.tagId}
-                        </CardTitle>
-                      </CardHeader>
-                      <CardContent>
-                        <div className="h-48 flex items-end gap-2 relative bg-muted/30 rounded-lg p-4">
-                          {selectedAlert.data.trend.map((value, i) => {
-                            const max = Math.max(...selectedAlert.data!.trend!, selectedAlert.data!.limit || 0) * 1.05
-                            const min = Math.min(...selectedAlert.data!.trend!, selectedAlert.data!.limit || Infinity) * 0.95
-                            const range = max - min || 1
-                            const height = ((value - min) / range) * 100
-                            const isOverLimit = selectedAlert.data!.limit && value > selectedAlert.data!.limit
-                            const isFirstViolation = isOverLimit && (i === 0 || !selectedAlert.data!.trend![i-1] || selectedAlert.data!.trend![i-1] <= selectedAlert.data!.limit!)
-                            return (
-                              <div key={i} className="flex-1 flex flex-col items-center gap-1 relative">
-                                <span className="text-xs text-muted-foreground mb-1">{value}</span>
-                                <div 
-                                  className={cn("w-full rounded-t transition-all", isOverLimit ? "bg-red-500" : "bg-primary")}
-                                  style={{ height: `${Math.max(height, 5)}%` }}
-                                />
-                                {/* 가이드 위반 시점 헤어라인 */}
-                                {isFirstViolation && (
-                                  <div className="absolute top-0 bottom-0 left-1/2 border-l-2 border-dashed border-red-600 z-10">
-                                    <span className="absolute -top-5 -left-8 text-xs text-red-600 font-medium whitespace-nowrap">위반 시점</span>
+                  {/* Alert 타입: DCS 화면 스냅샷 (다중 그래픽 전환) */}
+                  {selectedAlert.type === "alert" && (() => {
+                    const dcsScreens = [
+                      { id: "reactor-overview", label: "Reactor Overview", section: "Reactor Section" },
+                      { id: "feed-section", label: "Feed Section", section: "Feed Preheat Train" },
+                      { id: "fractionation", label: "Fractionation", section: "Product Separation" },
+                    ]
+                    return (
+                      <Card>
+                        <CardHeader className="pb-2">
+                          <CardTitle className="text-sm flex items-center justify-between">
+                            <div className="flex items-center gap-2">
+                              <Monitor className="h-4 w-4" />
+                              DCS 화면 스냅샷 (알람 발생 시점)
+                            </div>
+                          </CardTitle>
+                          <div className="flex gap-1 mt-2">
+                            {dcsScreens.map((scr, idx) => (
+                              <button
+                                key={scr.id}
+                                className={cn(
+                                  "px-3 py-1.5 text-xs rounded-t border border-b-0 font-medium",
+                                  idx === activeDcsScreen
+                                    ? "bg-slate-900 text-white border-slate-700"
+                                    : "bg-muted/50 text-muted-foreground border-border hover:bg-muted"
+                                )}
+                                onClick={() => setActiveDcsScreen(idx)}
+                              >
+                                {scr.label}
+                                {idx === 0 && <span className="ml-1.5 w-1.5 h-1.5 bg-red-500 rounded-full inline-block animate-pulse" />}
+                              </button>
+                            ))}
+                          </div>
+                        </CardHeader>
+                        <CardContent className="pt-0">
+                          <div className="relative aspect-[16/8] bg-slate-900 rounded-b-lg rounded-tr-lg overflow-hidden">
+                            <div className="absolute inset-0 p-4">
+                              <div className="h-full flex flex-col">
+                                <div className="flex items-center justify-between mb-2 text-slate-400 text-xs">
+                                  <span>{selectedAlert.unit} - {dcsScreens[activeDcsScreen]?.section}</span>
+                                  <span>{selectedAlert.timestamp}</span>
+                                </div>
+                                {activeDcsScreen === 0 ? (
+                                  <>
+                                    <div className="flex-1 grid grid-cols-4 gap-3">
+                                      <div className="bg-slate-800 rounded p-2 flex flex-col">
+                                        <span className="text-slate-500 text-xs mb-1">Feed</span>
+                                        <div className="flex-1 flex items-center justify-center">
+                                          <div className="w-14 h-10 border border-slate-600 rounded flex items-center justify-center"><span className="text-slate-400 text-xs">P-2001</span></div>
+                                        </div>
+                                        <div className="text-xs text-green-400 mt-1">120.5 m3/h</div>
+                                      </div>
+                                      <div className="bg-slate-800 rounded p-2 flex flex-col border-2 border-red-500">
+                                        <span className="text-slate-500 text-xs mb-1">Reactor</span>
+                                        <div className="flex-1 flex items-center justify-center relative">
+                                          <div className="w-20 h-14 border-2 border-red-500 rounded-lg flex flex-col items-center justify-center bg-red-900/30">
+                                            <span className="text-red-400 text-xs font-bold">R-2001</span>
+                                            <span className="text-red-300 text-xs">{selectedAlert.data?.tagId}</span>
+                                          </div>
+                                          <div className="absolute -top-1 -right-1 w-3.5 h-3.5 bg-red-500 rounded-full animate-pulse" />
+                                        </div>
+                                        <div className="text-xs text-red-400 mt-1 font-bold">{selectedAlert.data?.value} (HIGH)</div>
+                                      </div>
+                                      <div className="bg-slate-800 rounded p-2 flex flex-col">
+                                        <span className="text-slate-500 text-xs mb-1">Separator</span>
+                                        <div className="flex-1 flex items-center justify-center">
+                                          <div className="w-14 h-10 border border-slate-600 rounded flex items-center justify-center"><span className="text-slate-400 text-xs">V-2001</span></div>
+                                        </div>
+                                        <div className="text-xs text-green-400 mt-1">35.2 bar</div>
+                                      </div>
+                                      <div className="bg-slate-800 rounded p-2 flex flex-col">
+                                        <span className="text-slate-500 text-xs mb-1">H2 System</span>
+                                        <div className="flex-1 flex items-center justify-center">
+                                          <div className="w-14 h-10 border border-slate-600 rounded flex items-center justify-center"><span className="text-slate-400 text-xs">C-2001</span></div>
+                                        </div>
+                                        <div className="text-xs text-green-400 mt-1">1,050 Nm3</div>
+                                      </div>
+                                    </div>
+                                    <div className="mt-2 grid grid-cols-6 gap-1.5">
+                                      {[
+                                        { tag: "FI-2001", val: "120.5", ok: true }, { tag: selectedAlert.data?.tagId || "TI-2001", val: String(selectedAlert.data?.value), ok: false },
+                                        { tag: "PI-2001", val: "35.2", ok: true }, { tag: "TI-2003", val: "396.5", ok: true },
+                                        { tag: "AI-2001", val: "1050", ok: true }, { tag: "FI-2010", val: "15200", ok: true },
+                                      ].map((t, i) => (
+                                        <div key={i} className={cn("p-1 rounded text-center", t.ok ? "bg-slate-800" : "bg-red-900/50 border border-red-500")}>
+                                          <span className="text-slate-500 text-[10px] block">{t.tag}</span>
+                                          <span className={cn("text-xs", t.ok ? "text-green-400" : "text-red-400 font-bold")}>{t.val}</span>
+                                        </div>
+                                      ))}
+                                    </div>
+                                  </>
+                                ) : activeDcsScreen === 1 ? (
+                                  <div className="flex-1 flex items-center justify-center">
+                                    <div className="grid grid-cols-3 gap-6">
+                                      {[
+                                        { name: "E-2001\nFeed/Effluent", temp: "285/310°C", color: "green" },
+                                        { name: "E-2002\nFeed Heater", temp: "310/395°C", color: "green" },
+                                        { name: "F-2001\nCharge Heater", temp: "395/412°C", color: "red" },
+                                      ].map((eq, i) => (
+                                        <div key={i} className="flex flex-col items-center gap-2">
+                                          <div className={cn("w-20 h-16 border-2 rounded-lg flex flex-col items-center justify-center",
+                                            eq.color === "red" ? "border-red-500 bg-red-900/20" : "border-slate-600 bg-slate-800"
+                                          )}>
+                                            <span className={cn("text-xs", eq.color === "red" ? "text-red-400" : "text-slate-400")}>{eq.name.split("\n")[0]}</span>
+                                            <span className="text-slate-500 text-[10px]">{eq.name.split("\n")[1]}</span>
+                                          </div>
+                                          <span className={cn("text-xs", eq.color === "red" ? "text-red-400 font-bold" : "text-green-400")}>{eq.temp}</span>
+                                          {i < 2 && <div className="absolute" />}
+                                        </div>
+                                      ))}
+                                    </div>
+                                  </div>
+                                ) : (
+                                  <div className="flex-1 flex items-center justify-center">
+                                    <div className="grid grid-cols-3 gap-6">
+                                      {[
+                                        { name: "V-2001\nHP Sep", press: "35.2 bar", level: "65%" },
+                                        { name: "V-2002\nLP Sep", press: "8.5 bar", level: "55%" },
+                                        { name: "T-2001\nStripper", press: "3.2 bar", level: "48%" },
+                                      ].map((eq, i) => (
+                                        <div key={i} className="flex flex-col items-center gap-2">
+                                          <div className="w-20 h-16 border border-slate-600 bg-slate-800 rounded-lg flex flex-col items-center justify-center">
+                                            <span className="text-slate-400 text-xs">{eq.name.split("\n")[0]}</span>
+                                            <span className="text-slate-500 text-[10px]">{eq.name.split("\n")[1]}</span>
+                                          </div>
+                                          <div className="text-center">
+                                            <span className="text-green-400 text-xs block">{eq.press}</span>
+                                            <span className="text-slate-400 text-[10px]">Level: {eq.level}</span>
+                                          </div>
+                                        </div>
+                                      ))}
+                                    </div>
                                   </div>
                                 )}
                               </div>
-                            )
-                          })}
-                          {/* Guide 라인 (High) */}
-                          {selectedAlert.data.limit && (
-                            <div className="absolute left-4 right-4 flex items-center gap-2" style={{ 
-                              bottom: `${Math.min(95, Math.max(5, ((selectedAlert.data.limit - Math.min(...selectedAlert.data.trend) * 0.95) / (Math.max(...selectedAlert.data.trend, selectedAlert.data.limit) * 1.05 - Math.min(...selectedAlert.data.trend) * 0.95)) * 100))}%` 
-                            }}>
-                              <div className="flex-1 border-t-2 border-dashed border-red-400" />
-                              <span className="text-xs text-red-500 bg-background px-2 py-0.5 rounded">Guide Max: {selectedAlert.data.limit}</span>
                             </div>
-                          )}
-                          {/* Guide 라인 (Low) - triggerSetpoint.low 가 있을 경우 */}
-                          {selectedAlert.triggerSetpoint?.low && (
-                            <div className="absolute left-4 right-4 flex items-center gap-2" style={{ 
-                              bottom: `${Math.min(95, Math.max(5, ((selectedAlert.triggerSetpoint.low - Math.min(...selectedAlert.data.trend) * 0.95) / (Math.max(...selectedAlert.data.trend, selectedAlert.data.limit || 0) * 1.05 - Math.min(...selectedAlert.data.trend) * 0.95)) * 100))}%` 
-                            }}>
-                              <div className="flex-1 border-t-2 border-dashed border-blue-400" />
-                              <span className="text-xs text-blue-500 bg-background px-2 py-0.5 rounded">Guide Min: {selectedAlert.triggerSetpoint.low}</span>
+                          </div>
+                          <div className="mt-2 flex items-center justify-between">
+                            <div className="flex items-center gap-2">
+                              <span className="text-xs text-muted-foreground">캡처 시간: {selectedAlert.timestamp}</span>
+                              <span className="text-xs text-muted-foreground">({activeDcsScreen + 1}/{dcsScreens.length} 화면)</span>
                             </div>
-                          )}
-                        </div>
-                        <div className="flex justify-between mt-4 p-3 bg-muted/30 rounded-lg">
-                          <div>
-                            <span className="text-sm text-muted-foreground">현재값 (Actual)</span>
-                            <p className="text-lg font-bold">{selectedAlert.data.value}</p>
+                            <Button variant="outline" size="sm" className="text-xs bg-transparent">
+                              <ExternalLink className="h-3 w-3 mr-1" />
+                              DCS 화면 열기
+                            </Button>
                           </div>
-                          <div className="text-center">
-                            <span className="text-sm text-muted-foreground">편차</span>
-                            <p className={cn("text-lg font-bold", selectedAlert.data.value > (selectedAlert.data.limit || 0) ? "text-red-500" : "text-green-500")}>
-                              {selectedAlert.data.limit ? `${selectedAlert.data.value > selectedAlert.data.limit ? "+" : ""}${(selectedAlert.data.value - selectedAlert.data.limit).toFixed(1)}` : "-"}
-                            </p>
-                          </div>
-                          <div className="text-right">
-                            <span className="text-sm text-muted-foreground">Guide</span>
-                            <p className="text-lg font-bold text-muted-foreground">{selectedAlert.data.limit}</p>
-                          </div>
-                        </div>
-                      </CardContent>
-                    </Card>
-                  )}
+                        </CardContent>
+                      </Card>
+                    )
+                  })()}
 
                   {/* Alert 타입: 과거 알람 발생 이력 및 해결 방법 */}
                   {selectedAlert.type === "alert" && (
@@ -2576,6 +2739,72 @@ export default function AlertsPage() {
             </div>
           )}
         </div>
+
+        {/* 장치 정보 및 이력 팝업 */}
+        <Dialog open={showEquipmentDialog} onOpenChange={setShowEquipmentDialog}>
+          <DialogContent className="max-w-lg">
+            <DialogHeader>
+              <DialogTitle className="flex items-center gap-2">
+                <BarChart3 className="h-5 w-5" />
+                장치 정보 및 정비이력
+              </DialogTitle>
+            </DialogHeader>
+            <div className="space-y-4">
+              <div className="grid grid-cols-2 gap-3">
+                <div className="p-3 bg-muted/30 rounded-lg">
+                  <span className="text-xs text-muted-foreground">Unit / 위치</span>
+                  <p className="font-medium text-sm mt-0.5">{selectedAlert?.unit || "-"} / Reactor Section</p>
+                </div>
+                <div className="p-3 bg-muted/30 rounded-lg">
+                  <span className="text-xs text-muted-foreground">관련 장치</span>
+                  <p className="font-medium text-sm mt-0.5">R-2001 (HCR Reactor)</p>
+                </div>
+                <div className="p-3 bg-muted/30 rounded-lg">
+                  <span className="text-xs text-muted-foreground">장치 유형</span>
+                  <p className="font-medium text-sm mt-0.5">Fixed Bed Reactor</p>
+                </div>
+                <div className="p-3 bg-muted/30 rounded-lg">
+                  <span className="text-xs text-muted-foreground">설치 / 최종 T/A</span>
+                  <p className="font-medium text-sm mt-0.5">2015 / 2024-06</p>
+                </div>
+              </div>
+              <div>
+                <h4 className="text-sm font-medium mb-2 flex items-center gap-1.5">
+                  <Clock className="h-4 w-4 text-muted-foreground" />
+                  정비 / 검사 이력
+                </h4>
+                <div className="space-y-2">
+                  {[
+                    { type: "정비", desc: "Thermocouple 교체", date: "2024-11-15", color: "blue" },
+                    { type: "검사", desc: "정기 Calibration", date: "2024-12-20", color: "green" },
+                    { type: "점검", desc: "T/A 중 내부 검사 - Catalyst 교체", date: "2024-06-15", color: "amber" },
+                    { type: "정비", desc: "Quench Line Valve 교체", date: "2024-06-10", color: "blue" },
+                    { type: "검사", desc: "두께 측정 (UT)", date: "2024-01-20", color: "green" },
+                  ].map((item, i) => (
+                    <div key={i} className={cn("flex items-center justify-between p-2 rounded border",
+                      item.color === "blue" ? "bg-blue-50 border-blue-100" : item.color === "green" ? "bg-green-50 border-green-100" : "bg-amber-50 border-amber-100"
+                    )}>
+                      <div className="flex items-center gap-2">
+                        <Badge variant="outline" className={cn("text-xs px-1.5 py-0",
+                          item.color === "blue" ? "bg-blue-100 text-blue-700 border-blue-200" : item.color === "green" ? "bg-green-100 text-green-700 border-green-200" : "bg-amber-100 text-amber-700 border-amber-200"
+                        )}>{item.type}</Badge>
+                        <span className="text-xs">{item.desc}</span>
+                      </div>
+                      <span className="text-xs text-muted-foreground">{item.date}</span>
+                    </div>
+                  ))}
+                </div>
+              </div>
+              <div>
+                <h4 className="text-sm font-medium mb-2">관련 Contingency Plan</h4>
+                <Button variant="outline" size="sm" className="text-xs w-full justify-start">
+                  <ShieldCheck className="h-3.5 w-3.5 mr-1.5 text-amber-600" />
+                  HCR 비상운전 절차서 (v3.2) - 최종 리뷰: 2025-02-01
+                </Button>
+              </div>
+            </div>
+          </DialogContent>
+        </Dialog>
 
         {/* 티켓 생성 다이얼로그 - 새 티켓과 동일한 양식 */}
         <Dialog open={showTicketDialog} onOpenChange={setShowTicketDialog}>
