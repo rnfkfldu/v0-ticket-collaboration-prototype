@@ -156,7 +156,7 @@ export function Sidebar({ unreadAlerts = 3 }: SidebarProps) {
     },
     {
       id: "workspace",
-      label: "My Activity",
+      label: "My Work",
       icon: Inbox,
       items: [
         { label: "내 이벤트", href: "/actions/tickets", icon: Inbox },
