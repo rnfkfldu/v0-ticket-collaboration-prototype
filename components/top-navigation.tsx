@@ -54,49 +54,49 @@ import { useUser, USER_PROFILES, getRoleDescription } from "@/lib/user-context"
 const mainMenus = [
   { 
     id: "operations",
-    label: "Operations", 
+    label: "운전 현황", 
     href: "/operations",
     icon: Activity,
     description: "실시간 운전 현황 모니터링"
   },
   { 
     id: "actions",
-    label: "Actions", 
+    label: "업무 관리", 
     href: "/alerts",
     icon: Zap,
     description: "이벤트 및 업무 관리"
   },
   { 
     id: "optimization",
-    label: "Optimization", 
+    label: "최적화", 
     href: "/optimization/ai-ml",
     icon: TrendingUp,
     description: "공정 최적화 및 분석"
   },
   { 
     id: "roadmap",
-    label: "Workbench", 
+    label: "개선과제", 
     href: "/roadmap",
     icon: Target,
     description: "TA Worklist 및 개선과제 관리"
   },
   { 
     id: "knowledge",
-    label: "Knowledge", 
+    label: "지식 관리", 
     href: "/knowledge",
     icon: BookOpen,
     description: "지식 관리 및 검색"
   },
   { 
     id: "data-admin",
-    label: "Data & Admin", 
+    label: "데이터/관리", 
     href: "/admin",
     icon: Database,
     description: "데이터 관리 및 시스템 설정"
   },
   { 
     id: "review",
-    label: "Review", 
+    label: "리뷰", 
     href: "/review/monthly",
     icon: BarChart3,
     description: "운전 리뷰 및 거버넌스"
@@ -377,13 +377,13 @@ export function TopNavigation() {
             </SheetContent>
           </Sheet>
 
-          {/* OOP Outside */}
+          {/* 외부 협업 */}
           <Button 
             variant="ghost" 
             size="icon"
             className="text-white/70 hover:text-white hover:bg-white/10 h-8 w-8"
             onClick={() => router.push("/oop-outside")}
-            title="OOP Outside"
+            title="외부 협업"
           >
             <Globe className="h-4 w-4" />
           </Button>

@@ -96,58 +96,52 @@ export function Sidebar({ unreadAlerts = 3 }: SidebarProps) {
   // Operations 메뉴 구조
   const operationsMenu: MenuSection[] = [
     {
-      id: "overview",
-      label: "Overview",
-      icon: LayoutDashboard,
-      items: [{ label: "Overall", href: "/operations/overall", icon: LayoutDashboard }]
-    },
-    {
       id: "live-monitoring",
-      label: "Live Monitoring",
+      label: "실시간 모니터링",
       icon: Monitor,
       items: [
-        { label: "Daily Monitoring", href: "/operations", icon: Layers },
+        { label: "일일 운전 현황", href: "/operations", icon: Layers },
         { 
-          label: "DCS Monitoring", 
+          label: "DCS 모니터링", 
           href: "/operations/monitoring/dcs", 
           icon: Monitor,
           children: [
-            { label: "DCS Screen View", href: "/operations/monitoring/dcs/screen", icon: Monitor },
-            { label: "Tag Drill-down", href: "/operations/monitoring/dcs/tag", icon: Target },
-            { label: "Alarm Context View", href: "/operations/monitoring/dcs/alarm", icon: Bell },
+            { label: "DCS 화면 조회", href: "/operations/monitoring/dcs/screen", icon: Monitor },
+            { label: "태그 상세분석", href: "/operations/monitoring/dcs/tag", icon: Target },
+            { label: "알람 상황판", href: "/operations/monitoring/dcs/alarm", icon: Bell },
           ]
         },
       ]
     },
     {
       id: "cross-unit",
-      label: "Cross-Unit View",
+      label: "공정 연계 분석",
       icon: Network,
       items: [
-        { label: "Utility Interconnection", href: "/operations/cross-unit/utility", icon: Zap },
-        { label: "Process Interconnection", href: "/operations/cross-unit/process", icon: Network },
-        { label: "Similar Process Comparison", href: "/operations/cross-unit/similar", icon: BarChart3 },
+        { label: "유틸리티 연계", href: "/operations/cross-unit/utility", icon: Zap },
+        { label: "공정간 연계", href: "/operations/cross-unit/process", icon: Network },
+        { label: "유사 공정 비교", href: "/operations/cross-unit/similar", icon: BarChart3 },
       ]
     },
     {
       id: "long-term",
-      label: "Long-Term Health",
+      label: "장기 건전성 관리",
       icon: TrendingUp,
       items: [
-        { label: "Overview", href: "/operations/health/overview", icon: LayoutDashboard },
-        { label: "Deposition", href: "/operations/health/deposition", icon: Flame },
-        { label: "Catalyst Performance", href: "/operations/health/catalyst", icon: ThermometerSun },
-        { label: "Integrity Risk", href: "/operations/health/integrity", icon: Shield },
-        { label: "Worklist", href: "/operations/health/worklist", icon: FileText },
+        { label: "건전성 현황", href: "/operations/health/overview", icon: LayoutDashboard },
+        { label: "오염/침적 관리", href: "/operations/health/deposition", icon: Flame },
+        { label: "촉매 성능 추적", href: "/operations/health/catalyst", icon: ThermometerSun },
+        { label: "설비 건전성 리스크", href: "/operations/health/integrity", icon: Shield },
+        { label: "조치 목록", href: "/operations/health/worklist", icon: FileText },
       ]
     },
   ]
 
-  // Actions 메뉴 구조 (기존)
+  // 업무 관리 메뉴 구조
   const actionsMenu: MenuSection[] = [
     {
       id: "alerts",
-      label: "My Alert",
+      label: "내 알람",
       icon: Bell,
       items: [
         { label: "전체 알람", href: "/alerts", icon: Bell, count: 12 },
@@ -156,7 +150,7 @@ export function Sidebar({ unreadAlerts = 3 }: SidebarProps) {
     },
     {
       id: "workspace",
-      label: "My Work",
+      label: "내 업무",
       icon: Inbox,
       items: [
         { label: "내 이벤트", href: "/actions/tickets", icon: Inbox },
@@ -165,89 +159,89 @@ export function Sidebar({ unreadAlerts = 3 }: SidebarProps) {
     },
   ]
 
-  // Optimization 메뉴 구조
+  // 최적화 메뉴 구조
   const optimizationMenu: MenuSection[] = [
     {
       id: "model-optimization",
-      label: "Model-Based Optimization",
+      label: "모델 기반 최적화",
       icon: Cpu,
       items: [
-        { label: "AI / ML Models", href: "/optimization/ai-ml", icon: Cpu },
-        { label: "RTO Models", href: "/optimization/rto", icon: Activity },
+        { label: "AI / ML 모델", href: "/optimization/ai-ml", icon: Cpu },
+        { label: "RTO 모델", href: "/optimization/rto", icon: Activity },
       ]
     },
     {
       id: "experiments",
-      label: "Experiments (Model Sandbox)",
+      label: "모델 실험실",
       icon: Box,
       items: [
-        { label: "Model Sandbox", href: "/optimization/experiments", icon: Box },
+        { label: "모델 Sandbox", href: "/optimization/experiments", icon: Box },
       ]
     },
     {
       id: "whatif",
-      label: "What-if Simulation",
+      label: "What-if 시뮬레이션",
       icon: Target,
       items: [
-        { label: "What-if Simulation", href: "/optimization/what-if", icon: Target },
+        { label: "What-if 시뮬레이션", href: "/optimization/what-if", icon: Target },
       ]
     },
     {
       id: "opt-insight",
-      label: "Optimization Insight",
+      label: "최적화 인사이트",
       icon: Eye,
       items: [
-        { label: "Binding Constraint Analysis", href: "/optimization/insight/binding", icon: AlertTriangle },
-        { label: "Marginal Value Analysis", href: "/optimization/insight/marginal", icon: TrendingUp },
-        { label: "LP Vector Analysis", href: "/optimization/insight/lp-vector", icon: LineChart },
-        { label: "Quality Giveaway Analysis", href: "/optimization/insight/quality-giveaway", icon: Gauge },
+        { label: "제약조건 분석", href: "/optimization/insight/binding", icon: AlertTriangle },
+        { label: "한계가치 분석", href: "/optimization/insight/marginal", icon: TrendingUp },
+        { label: "LP 벡터 분석", href: "/optimization/insight/lp-vector", icon: LineChart },
+        { label: "품질 Giveaway 분석", href: "/optimization/insight/quality-giveaway", icon: Gauge },
       ]
     },
   ]
 
-  // Knowledge 메뉴 구조
+  // 지식 관리 메뉴 구조
   const knowledgeMenu: MenuSection[] = [
     {
       id: "knowledge-asset",
-      label: "Knowledge Asset",
+      label: "지식 자산",
       icon: Layers,
       items: [
-        { label: "Knowledge Asset", href: "/knowledge/assets", icon: Layers },
-        { label: "Reports", href: "/knowledge/reports", icon: FileBarChart },
+        { label: "지식 자산 관리", href: "/knowledge/assets", icon: Layers },
+        { label: "보고서", href: "/knowledge/reports", icon: FileBarChart },
       ]
     },
     {
       id: "playbooks",
-      label: "Operating Playbooks",
+      label: "운전 Playbook",
       icon: BookOpen,
       items: [
-        { label: "Operating Playbooks", href: "/knowledge", icon: BookOpen },
+        { label: "운전 Playbook", href: "/knowledge", icon: BookOpen },
       ]
     },
     {
       id: "contingency",
-      label: "Operation Contingency Plan",
+      label: "비상 대응 절차",
       icon: Shield,
       items: [
-        { label: "Contingency Plan", href: "/knowledge/contingency", icon: Shield },
+        { label: "비상 대응 절차", href: "/knowledge/contingency", icon: Shield },
       ]
     },
     {
       id: "history",
-      label: "Operating History",
+      label: "운전 이력",
       icon: History,
       items: [
-        { label: "Process Unit History", href: "/knowledge/history/process", icon: Activity },
-        { label: "Alert History", href: "/knowledge/history/alert", icon: Bell },
-        { label: "Action History", href: "/knowledge/history/action", icon: Wrench },
+        { label: "공정 운전 이력", href: "/knowledge/history/process", icon: Activity },
+        { label: "알람 이력", href: "/knowledge/history/alert", icon: Bell },
+        { label: "조치 이력", href: "/knowledge/history/action", icon: Wrench },
       ]
     },
     {
       id: "team-knowledge",
-      label: "Team Knowledge",
+      label: "팀 지식 공유",
       icon: Users,
       items: [
-        { label: "Team Knowledge", href: "/knowledge/team", icon: Users },
+        { label: "팀 지식 공유", href: "/knowledge/team", icon: Users },
       ]
     },
     {
@@ -260,88 +254,88 @@ export function Sidebar({ unreadAlerts = 3 }: SidebarProps) {
     },
     {
       id: "notes",
-      label: "Personal Notes",
+      label: "개인 메모",
       icon: StickyNote,
       items: [
-        { label: "Personal Notes", href: "/knowledge/notes", icon: StickyNote },
+        { label: "개인 메모", href: "/knowledge/notes", icon: StickyNote },
       ]
     },
     {
       id: "logs",
-      label: "System Logs",
+      label: "시스템 로그",
       icon: FileText,
       items: [
-        { label: "System Logs", href: "/knowledge/logs", icon: FileText },
+        { label: "시스템 로그", href: "/knowledge/logs", icon: FileText },
       ]
     },
   ]
 
-  // Data & Admin 메뉴 구조
+  // 데이터 및 관리 메뉴 구조
   const dataAdminMenu: MenuSection[] = [
     {
       id: "data-quality",
-      label: "Data Quality Monitoring",
+      label: "데이터 품질 관리",
       icon: Shield,
       items: [
-        { label: "Data Quality Monitoring", href: "/admin", icon: Shield },
-        { label: "SSoT Management", href: "/admin/ssot", icon: Database },
+        { label: "데이터 품질 현황", href: "/admin", icon: Shield },
+        { label: "SSoT 관리", href: "/admin/ssot", icon: Database },
       ]
     },
     {
       id: "master-data",
-      label: "Master Data Management",
+      label: "기준정보 관리",
       icon: Server,
       items: [
-        { label: "Master Data Management", href: "/admin/master-data", icon: Server },
+        { label: "기준정보 관리", href: "/admin/master-data", icon: Server },
       ]
     },
     {
       id: "data-mart",
-      label: "Data Mart",
+      label: "데이터 마트",
       icon: Database,
       items: [
-        { label: "Data Mart", href: "/admin/data-mart", icon: Database },
+        { label: "데이터 마트", href: "/admin/data-mart", icon: Database },
       ]
     },
     {
       id: "reference-data",
-      label: "Reference Data",
+      label: "참조 데이터",
       icon: FileText,
       items: [
-        { label: "Reference Data", href: "/admin/reference-data", icon: FileText },
+        { label: "참조 데이터", href: "/admin/reference-data", icon: FileText },
       ]
     },
     {
       id: "system-settings",
-      label: "System Settings",
+      label: "시스템 설정",
       icon: Settings,
       items: [
-        { label: "System Settings", href: "/admin/settings", icon: Settings },
+        { label: "시스템 설정", href: "/admin/settings", icon: Settings },
       ]
     },
   ]
 
-  // Workbench 메뉴 구조
+  // 개선과제 관리 메뉴 구조
   const roadmapMenu: MenuSection[] = [
     {
       id: "worklist",
-      label: "Worklist",
+      label: "과제 관리",
       icon: FileText,
       items: [
-        { label: "Worklist", href: "/roadmap", icon: FileText },
-        { label: "Optimization Opportunities", href: "/roadmap/opportunities", icon: TrendingUp },
+        { label: "과제 목록", href: "/roadmap", icon: FileText },
+        { label: "최적화 기회 발굴", href: "/roadmap/opportunities", icon: TrendingUp },
       ]
     },
   ]
 
-  // OOP Outside 메뉴 구조 (기존 3rd Party)
+  // 외부 협업 메뉴 구조
   const oopOutsideMenu: MenuSection[] = [
     {
       id: "third-party",
-      label: "3rd Party 분석",
+      label: "외부 기관 분석",
       icon: Building2,
       items: [
-        { label: "3rd Party 분석 데이터", href: "/oop-outside/analysis", icon: Database },
+        { label: "외부 분석 데이터", href: "/oop-outside/analysis", icon: Database },
         { label: "라이센서 질의", href: "/oop-outside/licensor", icon: HelpCircle },
       ]
     },
@@ -371,22 +365,22 @@ export function Sidebar({ unreadAlerts = 3 }: SidebarProps) {
     },
   ]
 
-  // Review 메뉴 구조
+  // 리뷰 메뉴 구조
   const reviewMenu: MenuSection[] = [
     {
       id: "review-monthly",
-      label: "Monthly Review",
+      label: "월간 운전 리뷰",
       icon: BarChart3,
       items: [
-        { label: "Monthly Review", href: "/review/monthly", icon: BarChart3 },
+        { label: "월간 운전 리뷰", href: "/review/monthly", icon: BarChart3 },
       ]
     },
     {
       id: "review-health",
-      label: "System Health Review",
+      label: "시스템 건전성 리뷰",
       icon: Shield,
       items: [
-        { label: "System Health Review", href: "/review/system-health", icon: Shield },
+        { label: "시스템 건전성 리뷰", href: "/review/system-health", icon: Shield },
       ]
     },
     {
