@@ -175,7 +175,8 @@ export function Sidebar({ unreadAlerts = 3 }: SidebarProps) {
       label: "모델 실험실",
       icon: Box,
       items: [
-        { label: "모델 Sandbox", href: "/optimization/experiments", icon: Box },
+        { label: "모델 구축", href: "/optimization/experiments", icon: Cpu },
+        { label: "운영 검증", href: "/optimization/experiments?tab=validate", icon: Eye },
       ]
     },
     {
