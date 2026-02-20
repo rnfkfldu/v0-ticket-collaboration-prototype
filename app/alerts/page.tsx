@@ -13,7 +13,7 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@
 import { ScrollArea } from "@/components/ui/scroll-area"
 import { Label } from "@/components/ui/label"
 import { saveTicket, addWorkPackageToTicket, getTickets } from "@/lib/storage"
-import { UNIT_OWNERS } from "@/lib/process-data"
+import { UNIT_OWNERS, AVAILABLE_TAGS } from "@/lib/process-data"
 import { 
   Bell, 
   AlertTriangle, 
@@ -46,7 +46,9 @@ import {
   ShieldCheck,
   BookOpen,
   History,
-  RotateCcw
+  RotateCcw,
+  LayoutGrid,
+  Maximize2
 } from "lucide-react"
 import { cn } from "@/lib/utils"
 
@@ -372,7 +374,7 @@ const SAMPLE_ALERTS: AlertItem[] = [
     severity: "info",
     data: {
       items: [
-        { name: "처리량 준수율", status: "normal", value: "98.5% (목표 95%)" },
+        { name: "처리량 준��율", status: "normal", value: "98.5% (목표 95%)" },
         { name: "온스펙 비율", status: "normal", value: "99.2% (목표 98%)" },
         { name: "AI 모델 정확도", status: "warning", value: "87% (목표 90%)" },
         { name: "에너지 효율", status: "normal", value: "목표 대비 +2.1%" }
@@ -630,6 +632,9 @@ export default function AlertsPage() {
   const [showAnomalyCategoryDialog, setShowAnomalyCategoryDialog] = useState(false)
   const [selectedAnomalyCategory, setSelectedAnomalyCategory] = useState<{id: string; name: string; description: string; top3: {tagId: string; description: string; severity: "high"|"medium"|"low"; deviation: string; detail: string}[]} | null>(null)
   
+  // 관련 트렌드 전체보기 다이얼로그
+  const [showFullTrendDialog, setShowFullTrendDialog] = useState(false)
+
   // DCS ESR 상세 팝업 상태
   const [showEsrDialog, setShowEsrDialog] = useState(false)
   
@@ -982,6 +987,106 @@ export default function AlertsPage() {
     event: alertsByType.event.filter(a => a.status === "unread").length
   }
 
+  // --- 모니터링 그룹: 태그별 연관 태그 그룹 ---
+  const MONITORING_GROUPS: Record<string, { name: string; tags: { id: string; desc: string; unit: string; type: string }[] }> = {
+    "HCR-Reactor": {
+      name: "HCR Reactor Section",
+      tags: [
+        { id: "TI-3001", desc: "Reactor Inlet Temp", unit: "deg.C", type: "Temperature" },
+        { id: "TI-3002", desc: "Reactor Outlet Temp", unit: "deg.C", type: "Temperature" },
+        { id: "TI-3003", desc: "Reactor Bed #1 Temp", unit: "deg.C", type: "Temperature" },
+        { id: "TI-3004", desc: "Reactor Bed #2 Temp", unit: "deg.C", type: "Temperature" },
+        { id: "PI-3001", desc: "Reactor Inlet Pressure", unit: "kg/cm2", type: "Pressure" },
+        { id: "PDI-3001", desc: "Reactor dP", unit: "kg/cm2", type: "Pressure" },
+        { id: "FI-3001", desc: "Feed Flow", unit: "m3/h", type: "Flow" },
+        { id: "FI-3002", desc: "H2 Makeup Flow", unit: "Nm3/h", type: "Flow" },
+        { id: "FI-3003", desc: "Quench Flow", unit: "Nm3/h", type: "Flow" },
+        { id: "AI-3001", desc: "H2 Purity", unit: "%", type: "Analysis" },
+      ],
+    },
+    "HCR-Fractionation": {
+      name: "HCR Fractionation Section",
+      tags: [
+        { id: "TI-3010", desc: "Fractionator Top Temp", unit: "deg.C", type: "Temperature" },
+        { id: "TI-3011", desc: "Fractionator Bottom Temp", unit: "deg.C", type: "Temperature" },
+        { id: "PI-3010", desc: "Fractionator Pressure", unit: "kg/cm2", type: "Pressure" },
+        { id: "LI-3010", desc: "Fractionator Level", unit: "%", type: "Level" },
+        { id: "FI-3010", desc: "Naphtha Product Flow", unit: "m3/h", type: "Flow" },
+        { id: "FI-3011", desc: "Diesel Product Flow", unit: "m3/h", type: "Flow" },
+      ],
+    },
+    "VDU-Column": {
+      name: "VDU Vacuum Column Section",
+      tags: [
+        { id: "TI-2001", desc: "Column Top Temp", unit: "deg.C", type: "Temperature" },
+        { id: "TI-2002", desc: "Column Bottom Temp", unit: "deg.C", type: "Temperature" },
+        { id: "TI-2003", desc: "LVGO Draw Temp", unit: "deg.C", type: "Temperature" },
+        { id: "TI-2004", desc: "HVGO Draw Temp", unit: "deg.C", type: "Temperature" },
+        { id: "PI-2001", desc: "Column Top Pressure", unit: "mmHg", type: "Pressure" },
+        { id: "LI-2001", desc: "Column Bottom Level", unit: "%", type: "Level" },
+        { id: "FI-2001", desc: "Feed Flow", unit: "m3/h", type: "Flow" },
+        { id: "FI-2002", desc: "LVGO Product Flow", unit: "m3/h", type: "Flow" },
+      ],
+    },
+    "CDU-Column": {
+      name: "CDU Atmospheric Column Section",
+      tags: [
+        { id: "TI-1001", desc: "Column Top Temp", unit: "deg.C", type: "Temperature" },
+        { id: "TI-1002", desc: "Column Bottom Temp", unit: "deg.C", type: "Temperature" },
+        { id: "PI-1001", desc: "Column Pressure", unit: "kg/cm2", type: "Pressure" },
+        { id: "FI-1001", desc: "Crude Feed Flow", unit: "m3/h", type: "Flow" },
+        { id: "LI-1001", desc: "Column Bottom Level", unit: "%", type: "Level" },
+        { id: "TIC-1001", desc: "Top Temp Controller", unit: "deg.C", type: "Temperature" },
+      ],
+    },
+  }
+
+  // 태그 ID로 해당 모니터링 그룹 찾기
+  function getMonitoringGroup(tagId: string) {
+    for (const [key, group] of Object.entries(MONITORING_GROUPS)) {
+      if (group.tags.some(t => t.id === tagId)) return { key, ...group }
+    }
+    // 태그 prefix로 유닛 추론 후 가장 적합한 그룹 반환
+    const prefix = tagId?.split("-")[0]
+    const unitNum = tagId?.match(/-(\d)/)?.[1]
+    if (unitNum === "3") return { key: "HCR-Reactor", ...MONITORING_GROUPS["HCR-Reactor"] }
+    if (unitNum === "2") return { key: "VDU-Column", ...MONITORING_GROUPS["VDU-Column"] }
+    if (unitNum === "1") return { key: "CDU-Column", ...MONITORING_GROUPS["CDU-Column"] }
+    return { key: "HCR-Reactor", ...MONITORING_GROUPS["HCR-Reactor"] }
+  }
+
+  // 모의 트렌드 데이터 생성 (태그별)
+  function generateMockTrend(tagId: string, tagType: string): { values: number[]; limit: number | null; lowLimit: number | null; unit: string } {
+    const seed = tagId.split("").reduce((a, c) => a + c.charCodeAt(0), 0)
+    const rand = (s: number) => ((Math.sin(s) * 10000) % 1 + 1) % 1
+    if (tagType === "Temperature") {
+      const base = 300 + (seed % 150)
+      const limit = base + 20 + (seed % 15)
+      const values = Array.from({ length: 10 }, (_, i) => +(base + (rand(seed + i) * 30 - 10)).toFixed(1))
+      return { values, limit, lowLimit: null, unit: "deg.C" }
+    }
+    if (tagType === "Pressure") {
+      const base = 5 + (seed % 30)
+      const limit = base + 5
+      const values = Array.from({ length: 10 }, (_, i) => +(base + (rand(seed + i) * 6 - 2)).toFixed(2))
+      return { values, limit, lowLimit: base - 3, unit: "kg/cm2" }
+    }
+    if (tagType === "Flow") {
+      const base = 100 + (seed % 500)
+      const values = Array.from({ length: 10 }, (_, i) => +(base + (rand(seed + i) * 80 - 30)).toFixed(1))
+      return { values, limit: base + 60, lowLimit: base - 40, unit: "m3/h" }
+    }
+    if (tagType === "Level") {
+      const base = 50
+      const values = Array.from({ length: 10 }, (_, i) => +(base + (rand(seed + i) * 30 - 15)).toFixed(1))
+      return { values, limit: 80, lowLimit: 20, unit: "%" }
+    }
+    // Analysis
+    const base = 80 + (seed % 15)
+    const values = Array.from({ length: 10 }, (_, i) => +(base + (rand(seed + i) * 10 - 5)).toFixed(1))
+    return { values, limit: null, lowLimit: 70, unit: "%" }
+  }
+
   return (
     <AppShell>
       <div className="min-h-screen bg-background flex">
@@ -1322,6 +1427,15 @@ export default function AlertsPage() {
                               {lowLimit && <span className="flex items-center gap-1"><span className="w-3 h-0.5 bg-blue-400 inline-block rounded border-t border-dashed" /> Guide Min</span>}
                             </div>
                           </CardTitle>
+                          <Button
+                            variant="outline"
+                            size="sm"
+                            className="mt-2 gap-1.5 text-xs"
+                            onClick={() => setShowFullTrendDialog(true)}
+                          >
+                            <LayoutGrid className="h-3.5 w-3.5" />
+                            관련 트렌드 전체보기
+                          </Button>
                         </CardHeader>
                         <CardContent>
                           <svg viewBox={`0 0 ${W} ${H}`} className="w-full h-52" preserveAspectRatio="xMidYMid meet">
@@ -2393,9 +2507,20 @@ export default function AlertsPage() {
                       {selectedAlert.data?.trend && (
                         <Card>
                           <CardHeader className="pb-2">
-                            <CardTitle className="text-sm flex items-center gap-2">
-                              <TrendingUp className="h-4 w-4" />
-                              관련 트렌드 - {selectedAlert.data.tagId}
+                            <CardTitle className="text-sm flex items-center justify-between">
+                              <div className="flex items-center gap-2">
+                                <TrendingUp className="h-4 w-4" />
+                                관련 트렌드 - {selectedAlert.data.tagId}
+                              </div>
+                              <Button
+                                variant="outline"
+                                size="sm"
+                                className="gap-1.5 text-xs"
+                                onClick={() => setShowFullTrendDialog(true)}
+                              >
+                                <LayoutGrid className="h-3.5 w-3.5" />
+                                전체보기
+                              </Button>
                             </CardTitle>
                           </CardHeader>
                           <CardContent>
@@ -2595,7 +2720,7 @@ export default function AlertsPage() {
                 </div>
               </ScrollArea>
 
-              {/* 액션 버튼 영역 */}
+              {/* ���션 버튼 영역 */}
               <div className="p-4 border-t border-border bg-card">
                 <div className="flex justify-end gap-2">
                   {/* Alert 타입: New Alert인 경우 - 인지 버튼 (Bold 강조) */}
@@ -2789,7 +2914,7 @@ export default function AlertsPage() {
                     { type: "검사", desc: "정기 Calibration", date: "2024-12-20", color: "green" },
                     { type: "점검", desc: "T/A 중 내부 검사 - Catalyst 교체", date: "2024-06-15", color: "amber" },
                     { type: "정비", desc: "Quench Line Valve 교체", date: "2024-06-10", color: "blue" },
-                    { type: "검사", desc: "두께 측정 (UT)", date: "2024-01-20", color: "green" },
+                    { type: "검사", desc: "두�� 측정 (UT)", date: "2024-01-20", color: "green" },
                   ].map((item, i) => (
                     <div key={i} className={cn("flex items-center justify-between p-2 rounded border",
                       item.color === "blue" ? "bg-blue-50 border-blue-100" : item.color === "green" ? "bg-green-50 border-green-100" : "bg-amber-50 border-amber-100"
@@ -3405,6 +3530,161 @@ export default function AlertsPage() {
                 Shelved 처리
               </Button>
             </DialogFooter>
+          </DialogContent>
+        </Dialog>
+
+        {/* ===== 관련 트렌드 전체보기 Dialog ===== */}
+        <Dialog open={showFullTrendDialog} onOpenChange={setShowFullTrendDialog}>
+          <DialogContent className="max-w-6xl max-h-[90vh] overflow-hidden flex flex-col">
+            <DialogHeader>
+              <DialogTitle className="flex items-center gap-2">
+                <LayoutGrid className="h-5 w-5" />
+                관련 트렌드 전체보기
+                {selectedAlert?.data?.tagId && (
+                  <Badge variant="outline" className="ml-2 font-mono text-xs">{selectedAlert.data.tagId}</Badge>
+                )}
+              </DialogTitle>
+              {selectedAlert?.data?.tagId && (() => {
+                const group = getMonitoringGroup(selectedAlert.data.tagId!)
+                return (
+                  <p className="text-sm text-muted-foreground mt-1">
+                    모니터링 그룹: <span className="font-medium text-foreground">{group.name}</span>
+                    <span className="ml-2">({group.tags.length}개 태그)</span>
+                  </p>
+                )
+              })()}
+            </DialogHeader>
+            <ScrollArea className="flex-1 -mx-6 px-6">
+              {selectedAlert?.data?.tagId && (() => {
+                const group = getMonitoringGroup(selectedAlert.data.tagId!)
+                const sourceTagId = selectedAlert.data.tagId
+
+                return (
+                  <div className="space-y-6 pb-4">
+                    {/* 그룹별 태그 타입 범례 */}
+                    <div className="flex flex-wrap gap-2">
+                      {Array.from(new Set(group.tags.map(t => t.type))).map(type => (
+                        <Badge key={type} variant="secondary" className="text-xs">
+                          {type}
+                          <span className="ml-1 text-muted-foreground">({group.tags.filter(t => t.type === type).length})</span>
+                        </Badge>
+                      ))}
+                    </div>
+
+                    {/* 태그별 개별 트렌드 카드 */}
+                    <div className="grid grid-cols-1 lg:grid-cols-2 gap-4">
+                      {group.tags.map(tag => {
+                        const isSourceTag = tag.id === sourceTagId
+                        const trendData = isSourceTag && selectedAlert.data?.trend
+                          ? { values: selectedAlert.data.trend, limit: selectedAlert.data.limit || null, lowLimit: selectedAlert.triggerSetpoint?.low || null, unit: tag.unit }
+                          : generateMockTrend(tag.id, tag.type)
+                        const { values, limit, lowLimit: lo } = trendData
+                        const allVals = [...values, ...(limit ? [limit] : []), ...(lo ? [lo] : [])]
+                        const maxV = Math.max(...allVals) * 1.05
+                        const minV = Math.min(...allVals) * 0.95
+                        const range = maxV - minV || 1
+                        const W = 400, H = 120
+                        const pad = { t: 12, b: 20, l: 40, r: 12 }
+                        const cw = W - pad.l - pad.r
+                        const ch = H - pad.t - pad.b
+                        const toX = (i: number) => pad.l + (i / (values.length - 1)) * cw
+                        const toY = (v: number) => pad.t + (1 - (v - minV) / range) * ch
+                        const pathD = values.reduce((acc, v, i) => {
+                          const x = toX(i), y = toY(v)
+                          if (i === 0) return `M ${x} ${y}`
+                          const px = toX(i - 1), py = toY(values[i - 1])
+                          const cpx = (px + x) / 2
+                          return `${acc} C ${cpx} ${py}, ${cpx} ${y}, ${x} ${y}`
+                        }, "")
+                        const lastVal = values[values.length - 1]
+                        const isViolation = (limit && lastVal > limit) || (lo && lastVal < lo)
+                        const trendColor = isSourceTag ? "#0d9488" : "#6366f1"
+
+                        return (
+                          <Card key={tag.id} className={cn(
+                            "overflow-hidden transition-shadow",
+                            isSourceTag && "ring-2 ring-primary shadow-md",
+                            isViolation && !isSourceTag && "border-red-200"
+                          )}>
+                            <div className="px-4 pt-3 pb-1 flex items-center justify-between">
+                              <div className="flex items-center gap-2 min-w-0">
+                                <span className={cn(
+                                  "font-mono text-sm font-semibold shrink-0",
+                                  isSourceTag ? "text-primary" : isViolation ? "text-red-600" : "text-foreground"
+                                )}>
+                                  {tag.id}
+                                </span>
+                                {isSourceTag && <Badge className="text-[10px] px-1.5 py-0 h-4 bg-primary/10 text-primary border-primary/30" variant="outline">Alert Source</Badge>}
+                                {isViolation && !isSourceTag && <Badge variant="destructive" className="text-[10px] px-1.5 py-0 h-4">Violation</Badge>}
+                              </div>
+                              <span className="text-xs text-muted-foreground shrink-0 ml-2">[{trendData.unit}]</span>
+                            </div>
+                            <p className="px-4 text-xs text-muted-foreground -mt-0.5 mb-1">{tag.desc}</p>
+                            <div className="px-2 pb-1">
+                              <svg viewBox={`0 0 ${W} ${H}`} className="w-full h-24" preserveAspectRatio="xMidYMid meet">
+                                {/* Grid */}
+                                {[0.33, 0.66].map(frac => {
+                                  const y = pad.t + frac * ch
+                                  const val = maxV - frac * range
+                                  return <g key={frac}><line x1={pad.l} y1={y} x2={W - pad.r} y2={y} stroke="currentColor" strokeOpacity={0.06} /><text x={pad.l - 4} y={y + 3} fontSize="7" fill="currentColor" fillOpacity={0.35} textAnchor="end">{val.toFixed(0)}</text></g>
+                                })}
+                                {/* Limit lines */}
+                                {limit && <line x1={pad.l} y1={toY(limit)} x2={W - pad.r} y2={toY(limit)} stroke="#f87171" strokeWidth="1" strokeDasharray="4 2" />}
+                                {lo && <line x1={pad.l} y1={toY(lo)} x2={W - pad.r} y2={toY(lo)} stroke="#60a5fa" strokeWidth="1" strokeDasharray="4 2" />}
+                                {/* Area */}
+                                <path d={`${pathD} L ${toX(values.length-1)} ${pad.t+ch} L ${toX(0)} ${pad.t+ch} Z`} fill={trendColor} opacity="0.08" />
+                                {/* Line */}
+                                <path d={pathD} fill="none" stroke={trendColor} strokeWidth="2" strokeLinecap="round" />
+                                {/* Over-limit red */}
+                                {values.map((v, i) => {
+                                  if (i === 0) return null
+                                  const overNow = (limit && v > limit) || (lo && v < lo)
+                                  const overPrev = (limit && values[i-1] > limit) || (lo && values[i-1] < lo)
+                                  if (!overNow && !overPrev) return null
+                                  const px = toX(i-1), py = toY(values[i-1]), x = toX(i), y = toY(v), cpx = (px+x)/2
+                                  return <path key={i} d={`M ${px} ${py} C ${cpx} ${py}, ${cpx} ${y}, ${x} ${y}`} fill="none" stroke="#ef4444" strokeWidth="2" />
+                                })}
+                                {/* Points */}
+                                {values.map((v, i) => {
+                                  const isOver = (limit && v > limit) || (lo && v < lo)
+                                  return <circle key={i} cx={toX(i)} cy={toY(v)} r={isOver ? 3 : 2} fill={isOver ? "#ef4444" : trendColor} stroke="white" strokeWidth="1" />
+                                })}
+                              </svg>
+                            </div>
+                            <div className="px-4 pb-3 flex items-center justify-between text-xs">
+                              <div>
+                                <span className="text-muted-foreground">현재 </span>
+                                <span className={cn("font-semibold", isViolation ? "text-red-600" : "text-foreground")}>
+                                  {lastVal} {trendData.unit}
+                                </span>
+                              </div>
+                              {limit && (
+                                <div>
+                                  <span className="text-muted-foreground">Max </span>
+                                  <span className="text-red-500 font-medium">{limit}</span>
+                                </div>
+                              )}
+                              {lo && (
+                                <div>
+                                  <span className="text-muted-foreground">Min </span>
+                                  <span className="text-blue-500 font-medium">{lo}</span>
+                                </div>
+                              )}
+                              <div>
+                                <span className="text-muted-foreground">편차 </span>
+                                <span className={cn("font-medium", isViolation ? "text-red-600" : "text-green-600")}>
+                                  {limit ? `${lastVal > limit ? "+" : ""}${(lastVal - limit).toFixed(1)}` : lo ? `${lastVal < lo ? "" : "+"}${(lastVal - lo).toFixed(1)}` : "-"}
+                                </span>
+                              </div>
+                            </div>
+                          </Card>
+                        )
+                      })}
+                    </div>
+                  </div>
+                )
+              })()}
+            </ScrollArea>
           </DialogContent>
         </Dialog>
       </div>
