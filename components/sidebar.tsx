@@ -111,6 +111,7 @@ export function Sidebar({ unreadAlerts = 3 }: SidebarProps) {
             { label: "알람 상황판", href: "/operations/monitoring/dcs/alarm", icon: Bell },
           ]
         },
+        { label: "커스텀 대시보드", href: "/operations/custom-dashboard", icon: LayoutDashboard },
       ]
     },
     {
