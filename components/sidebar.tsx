@@ -129,10 +129,13 @@ export function Sidebar({ unreadAlerts = 3 }: SidebarProps) {
       icon: TrendingUp,
       items: [
         { label: "건전성 현황", href: "/operations/health/overview", icon: LayoutDashboard },
-        { label: "오염/침적 관리", href: "/operations/health/deposition", icon: Flame },
-        { label: "촉매 성능 추적", href: "/operations/health/catalyst", icon: ThermometerSun },
-        { label: "설비 건전성 리스크", href: "/operations/health/integrity", icon: Shield },
-        { label: "조치 목록", href: "/operations/health/worklist", icon: FileText },
+        { label: "Fouling", href: "/operations/health/fouling", icon: Flame },
+        { label: "Coking", href: "/operations/health/coking", icon: Flame },
+        { label: "촉매 Aging", href: "/operations/health/catalyst-aging", icon: Activity },
+        { label: "Hydraulics", href: "/operations/health/hydraulics", icon: Layers },
+        { label: "Separation", href: "/operations/health/separation", icon: Layers },
+        { label: "Energy", href: "/operations/health/energy", icon: Zap },
+        { label: "Mechanical", href: "/operations/health/mechanical", icon: Shield },
       ]
     },
   ]
