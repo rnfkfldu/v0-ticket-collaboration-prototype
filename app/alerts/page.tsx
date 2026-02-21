@@ -106,6 +106,28 @@ interface AlertItem {
     requestor: string
     appliedDate: string
   }
+  // 장기건전성 모니터링 상세
+  healthMonitoring?: {
+    equipId: string
+    equipName: string
+    process: string
+    category: string           // Fouling, Coking, etc.
+    healthIndexName: string
+    healthIndexUnit: string
+    currentValue: number
+    limitValue: number
+    actionLimit: number
+    trend: number[]            // 24주 트렌드
+    projectionWeeks: number    // Limit 도달 예상 주수
+    projectionTrend: number[]  // 외삽 데이터
+    prevTaTrend?: number[]     // 이전 TA 주기 비교
+    driftPct: number           // Drift 변화율
+    actionMarginWeeks: number
+    needsImmediateAction: boolean
+    aiModelId?: string
+    relatedTrends: { tagId: string; name: string; value: number; unit: string; status: "normal" | "warning" | "critical" }[]
+    suggestedActions: string[]
+  }
   // 문서 리뷰 요청 상세 (월간 리포트, Contingency Plan 등)
   documentReview?: {
     docType: "monthly-report" | "contingency-plan" | "living-document"
@@ -285,6 +307,67 @@ const SAMPLE_ALERTS: AlertItem[] = [
       limit: 800,
       trend: [850, 830, 810, 795, 785, 782, 780]
     }
+  },
+  // 장기건전성 모니터링 Alert
+  {
+    id: "ALT-004",
+    type: "alert",
+    subType: "health-monitoring",
+    title: "TI-2931 열교환기 Fouling 관련 즉시 조치 필요",
+    description: "F-E102A Feed/Effluent HEX #2A의 U값이 급격히 하락하여 Limit 접근 중. 즉시 Cleaning 등 조치가 필요합니다.",
+    timestamp: "2025-02-02 10:15",
+    status: "unread",
+    severity: "critical",
+    unit: "HCR",
+    alertGrade: "high",
+    alertState: "new",
+    triggerCondition: "U값 Drift > +50% & Projection < 4주",
+    triggerSetpoint: { high: 750, low: 350 },
+    alarmHistory: [
+      { timestamp: "2025-02-02 10:15", value: 480, action: "Auto Alert - Drift 급등 감지" },
+      { timestamp: "2025-01-20 08:00", value: 510, action: "Yellow Alert 발생" },
+      { timestamp: "2025-01-05 09:30", value: 545, action: "모니터링 시작" },
+    ],
+    alarmBackground: "HCR Feed/Effluent 열교환기 Fouling 장기 모니터링 항목. W600N 모드 전환 후 Fouling Rate 가속화 확인. Action Window 내 Online Cleaning 또는 운전 조건 변경이 필요한 상황.",
+    data: {
+      tagId: "TI-2931",
+      value: 480,
+      limit: 350,
+      trend: [580, 575, 568, 560, 555, 548, 540, 535, 530, 525, 520, 515, 512, 508, 505, 502, 500, 498, 495, 492, 490, 487, 483, 480]
+    },
+    healthMonitoring: {
+      equipId: "F-E102A",
+      equipName: "Feed/Effluent HEX #2A",
+      process: "HCR",
+      category: "Fouling",
+      healthIndexName: "U값 (총괄열전달계수)",
+      healthIndexUnit: "W/m2K",
+      currentValue: 480,
+      limitValue: 350,
+      actionLimit: 410,
+      trend: [580, 575, 568, 560, 555, 548, 540, 535, 530, 525, 520, 515, 512, 508, 505, 502, 500, 498, 495, 492, 490, 487, 483, 480],
+      projectionWeeks: 3,
+      projectionTrend: [480, 465, 450, 435, 420, 405, 390, 375, 360, 345],
+      prevTaTrend: [610, 605, 598, 592, 585, 580, 575, 570, 565, 560, 555, 550, 548, 545, 542, 540, 538, 535, 530, 528, 525, 520, 518, 515],
+      driftPct: 145,
+      actionMarginWeeks: 4,
+      needsImmediateAction: true,
+      aiModelId: "AI-MDL-F01",
+      relatedTrends: [
+        { tagId: "FI-2001", name: "Feed Flow", value: 285, unit: "m3/h", status: "normal" },
+        { tagId: "TI-2010", name: "Shell Inlet Temp", value: 195, unit: "deg.C", status: "warning" },
+        { tagId: "TI-2011", name: "Shell Outlet Temp", value: 158, unit: "deg.C", status: "normal" },
+        { tagId: "PDI-2001", name: "Shell dP", value: 1.35, unit: "kg/cm2", status: "critical" },
+        { tagId: "TI-2020", name: "Tube Inlet Temp", value: 290, unit: "deg.C", status: "normal" },
+        { tagId: "TI-2021", name: "Tube Outlet Temp", value: 248, unit: "deg.C", status: "warning" },
+      ],
+      suggestedActions: [
+        "Online Cleaning 실시 (Chemical Injection)",
+        "운전 조건 변경 - Feed Rate 감량 검토",
+        "Bypass 운전으로 전환 후 Cleaning 진행",
+        "TA Scope 반영 검토 (Mechanical Cleaning)",
+      ],
+    },
   },
   // Notice 타입
   {
@@ -526,7 +609,7 @@ const SAMPLE_ALERTS: AlertItem[] = [
         { title: "2. 에너지 효율 (EII)", content: "EII: 98.2 (목표 97 이하 - 미달). CDU Heater Efficiency 91.3%. 한파로 인한 증기 소모량 증가가 주요 원인.", hasChange: true },
         { title: "3. 안전/환경", content: "무사고 연속 432일. SO2 배출 월평균 12.3 ppm (허용 35 ppm). 폐수 COD 85 mg/L (허용 120 mg/L).", hasChange: false },
         { title: "4. 주요 이슈 및 대응", content: "HCR WABT 상승 추세 지속 (月末 395C). E-101 Fouling 진행 UA값 88%. P-201B Seal Oil Leak 발견 (경미).", hasChange: true },
-        { title: "5. 다음 달 계획", content: "Arabian Medium 전환 운전 예정. HCR 촉매 활성 모니터링 강화. E-101 ���정 시기 검토.", hasChange: false }
+        { title: "5. 다음 달 계획", content: "Arabian Medium 전��� 운전 예정. HCR 촉매 활성 모니터링 강화. E-101 ���정 시기 검토.", hasChange: false }
       ],
       reviewHistory: [
         { date: "2025-01-06", reviewer: "김철수", version: "2024년 12월 Report v1.0", comment: "CDU 처리량 소폭 증가 확인, 에너지 효율 개선 필요" },
@@ -628,6 +711,12 @@ export default function AlertsPage() {
     { id: "temporary", label: "일시 문제", desc: "일시적 상황으로 자연 해소 예상" },
   ]
   
+  // 장기건전성 조치 입력 다이얼로그 상태
+  const [showHealthActionDialog, setShowHealthActionDialog] = useState(false)
+  const [healthActionType, setHealthActionType] = useState("online-cleaning")
+  const [healthActionDesc, setHealthActionDesc] = useState("")
+  const [healthActionUrgency, setHealthActionUrgency] = useState("urgent")
+
   // 이상징후 카테고리 상세 팝업 상태
   const [showAnomalyCategoryDialog, setShowAnomalyCategoryDialog] = useState(false)
   const [selectedAnomalyCategory, setSelectedAnomalyCategory] = useState<{id: string; name: string; description: string; top3: {tagId: string; description: string; severity: "high"|"medium"|"low"; deviation: string; detail: string}[]} | null>(null)
@@ -1055,7 +1144,7 @@ export default function AlertsPage() {
     return { key: "HCR-Reactor", ...MONITORING_GROUPS["HCR-Reactor"] }
   }
 
-  // 모의 트렌드 데이터 생성 (태그별)
+  // 모의 트렌드 데���터 생성 (태그별)
   function generateMockTrend(tagId: string, tagType: string): { values: number[]; limit: number | null; lowLimit: number | null; unit: string } {
     const seed = tagId.split("").reduce((a, c) => a + c.charCodeAt(0), 0)
     const rand = (s: number) => ((Math.sin(s) * 10000) % 1 + 1) % 1
@@ -1525,6 +1614,145 @@ export default function AlertsPage() {
                             <div className="text-right">
                               <span className="text-xs text-muted-foreground">Guide</span>
                               <p className="text-base font-bold text-muted-foreground">{limit || "-"}</p>
+                            </div>
+                          </div>
+                        </CardContent>
+                      </Card>
+                    )
+                  })()}
+
+                  {/* 장기건전성 모니터링 - Projection Trend with Action Window */}
+                  {selectedAlert.subType === "health-monitoring" && selectedAlert.healthMonitoring && (() => {
+                    const hm = selectedAlert.healthMonitoring
+                    const data = hm.trend
+                    const proj = hm.projectionTrend
+                    const prev = hm.prevTaTrend
+                    const allV = [...data, ...proj, ...(prev || []), hm.limitValue, hm.actionLimit]
+                    const maxV = Math.max(...allV) * 1.03
+                    const minV = Math.min(...allV) * 0.97
+                    const rng = maxV - minV || 1
+                    const W = 700, H = 220, pd = { t: 16, b: 28, l: 52, r: 16 }
+                    const cw = W - pd.l - pd.r, ch = H - pd.t - pd.b
+                    const totalLen = data.length + proj.length
+                    const tX = (i: number) => pd.l + (i / (totalLen - 1)) * cw
+                    const tY = (v: number) => pd.t + (1 - (v - minV) / rng) * ch
+                    const actualD = data.map((v, i) => `${i === 0 ? "M" : "L"} ${tX(i).toFixed(1)} ${tY(v).toFixed(1)}`).join(" ")
+                    const projD = proj.map((v, i) => `${i === 0 ? "M" : "L"} ${tX(data.length - 1 + i).toFixed(1)} ${tY(v).toFixed(1)}`).join(" ")
+                    const prevD = prev ? prev.map((v, i) => `${i === 0 ? "M" : "L"} ${tX(i).toFixed(1)} ${tY(v).toFixed(1)}`).join(" ") : ""
+                    const actionStartIdx = Math.max(0, hm.projectionWeeks - hm.actionMarginWeeks)
+                    const actionX1 = tX(data.length - 1 + actionStartIdx)
+                    const actionX2 = tX(data.length - 1 + Math.min(hm.projectionWeeks, proj.length - 1))
+
+                    return (
+                      <Card className="ring-2 ring-red-200">
+                        <CardHeader className="pb-2">
+                          <CardTitle className="text-sm flex items-center gap-2">
+                            <TrendingUp className="h-4 w-4" />
+                            장기건전성 Projection Trend - {hm.equipId}
+                            {hm.aiModelId && <Badge variant="outline" className="text-[10px] border-indigo-300 text-indigo-600">AI Model: {hm.aiModelId}</Badge>}
+                          </CardTitle>
+                          <div className="flex items-center gap-4 text-xs text-muted-foreground mt-1">
+                            <span className="flex items-center gap-1"><span className="w-4 h-0.5 bg-red-500 inline-block rounded" /> Actual</span>
+                            <span className="flex items-center gap-1"><span className="w-4 h-0.5 bg-indigo-500 inline-block rounded border-t border-dashed" /> Projection</span>
+                            {prev && <span className="flex items-center gap-1"><span className="w-4 h-0.5 bg-slate-400 inline-block rounded border-t border-dashed" /> Prev TA</span>}
+                            <span className="flex items-center gap-1"><span className="w-4 h-1.5 bg-amber-200 inline-block rounded" /> Action Window</span>
+                          </div>
+                        </CardHeader>
+                        <CardContent>
+                          <svg viewBox={`0 0 ${W} ${H}`} className="w-full h-56" preserveAspectRatio="xMidYMid meet">
+                            {/* Grid */}
+                            {[0.25, 0.5, 0.75].map(f => {
+                              const y = pd.t + f * ch
+                              const val = maxV - f * rng
+                              return <g key={f}><line x1={pd.l} y1={y} x2={W - pd.r} y2={y} stroke="currentColor" strokeOpacity={0.06} /><text x={pd.l - 5} y={y + 3} fontSize="8" fill="currentColor" fillOpacity={0.35} textAnchor="end">{val.toFixed(0)}</text></g>
+                            })}
+                            {/* Now divider */}
+                            <line x1={tX(data.length - 1)} y1={pd.t} x2={tX(data.length - 1)} y2={pd.t + ch} stroke="currentColor" strokeOpacity={0.2} strokeDasharray="5 3" />
+                            <text x={tX(data.length - 1)} y={pd.t + ch + 14} fontSize="8" fill="currentColor" fillOpacity={0.5} textAnchor="middle">현재 (W24)</text>
+                            {/* Action window fill */}
+                            <rect x={actionX1} y={pd.t} width={Math.max(0, actionX2 - actionX1)} height={ch} fill="#fbbf24" opacity="0.12" rx="3" />
+                            <text x={(actionX1 + actionX2) / 2} y={pd.t + 14} fontSize="9" fill="#b45309" textAnchor="middle" fontWeight="bold">Action Window</text>
+                            {/* Limit line */}
+                            <line x1={pd.l} y1={tY(hm.limitValue)} x2={W - pd.r} y2={tY(hm.limitValue)} stroke="#ef4444" strokeWidth="1.2" strokeDasharray="6 3" />
+                            <text x={W - pd.r + 3} y={tY(hm.limitValue) + 3} fontSize="8" fill="#ef4444">Limit {hm.limitValue}</text>
+                            {/* Action limit */}
+                            <line x1={pd.l} y1={tY(hm.actionLimit)} x2={W - pd.r} y2={tY(hm.actionLimit)} stroke="#f59e0b" strokeWidth="0.8" strokeDasharray="4 2" />
+                            <text x={W - pd.r + 3} y={tY(hm.actionLimit) + 3} fontSize="7" fill="#f59e0b">Action {hm.actionLimit}</text>
+                            {/* Prev TA */}
+                            {prevD && <path d={prevD} fill="none" stroke="#94a3b8" strokeWidth="1.2" strokeDasharray="4 3" opacity="0.5" />}
+                            {/* Actual area + line */}
+                            <path d={`${actualD} L ${tX(data.length - 1)} ${pd.t + ch} L ${tX(0)} ${pd.t + ch} Z`} fill="#ef4444" opacity="0.06" />
+                            <path d={actualD} fill="none" stroke="#ef4444" strokeWidth="2" strokeLinecap="round" />
+                            {/* Projection line */}
+                            <path d={projD} fill="none" stroke="#6366f1" strokeWidth="2" strokeDasharray="8 4" />
+                            {/* Data points */}
+                            {data.filter((_, i) => i % 3 === 0 || i === data.length - 1).map((_v, _i) => {
+                              const idx = _i === Math.floor(data.length / 3) ? data.length - 1 : _i * 3
+                              const v = data[idx]
+                              return <circle key={idx} cx={tX(idx)} cy={tY(v)} r={idx === data.length - 1 ? 4 : 2} fill="#ef4444" />
+                            })}
+                            {/* Week labels */}
+                            {[0, 6, 12, 18, data.length - 1].map(i => <text key={i} x={tX(i)} y={H - 6} fontSize="7" fill="currentColor" fillOpacity={0.4} textAnchor="middle">W{i + 1}</text>)}
+                            {proj.length > 1 && [Math.floor(proj.length / 2), proj.length - 1].map(i => <text key={`p${i}`} x={tX(data.length - 1 + i)} y={H - 6} fontSize="7" fill="#6366f1" fillOpacity={0.6} textAnchor="middle">+{i}w</text>)}
+                          </svg>
+
+                          {/* Summary metrics */}
+                          <div className="grid grid-cols-4 gap-3 mt-3 p-3 bg-muted/30 rounded-lg">
+                            <div>
+                              <span className="text-[11px] text-muted-foreground">현재값</span>
+                              <p className="text-lg font-bold text-red-600">{hm.currentValue} <span className="text-xs font-normal">{hm.healthIndexUnit}</span></p>
+                            </div>
+                            <div>
+                              <span className="text-[11px] text-muted-foreground">Drift 변화율</span>
+                              <p className="text-lg font-bold text-red-600">+{hm.driftPct}%</p>
+                            </div>
+                            <div>
+                              <span className="text-[11px] text-muted-foreground">Limit 도달</span>
+                              <p className="text-lg font-bold text-red-600">{hm.projectionWeeks}주</p>
+                            </div>
+                            <div>
+                              <span className="text-[11px] text-muted-foreground">Action Window</span>
+                              <p className="text-lg font-bold text-amber-600">{hm.needsImmediateAction ? "즉시" : `${hm.actionMarginWeeks}주 전`}</p>
+                            </div>
+                          </div>
+
+                          {/* Related variables */}
+                          <div className="mt-4">
+                            <h4 className="text-xs font-semibold mb-2">관련 변수 현황</h4>
+                            <div className="grid grid-cols-2 gap-2">
+                              {hm.relatedTrends.map(rt => (
+                                <div key={rt.tagId} className={cn("flex items-center justify-between p-2 rounded border text-xs",
+                                  rt.status === "critical" && "bg-red-50 border-red-200",
+                                  rt.status === "warning" && "bg-amber-50 border-amber-200",
+                                  rt.status === "normal" && "bg-background"
+                                )}>
+                                  <div>
+                                    <span className="font-mono font-medium">{rt.tagId}</span>
+                                    <span className="text-muted-foreground ml-1.5">{rt.name}</span>
+                                  </div>
+                                  <div className="flex items-center gap-1.5">
+                                    <span className="font-semibold">{rt.value} {rt.unit}</span>
+                                    <span className={cn("w-2 h-2 rounded-full",
+                                      rt.status === "critical" && "bg-red-500",
+                                      rt.status === "warning" && "bg-amber-400",
+                                      rt.status === "normal" && "bg-emerald-500"
+                                    )} />
+                                  </div>
+                                </div>
+                              ))}
+                            </div>
+                          </div>
+
+                          {/* Suggested actions */}
+                          <div className="mt-4">
+                            <h4 className="text-xs font-semibold mb-2">권장 조치 사항</h4>
+                            <div className="space-y-1.5">
+                              {hm.suggestedActions.map((action, i) => (
+                                <div key={i} className="flex items-start gap-2 text-xs p-2 rounded bg-muted/50">
+                                  <Badge variant="outline" className="text-[10px] h-4 shrink-0 mt-0.5">{i + 1}</Badge>
+                                  <span>{action}</span>
+                                </div>
+                              ))}
                             </div>
                           </div>
                         </CardContent>
@@ -2273,7 +2501,7 @@ export default function AlertsPage() {
                                 <p className="text-xs text-green-700">
                                   {isContingency
                                     ? `${doc.docTitle} ${doc.latestVersion} 버전이 최신으로 확인되었습니다. 다음 리뷰 예정: 6개월 후`
-                                    : `리뷰 내용과 함께 Knowledge Asset에 저장되었습니다. (${doc.docTitle})`}
+                                    : `리뷰 내용과 함께 Knowledge Asset에 저��되었습니다. (${doc.docTitle})`}
                                 </p>
                               </div>
                             ) : (
@@ -2723,8 +2951,8 @@ export default function AlertsPage() {
               {/* ���션 버튼 영역 */}
               <div className="p-4 border-t border-border bg-card">
                 <div className="flex justify-end gap-2">
-                  {/* Alert 타입: New Alert인 경우 - 인지 버튼 (Bold 강조) */}
-                  {selectedAlert.type === "alert" && selectedAlert.alertState === "new" && (
+                  {/* Alert 타입: New Alert인 경우 - 인지 버튼 (Bold 강조) (health-monitoring 제외) */}
+                  {selectedAlert.type === "alert" && selectedAlert.alertState === "new" && selectedAlert.subType !== "health-monitoring" && (
                     <Button 
                       onClick={() => handleAcknowledge(selectedAlert.id)}
                       className="font-bold"
@@ -2734,8 +2962,43 @@ export default function AlertsPage() {
                     </Button>
                   )}
 
+                  {/* 장기건전성 Health Alert - 조치 입력 + 인지 */}
+                  {selectedAlert.subType === "health-monitoring" && selectedAlert.alertState === "new" && (
+                    <>
+                      <Button 
+                        onClick={() => handleAcknowledge(selectedAlert.id)}
+                        variant="outline"
+                      >
+                        <Eye className="h-4 w-4 mr-2" />
+                        인지 (Standing Alert)
+                      </Button>
+                      <Button 
+                        onClick={() => setShowHealthActionDialog(true)}
+                        className="font-bold bg-red-600 hover:bg-red-700"
+                      >
+                        <ClipboardList className="h-4 w-4 mr-2" />
+                        조치 입력
+                      </Button>
+                    </>
+                  )}
+                  {selectedAlert.subType === "health-monitoring" && selectedAlert.alertState === "standing" && (
+                    <>
+                      <Button 
+                        onClick={() => setShowHealthActionDialog(true)}
+                        className="font-bold"
+                      >
+                        <ClipboardList className="h-4 w-4 mr-2" />
+                        조치 입력
+                      </Button>
+                      <Button onClick={() => handleCreateTicket(selectedAlert)}>
+                        <FileText className="h-4 w-4 mr-2" />
+                        이벤트 발행
+                      </Button>
+                    </>
+                  )}
+
                   {/* Alert 타입: Standing Alert인 경우 - 이벤트 발행 / Shelved 처리 */}
-                  {selectedAlert.type === "alert" && selectedAlert.alertState === "standing" && (
+                  {selectedAlert.type === "alert" && selectedAlert.alertState === "standing" && selectedAlert.subType !== "health-monitoring" && (
                     <>
                       <Button onClick={() => handleCreateTicket(selectedAlert)}>
                         <FileText className="h-4 w-4 mr-2" />
