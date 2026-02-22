@@ -82,10 +82,10 @@ const mainMenus = [
   },
   { 
     id: "knowledge",
-    label: "지식 관리", 
-    href: "/knowledge",
+    label: "지식/문서", 
+    href: "/knowledge/search",
     icon: BookOpen,
-    description: "지식 관리 및 검색"
+    description: "문서 검색, 운영사례, 가이드 관리"
   },
   { 
     id: "data-admin",
