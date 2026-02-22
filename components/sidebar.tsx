@@ -236,57 +236,6 @@ export function Sidebar({ unreadAlerts = 3 }: SidebarProps) {
       ]
     },
     {
-      id: "knowledge-asset",
-      label: "지식 자산",
-      icon: Layers,
-      items: [
-        { label: "지식 자산 관리", href: "/knowledge/assets", icon: Layers },
-        { label: "보고서", href: "/knowledge/reports", icon: FileBarChart },
-      ]
-    },
-    {
-      id: "playbooks",
-      label: "운전 Playbook",
-      icon: BookOpen,
-      items: [
-        { label: "운전 Playbook", href: "/knowledge", icon: BookOpen },
-      ]
-    },
-    {
-      id: "contingency",
-      label: "비상 대응 절차",
-      icon: Shield,
-      items: [
-        { label: "비상 대응 절차", href: "/knowledge/contingency", icon: Shield },
-      ]
-    },
-    {
-      id: "history",
-      label: "운전 이력",
-      icon: History,
-      items: [
-        { label: "공정 운전 이력", href: "/knowledge/history/process", icon: Activity },
-        { label: "알람 이력", href: "/knowledge/history/alert", icon: Bell },
-        { label: "조치 이력", href: "/knowledge/history/action", icon: Wrench },
-      ]
-    },
-    {
-      id: "team-knowledge",
-      label: "팀 지식 공유",
-      icon: Users,
-      items: [
-        { label: "팀 지식 공유", href: "/knowledge/team", icon: Users },
-      ]
-    },
-    {
-      id: "terminology",
-      label: "용어 관리",
-      icon: BookOpen,
-      items: [
-        { label: "용어 관리", href: "/knowledge/terminology", icon: BookOpen },
-      ]
-    },
-    {
       id: "guides",
       label: "운영 가이드",
       icon: BookOpen,
@@ -309,22 +258,6 @@ export function Sidebar({ unreadAlerts = 3 }: SidebarProps) {
       icon: BookOpen,
       items: [
         { label: "사전/온톨로지 뷰", href: "/knowledge/learning", icon: BookOpen },
-      ]
-    },
-    {
-      id: "notes",
-      label: "개인 메모",
-      icon: StickyNote,
-      items: [
-        { label: "개인 메모", href: "/knowledge/notes", icon: StickyNote },
-      ]
-    },
-    {
-      id: "logs",
-      label: "시스템 로그",
-      icon: FileText,
-      items: [
-        { label: "시스템 로그", href: "/knowledge/logs", icon: FileText },
       ]
     },
   ]
