@@ -47,7 +47,8 @@ import {
   Megaphone,
   MessageCircleQuestion,
   Headset,
-  CalendarDays
+  CalendarDays,
+  Search
 } from "lucide-react"
 import Link from "next/link"
 import { usePathname } from "next/navigation"
@@ -207,6 +208,32 @@ export function Sidebar({ unreadAlerts = 3 }: SidebarProps) {
 
   // 지식/문서 메뉴 구조
   const knowledgeMenu: MenuSection[] = [
+    {
+      id: "doc-search",
+      label: "문서 검색",
+      icon: Search,
+      items: [
+        { label: "문서 검색 (AI)", href: "/knowledge/search", icon: Search },
+      ]
+    },
+    {
+      id: "cases",
+      label: "운영사례/케이스",
+      icon: History,
+      items: [
+        { label: "종결 이벤트/Alert", href: "/knowledge/cases", icon: FileText },
+        { label: "운영 로그", href: "/knowledge/cases?tab=logs", icon: Layers },
+        { label: "회의록/TOB", href: "/knowledge/cases?tab=meetings", icon: Users },
+      ]
+    },
+    {
+      id: "final-reports",
+      label: "최종 레포트",
+      icon: FileBarChart,
+      items: [
+        { label: "최종 레포트", href: "/knowledge/final-reports", icon: FileBarChart },
+      ]
+    },
     {
       id: "knowledge-asset",
       label: "지식 자산",
