@@ -61,21 +61,21 @@ const mainMenus = [
   },
   { 
     id: "actions",
-    label: "업무 관리", 
+    label: "조치/활동", 
     href: "/alerts",
     icon: Zap,
     description: "이벤트 및 업무 관리"
   },
   { 
     id: "optimization",
-    label: "최적화", 
+    label: "최적화/인사이트", 
     href: "/optimization/ai-ml",
     icon: TrendingUp,
     description: "공정 최적화 및 분석"
   },
   { 
     id: "roadmap",
-    label: "개선과제", 
+    label: "과제관리", 
     href: "/roadmap",
     icon: Target,
     description: "TA Worklist 및 개선과제 관리"
@@ -89,14 +89,14 @@ const mainMenus = [
   },
   { 
     id: "data-admin",
-    label: "데이터/관리", 
+    label: "데이터/설정", 
     href: "/admin",
     icon: Database,
     description: "데이터 관리 및 시스템 설정"
   },
   { 
     id: "review",
-    label: "리뷰", 
+    label: "리뷰/KPI", 
     href: "/review/monthly",
     icon: BarChart3,
     description: "운전 리뷰 및 거버넌스"
@@ -419,7 +419,7 @@ export function TopNavigation() {
                     className="text-xs p-0 h-auto"
                     onClick={() => router.push("/alerts")}
                   >
-                    전체 보기
+                    ���체 보기
                     <ExternalLink className="h-3 w-3 ml-1" />
                   </Button>
                 </div>
