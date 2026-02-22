@@ -51,6 +51,7 @@ import {
   Maximize2
 } from "lucide-react"
 import { cn } from "@/lib/utils"
+import { HEALTH_CATEGORIES, PROCESSES, getEquipmentData, type HealthCategory } from "@/lib/health-data"
 
 // Alert 타입 정의
 type AlertType = "alert" | "notice" | "event"
@@ -394,7 +395,7 @@ const SAMPLE_ALERTS: AlertItem[] = [
         top3: [
           { tagId: "TI-2001", description: "HCR Reactor Inlet Temp", severity: "high", deviation: "+8.2C vs 동일 피드조건 평균", detail: "Arabian Medium 처리 시 과거 6회 평균 대비 온도가 유의미하게 높음. WABT 상승 추세와 연계 가능." },
           { tagId: "FI-1001", description: "CDU Feed Flow Rate", severity: "medium", deviation: "-3.5% vs 동일 모드 평균", detail: "Full Rate 운전 모드에서 Feed Flow가 과거 대비 소폭 낮음. 계기 Drift 가능성 검토 필요." },
-          { tagId: "PI-3001", description: "CCR Regenerator Pressure", severity: "low", deviation: "-0.2 bar vs 동일 조건", detail: "정상 편차 범위 내이나 모니��링 지속 필요." },
+          { tagId: "PI-3001", description: "CCR Regenerator Pressure", severity: "low", deviation: "-0.2 bar vs 동일 조건", detail: "정상 편차 범위 내이나 모니���링 지속 필요." },
         ]
       },
       {
@@ -541,7 +542,7 @@ const SAMPLE_ALERTS: AlertItem[] = [
       ]
     },
     dailyMonitoringDetail: {
-      aiSummary: "금일 전체 공정은 안정적인 Full Rate 운전을 유지하고 있습니다. 다만, 02/01부터 진행된 Arabian Light → Arabian Medium 원유 전환으로 인해 HCR Unit의 WABT가 1.5°C 상승하였으며, 이는 피드 황함량 증가(+0.3%p)에 대한 정상적인 대응입니다. VDU Heater Outlet 온도는 안정적이며, CDU Overhead 시스템 부식 지표도 정상 범위입니다.\n\n현장 특이사항으로 P-201B Seal Oil Leak이 발견되었으나 경미한 수준으로, 정비팀에서 모니터링 ���입니다. 환경 배출 지표(SO2, NOx, 폐수 COD)는 모두 허용 범위 내에 있습니다.\n\n종합 판정: 정상 운전 유지, P-201B 상태 지속 관찰 권장",
+      aiSummary: "금일 전체 공정은 안정적인 Full Rate 운전을 유지하고 있습니다. 다만, 02/01부터 진행된 Arabian Light → Arabian Medium 원유 전환으로 인해 HCR Unit의 WABT가 1.5°C 상승하였으며, 이는 피드 황함량 증가(+0.3%p)에 대한 정상적인 대응입니다. VDU Heater Outlet 온도는 안정적이며, CDU Overhead 시스템 부식 지표도 정상 범위입니다.\n\n현장 특이사항으로 P-201B Seal Oil Leak이 발견되었으나 경미한 수준으로, 정비팀에서 모니터�� ���입니다. 환경 배출 지표(SO2, NOx, 폐수 COD)는 모두 허용 범위 내에 있습니다.\n\n종합 판정: 정상 운전 유지, P-201B 상태 지속 관찰 권장",
       keyVariables: [
         { name: "CDU Feed Rate", value: "1,180 m3/hr", change: "+0.5%", status: "normal" },
         { name: "HCR WABT", value: "396.5°C", change: "+1.5°C", status: "warning" },
@@ -2335,40 +2336,107 @@ export default function AlertsPage() {
                     </Card>
                   )}
 
-                  {/* Notice: 장기모니터링 상세 - 건전성 현황 페이지 연동 */}
-                  {selectedAlert.subType === "long-term" && selectedAlert.data?.items && (
-                    <Card className="border-blue-200/50">
-                      <CardHeader className="pb-2">
-                        <CardTitle className="text-sm flex items-center gap-2">
-                          <TrendingUp className="h-4 w-4" />
-                          장기 모니터링 항목
-                        </CardTitle>
-                      </CardHeader>
-                      <CardContent className="space-y-3">
-                        <div className="space-y-2">
-                          {selectedAlert.data.items.map((item, i) => (
-                            <div key={i} className="flex items-center justify-between p-3 bg-muted/30 rounded-lg">
-                              <span className="text-sm font-medium">{item.name}</span>
-                              <div className="flex items-center gap-3">
-                                <span className="text-sm text-muted-foreground">{item.value}</span>
-                                <Badge variant={item.status === "warning" ? "destructive" : "secondary"}>
-                                  {item.status === "warning" ? "주의" : "정상"}
-                                </Badge>
+                  {/* Notice: 장기모니터링 상세 - 건전성 현황 대시보드 인라인 */}
+                  {selectedAlert.subType === "long-term" && (() => {
+                    const cats = Object.values(HEALTH_CATEGORIES)
+                    const catData = cats.map(cat => {
+                      const equip = getEquipmentData(cat.id)
+                      const red = equip.filter(e => e.trafficLight === "red")
+                      const yellow = equip.filter(e => e.trafficLight === "yellow")
+                      const green = equip.filter(e => e.trafficLight === "green")
+                      return { ...cat, red, yellow, green, total: equip.length }
+                    })
+                    const totals = catData.reduce((a, c) => ({
+                      red: a.red + c.red.length, yellow: a.yellow + c.yellow.length,
+                      green: a.green + c.green.length, total: a.total + c.total,
+                    }), { red: 0, yellow: 0, green: 0, total: 0 })
+
+                    return (
+                      <Card className="border-blue-200/50">
+                        <CardHeader className="pb-2">
+                          <div className="flex items-center justify-between">
+                            <CardTitle className="text-sm flex items-center gap-2">
+                              <TrendingUp className="h-4 w-4" />
+                              장기 건전성 현황
+                            </CardTitle>
+                            <Button
+                              variant="outline"
+                              size="sm"
+                              className="h-7 text-xs gap-1.5 border-blue-200 text-blue-600 hover:bg-blue-50"
+                              onClick={() => router.push("/operations/health/overview")}
+                            >
+                              <ExternalLink className="h-3 w-3" />
+                              전체 화면
+                            </Button>
+                          </div>
+                        </CardHeader>
+                        <CardContent className="space-y-3">
+                          {/* Summary bar */}
+                          <div className="flex items-center gap-4 text-xs">
+                            <span className="text-muted-foreground">전체 <span className="font-semibold text-foreground">{totals.total}</span></span>
+                            <div className="flex items-center gap-1"><span className="h-2 w-2 rounded-full bg-red-500" /><span className="font-semibold text-red-600">{totals.red}</span></div>
+                            <div className="flex items-center gap-1"><span className="h-2 w-2 rounded-full bg-amber-400" /><span className="font-semibold text-amber-600">{totals.yellow}</span></div>
+                            <div className="flex items-center gap-1"><span className="h-2 w-2 rounded-full bg-emerald-500" /><span className="font-semibold text-emerald-600">{totals.green}</span></div>
+                            {totals.total > 0 && (
+                              <div className="flex h-2 flex-1 rounded-full overflow-hidden bg-muted ml-auto">
+                                <div className="bg-red-500" style={{ width: `${(totals.red / totals.total) * 100}%` }} />
+                                <div className="bg-amber-400" style={{ width: `${(totals.yellow / totals.total) * 100}%` }} />
+                                <div className="bg-emerald-500" style={{ width: `${(totals.green / totals.total) * 100}%` }} />
                               </div>
-                            </div>
-                          ))}
-                        </div>
-                        <Button
-                          variant="outline"
-                          className="w-full gap-2 border-blue-200 text-blue-600 hover:bg-blue-50"
-                          onClick={() => router.push("/operations/health/overview")}
-                        >
-                          <ExternalLink className="h-4 w-4" />
-                          건전성 현황 페이지에서 상세 확인
-                        </Button>
-                      </CardContent>
-                    </Card>
-                  )}
+                            )}
+                          </div>
+
+                          {/* Category mini-cards */}
+                          <div className="grid grid-cols-1 gap-2">
+                            {catData.map(cat => (
+                              <div
+                                key={cat.id}
+                                className={cn(
+                                  "flex items-center gap-3 p-2.5 rounded-lg border cursor-pointer transition-colors hover:bg-muted/50",
+                                  cat.red.length > 0 ? "border-red-200 bg-red-50/30" : "border-border"
+                                )}
+                                onClick={() => router.push(`/operations/health/${cat.id}`)}
+                              >
+                                <div className="shrink-0">
+                                  <Activity className="h-4 w-4 text-muted-foreground" />
+                                </div>
+                                <div className="flex-1 min-w-0">
+                                  <div className="flex items-center gap-2">
+                                    <span className="text-xs font-semibold">{cat.label}</span>
+                                    <span className="text-[10px] text-muted-foreground truncate">{cat.healthIndexName}</span>
+                                  </div>
+                                  {cat.red.length > 0 && (
+                                    <div className="flex items-center gap-1 mt-0.5">
+                                      <AlertTriangle className="h-3 w-3 text-red-500 shrink-0" />
+                                      <span className="text-[10px] text-red-600 truncate">
+                                        {cat.red.slice(0, 2).map(e => e.id).join(", ")}
+                                        {cat.red.length > 2 && ` 외 ${cat.red.length - 2}건`}
+                                      </span>
+                                    </div>
+                                  )}
+                                </div>
+                                <div className="flex items-center gap-2 shrink-0">
+                                  <div className="flex items-center gap-1">
+                                    <span className="h-2 w-2 rounded-full bg-red-500" />
+                                    <span className="text-[11px] font-semibold text-red-600">{cat.red.length}</span>
+                                  </div>
+                                  <div className="flex items-center gap-1">
+                                    <span className="h-2 w-2 rounded-full bg-amber-400" />
+                                    <span className="text-[11px] font-semibold text-amber-600">{cat.yellow.length}</span>
+                                  </div>
+                                  <div className="flex items-center gap-1">
+                                    <span className="h-2 w-2 rounded-full bg-emerald-500" />
+                                    <span className="text-[11px] font-semibold text-emerald-600">{cat.green.length}</span>
+                                  </div>
+                                  <ChevronRight className="h-3.5 w-3.5 text-muted-foreground" />
+                                </div>
+                              </div>
+                            ))}
+                          </div>
+                        </CardContent>
+                      </Card>
+                    )
+                  })()}
 
                   {/* 기존 Notice 타입 (이상징후/DCS/Daily Monitoring/장기모니터링 제외): 아이템 리스트 */}
                   {selectedAlert.data?.items && !["anomaly", "daily-monitoring", "dcs-modification", "monthly-report-review", "contingency-plan-review", "long-term"].includes(selectedAlert.subType) && (
@@ -3622,7 +3690,7 @@ export default function AlertsPage() {
                 Standing Issue 추가 등록
               </DialogTitle>
               <p className="text-sm text-muted-foreground mt-1">
-                공정 특이사항을 Standing Issue로 등록합니다. 등록 시 기술팀장에게 자동 공유됩니다.
+                공정 특이사항을 Standing Issue로 등록합니다. 등록 시 기술팀장에게 자동 공유���니다.
               </p>
             </DialogHeader>
             <div className="space-y-4 py-4">
@@ -3924,7 +3992,7 @@ export default function AlertsPage() {
                 </div>
 
                 <div className="p-3 rounded-lg bg-blue-50 border border-blue-100">
-                  <p className="text-xs text-blue-700">조치 입력 시 이벤트 티켓이 자동 생성되며, 관련 엔지니어에게 알림이 발송됩니다.</p>
+                  <p className="text-xs text-blue-700">조치 입력 시 이벤트 티켓이 자동 생성되며, 관련 엔지니어에게 알림이 발송됩니���.</p>
                 </div>
               </div>
             )}
