@@ -200,6 +200,7 @@ export function Sidebar({ unreadAlerts = 3 }: SidebarProps) {
         { label: "한계가치 분석", href: "/optimization/insight/marginal", icon: TrendingUp },
         { label: "LP 벡터 분석", href: "/optimization/insight/lp-vector", icon: LineChart },
         { label: "품질 Giveaway 분석", href: "/optimization/insight/quality-giveaway", icon: Gauge },
+        { label: "촉매 수명/사용량", href: "/optimization/insight/catalyst", icon: Activity },
       ]
     },
   ]

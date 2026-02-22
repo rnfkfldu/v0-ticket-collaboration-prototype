@@ -394,7 +394,7 @@ const SAMPLE_ALERTS: AlertItem[] = [
         top3: [
           { tagId: "TI-2001", description: "HCR Reactor Inlet Temp", severity: "high", deviation: "+8.2C vs 동일 피드조건 평균", detail: "Arabian Medium 처리 시 과거 6회 평균 대비 온도가 유의미하게 높음. WABT 상승 추세와 연계 가능." },
           { tagId: "FI-1001", description: "CDU Feed Flow Rate", severity: "medium", deviation: "-3.5% vs 동일 모드 평균", detail: "Full Rate 운전 모드에서 Feed Flow가 과거 대비 소폭 낮음. 계기 Drift 가능성 검토 필요." },
-          { tagId: "PI-3001", description: "CCR Regenerator Pressure", severity: "low", deviation: "-0.2 bar vs 동일 조건", detail: "정상 편차 범위 내이나 모니터링 지속 필요." },
+          { tagId: "PI-3001", description: "CCR Regenerator Pressure", severity: "low", deviation: "-0.2 bar vs 동일 조건", detail: "정상 편차 범위 내이나 모니��링 지속 필요." },
         ]
       },
       {
@@ -541,7 +541,7 @@ const SAMPLE_ALERTS: AlertItem[] = [
       ]
     },
     dailyMonitoringDetail: {
-      aiSummary: "금일 전체 공정은 안정적인 Full Rate 운전을 유지하고 있습니다. 다만, 02/01부터 진행된 Arabian Light → Arabian Medium 원유 전환으로 인해 HCR Unit의 WABT가 1.5°C 상승하였으며, 이는 피드 황함량 증가(+0.3%p)에 대한 정상적인 대응입니다. VDU Heater Outlet 온도는 안정적이며, CDU Overhead 시스템 부식 지표도 정상 범위입니다.\n\n현장 특이사항으로 P-201B Seal Oil Leak이 발견되었으나 경미한 수준으로, 정비팀에서 모니터링 중입니다. 환경 배출 지표(SO2, NOx, 폐수 COD)는 모두 허용 범위 내에 있습니다.\n\n종합 판정: 정상 운전 유지, P-201B 상태 지속 관찰 권장",
+      aiSummary: "금일 전체 공정은 안정적인 Full Rate 운전을 유지하고 있습니다. 다만, 02/01부터 진행된 Arabian Light → Arabian Medium 원유 전환으로 인해 HCR Unit의 WABT가 1.5°C 상승하였으며, 이는 피드 황함량 증가(+0.3%p)에 대한 정상적인 대응입니다. VDU Heater Outlet 온도는 안정적이며, CDU Overhead 시스템 부식 지표도 정상 범위입니다.\n\n현장 특이사항으로 P-201B Seal Oil Leak이 발견되었으나 경미한 수준으로, 정비팀에서 모니터링 ���입니다. 환경 배출 지표(SO2, NOx, 폐수 COD)는 모두 허용 범위 내에 있습니다.\n\n종합 판정: 정상 운전 유지, P-201B 상태 지속 관찰 권장",
       keyVariables: [
         { name: "CDU Feed Rate", value: "1,180 m3/hr", change: "+0.5%", status: "normal" },
         { name: "HCR WABT", value: "396.5°C", change: "+1.5°C", status: "warning" },
@@ -2335,8 +2335,43 @@ export default function AlertsPage() {
                     </Card>
                   )}
 
-                  {/* 기존 Notice 타입 (이상징후/DCS/Daily Monitoring 제외): 아이템 리스트 */}
-                  {selectedAlert.data?.items && !["anomaly", "daily-monitoring", "dcs-modification", "monthly-report-review", "contingency-plan-review"].includes(selectedAlert.subType) && (
+                  {/* Notice: 장기모니터링 상세 - 건전성 현황 페이지 연동 */}
+                  {selectedAlert.subType === "long-term" && selectedAlert.data?.items && (
+                    <Card className="border-blue-200/50">
+                      <CardHeader className="pb-2">
+                        <CardTitle className="text-sm flex items-center gap-2">
+                          <TrendingUp className="h-4 w-4" />
+                          장기 모니터링 항목
+                        </CardTitle>
+                      </CardHeader>
+                      <CardContent className="space-y-3">
+                        <div className="space-y-2">
+                          {selectedAlert.data.items.map((item, i) => (
+                            <div key={i} className="flex items-center justify-between p-3 bg-muted/30 rounded-lg">
+                              <span className="text-sm font-medium">{item.name}</span>
+                              <div className="flex items-center gap-3">
+                                <span className="text-sm text-muted-foreground">{item.value}</span>
+                                <Badge variant={item.status === "warning" ? "destructive" : "secondary"}>
+                                  {item.status === "warning" ? "주의" : "정상"}
+                                </Badge>
+                              </div>
+                            </div>
+                          ))}
+                        </div>
+                        <Button
+                          variant="outline"
+                          className="w-full gap-2 border-blue-200 text-blue-600 hover:bg-blue-50"
+                          onClick={() => router.push("/operations/health/overview")}
+                        >
+                          <ExternalLink className="h-4 w-4" />
+                          건전성 현황 페이지에서 상세 확인
+                        </Button>
+                      </CardContent>
+                    </Card>
+                  )}
+
+                  {/* 기존 Notice 타입 (이상징후/DCS/Daily Monitoring/장기모니터링 제외): 아이템 리스트 */}
+                  {selectedAlert.data?.items && !["anomaly", "daily-monitoring", "dcs-modification", "monthly-report-review", "contingency-plan-review", "long-term"].includes(selectedAlert.subType) && (
                     <Card>
                       <CardHeader className="pb-2">
                         <CardTitle className="text-sm">상세 항목</CardTitle>
@@ -2731,7 +2766,7 @@ export default function AlertsPage() {
                         </CardContent>
                       </Card>
 
-                      {/* 관련 트렌드 (Alert 컴포넌트 차용) */}
+                      {/* 관련 트���드 (Alert 컴포넌트 차용) */}
                       {selectedAlert.data?.trend && (
                         <Card>
                           <CardHeader className="pb-2">
@@ -3791,6 +3826,120 @@ export default function AlertsPage() {
               >
                 <Clock className="h-4 w-4 mr-2" />
                 Shelved 처리
+              </Button>
+            </DialogFooter>
+          </DialogContent>
+        </Dialog>
+
+        {/* ===== 장기건전성 조치 입력 -> 티켓화 Dialog ===== */}
+        <Dialog open={showHealthActionDialog} onOpenChange={setShowHealthActionDialog}>
+          <DialogContent className="max-w-lg">
+            <DialogHeader>
+              <DialogTitle className="flex items-center gap-2">
+                <ClipboardList className="h-5 w-5 text-red-500" />
+                조치 입력 (티켓 생성)
+              </DialogTitle>
+            </DialogHeader>
+            {selectedAlert?.healthMonitoring && (
+              <div className="space-y-4 py-2">
+                {/* 대상 장치 정보 */}
+                <div className="p-3 rounded-lg bg-red-50 border border-red-200">
+                  <div className="flex items-center gap-2 mb-1.5">
+                    <span className="w-3 h-3 rounded-full bg-red-500 shrink-0" />
+                    <span className="text-sm font-semibold">{selectedAlert.healthMonitoring.equipId} - {selectedAlert.healthMonitoring.equipName}</span>
+                  </div>
+                  <div className="grid grid-cols-3 gap-2 text-xs text-muted-foreground">
+                    <span>현재 {selectedAlert.healthMonitoring.currentValue} {selectedAlert.healthMonitoring.healthIndexUnit}</span>
+                    <span>Drift +{selectedAlert.healthMonitoring.driftPct}%</span>
+                    <span>잔여 {selectedAlert.healthMonitoring.projectionWeeks}주</span>
+                  </div>
+                </div>
+
+                {/* 조치 유형 */}
+                <div className="space-y-2">
+                  <Label className="text-xs font-medium">조치 유형</Label>
+                  <Select value={healthActionType} onValueChange={setHealthActionType}>
+                    <SelectTrigger className="h-9"><SelectValue /></SelectTrigger>
+                    <SelectContent>
+                      <SelectItem value="online-cleaning">Online Cleaning</SelectItem>
+                      <SelectItem value="ta-scope">TA Scope 반영</SelectItem>
+                      <SelectItem value="operating-change">운전 조건 변경</SelectItem>
+                      <SelectItem value="chemical-treatment">Chemical 처리</SelectItem>
+                      <SelectItem value="temp-profile">온도 프로파일 변경</SelectItem>
+                      <SelectItem value="catalyst-management">촉매 관리 (보충/교체)</SelectItem>
+                      <SelectItem value="inspection">점검/검사</SelectItem>
+                      <SelectItem value="other">기타</SelectItem>
+                    </SelectContent>
+                  </Select>
+                </div>
+
+                {/* 긴급도 */}
+                <div className="space-y-2">
+                  <Label className="text-xs font-medium">긴급도</Label>
+                  <div className="grid grid-cols-3 gap-2">
+                    {[
+                      { id: "urgent", label: "긴급 (즉시)", className: "border-red-300 bg-red-50 text-red-700" },
+                      { id: "high", label: "높음 (1주 내)", className: "border-amber-300 bg-amber-50 text-amber-700" },
+                      { id: "normal", label: "보통 (TA 반영)", className: "border-emerald-300 bg-emerald-50 text-emerald-700" },
+                    ].map(opt => (
+                      <button
+                        key={opt.id}
+                        type="button"
+                        className={cn(
+                          "p-2 rounded-lg border text-xs font-medium transition-colors",
+                          healthActionUrgency === opt.id ? opt.className + " ring-1 ring-current" : "border-border hover:bg-muted/50"
+                        )}
+                        onClick={() => setHealthActionUrgency(opt.id)}
+                      >
+                        {opt.label}
+                      </button>
+                    ))}
+                  </div>
+                </div>
+
+                {/* 조치 내용 */}
+                <div className="space-y-2">
+                  <Label className="text-xs font-medium">조치 내용</Label>
+                  <Textarea
+                    rows={4}
+                    value={healthActionDesc}
+                    onChange={e => setHealthActionDesc(e.target.value)}
+                    placeholder="어떤 조치를 어떻게 수행할 것인지 기술하세요..."
+                  />
+                </div>
+
+                {/* 디폴트 정보 */}
+                <div className="p-3 rounded-lg bg-muted/40 border space-y-1.5">
+                  <p className="text-[11px] font-medium text-muted-foreground">자동 입력 정보 (티켓에 포함)</p>
+                  <div className="grid grid-cols-2 gap-x-4 gap-y-1 text-[11px]">
+                    <span className="text-muted-foreground">공정: <span className="text-foreground font-medium">{selectedAlert.unit || "N/A"}</span></span>
+                    <span className="text-muted-foreground">장치: <span className="text-foreground font-medium">{selectedAlert.healthMonitoring.equipId}</span></span>
+                    <span className="text-muted-foreground">Health Index: <span className="text-foreground font-medium">{selectedAlert.healthMonitoring.healthIndexName}</span></span>
+                    <span className="text-muted-foreground">Projection: <span className="text-foreground font-medium">{selectedAlert.healthMonitoring.projectionWeeks}주</span></span>
+                    {selectedAlert.healthMonitoring.aiModelId && (
+                      <span className="text-muted-foreground">AI Model: <span className="text-foreground font-medium">{selectedAlert.healthMonitoring.aiModelId}</span></span>
+                    )}
+                    <span className="text-muted-foreground">발생일: <span className="text-foreground font-medium">{selectedAlert.timestamp}</span></span>
+                  </div>
+                </div>
+
+                <div className="p-3 rounded-lg bg-blue-50 border border-blue-100">
+                  <p className="text-xs text-blue-700">조치 입력 시 이벤트 티켓이 자동 생성되며, 관련 엔지니어에게 알림이 발송됩니다.</p>
+                </div>
+              </div>
+            )}
+            <DialogFooter>
+              <Button variant="outline" onClick={() => { setShowHealthActionDialog(false); setHealthActionDesc(""); }}>취소</Button>
+              <Button
+                className="bg-red-600 hover:bg-red-700"
+                onClick={() => {
+                  setShowHealthActionDialog(false)
+                  setHealthActionDesc("")
+                  if (selectedAlert) handleCreateTicket(selectedAlert)
+                }}
+              >
+                <ClipboardList className="h-4 w-4 mr-2" />
+                조치 입력 및 티켓 생성
               </Button>
             </DialogFooter>
           </DialogContent>

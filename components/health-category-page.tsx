@@ -15,14 +15,14 @@ import {
   Table, TableBody, TableCell, TableHead, TableHeader, TableRow,
 } from "@/components/ui/table"
 import {
-  TrendingUp, TrendingDown, Minus, LayoutGrid, List, ChevronRight, AlertTriangle,
-  ClipboardList, Eye, X, ArrowUpRight, ArrowDownRight, Settings2, GitCompare,
-  Info, ExternalLink, Triangle,
+  TrendingUp, Minus, LayoutGrid, List, ChevronRight, AlertTriangle,
+  ClipboardList, Eye, X, ArrowUpRight, ArrowDownRight, Settings2,
+  ExternalLink, Cpu,
 } from "lucide-react"
 import { cn } from "@/lib/utils"
 import {
-  type HealthCategory, type HealthEquipment, type RelatedTrendTag, type TrafficLight,
-  HEALTH_CATEGORIES, PROCESSES, PROCESS_MODES, getEquipmentData, getRelatedTrends,
+  type HealthCategory, type HealthEquipment, type TrafficLight,
+  HEALTH_CATEGORIES, PROCESS_MODES, getEquipmentData,
 } from "@/lib/health-data"
 import { AppShell } from "@/components/app-shell"
 import { useRouter } from "next/navigation"
@@ -66,18 +66,19 @@ function Sparkline({ data, limit, color = "hsl(var(--primary))", width = 120, he
 }
 
 // ---- Projection Trend Chart (Large) ----
-function ProjectionTrendChart({ eq, category, showPrevTa, projectionMode }: {
+function ProjectionTrendChart({ eq, category, showPrevTa, projectionMode, onAiModelClick }: {
   eq: HealthEquipment; category: HealthCategory; showPrevTa: boolean; projectionMode: "linear" | "ai"
+  onAiModelClick?: () => void
 }) {
   const hi = eq.healthIndex
   const data = hi.trend
   const limit = hi.limitValue
   const actionLimit = eq.projection.actionLimit
   const projWeeks = (projectionMode === "ai" && eq.projection.aiEndOfRun) ? eq.projection.aiEndOfRun : eq.projection.linearEndOfRun
-  const projLen = Math.min(projWeeks, 24) // project up to 24 weeks
+  const projLen = Math.min(projWeeks, 24)
   const lastVal = data[data.length - 1]
   const slope = projectionMode === "ai" && eq.projection.aiModelId
-    ? hi.weeklySlope * (0.8 + Math.sin(projWeeks) * 0.3) // AI deviation
+    ? hi.weeklySlope * (0.8 + Math.sin(projWeeks) * 0.3)
     : hi.weeklySlope
   const projData = Array.from({ length: projLen + 1 }, (_, i) => +(lastVal + slope * i).toFixed(2))
   const prevTa = showPrevTa && hi.prevTaTrend ? hi.prevTaTrend : null
@@ -92,16 +93,12 @@ function ProjectionTrendChart({ eq, category, showPrevTa, projectionMode }: {
   const toX = (i: number) => p.l + (i / (totalLen - 1)) * cw
   const toY = (v: number) => p.t + (1 - (v - min) / range) * ch
 
-  // Actual path
   const actualPath = data.map((v, i) => `${i === 0 ? "M" : "L"} ${toX(i).toFixed(1)} ${toY(v).toFixed(1)}`).join(" ")
-  // Projection path
   const projPath = projData.map((v, i) => {
     const x = toX(data.length - 1 + i)
     return `${i === 0 ? "M" : "L"} ${x.toFixed(1)} ${toY(v).toFixed(1)}`
   }).join(" ")
-  // Prev TA path
   const prevPath = prevTa ? prevTa.map((v, i) => `${i === 0 ? "M" : "L"} ${toX(i).toFixed(1)} ${toY(v).toFixed(1)}`).join(" ") : ""
-  // Action window
   const actionMargin = eq.projection.actionMarginWeeks
   const actionStartWeek = Math.max(0, projWeeks - actionMargin)
   const actionX1 = toX(data.length - 1 + actionStartWeek)
@@ -122,8 +119,15 @@ function ProjectionTrendChart({ eq, category, showPrevTa, projectionMode }: {
               <AlertTriangle className="h-3 w-3" /> 즉시 조치
             </Badge>
           )}
-          {eq.projection.aiModelId && (
-            <Badge variant="outline" className="text-[10px] h-5 border-indigo-300 text-indigo-600">AI 모델</Badge>
+          {eq.projection.aiModelId && projectionMode === "ai" && (
+            <Badge
+              variant="outline"
+              className="text-[10px] h-5 border-indigo-300 text-indigo-600 cursor-pointer hover:bg-indigo-50 gap-0.5"
+              onClick={e => { e.stopPropagation(); onAiModelClick?.() }}
+            >
+              <Cpu className="h-3 w-3" /> AI: {eq.projection.aiModelId}
+              <ExternalLink className="h-2.5 w-2.5 ml-0.5" />
+            </Badge>
           )}
           {!eq.normalized.hasLogic && (
             <Badge variant="outline" className="text-[10px] h-5 border-orange-200 text-orange-500">Raw</Badge>
@@ -134,34 +138,25 @@ function ProjectionTrendChart({ eq, category, showPrevTa, projectionMode }: {
       <p className="px-4 text-xs text-muted-foreground -mt-0.5 mb-1">{eq.name}</p>
       <div className="px-2">
         <svg viewBox={`0 0 ${W} ${H}`} className="w-full" style={{ height: 160 }} preserveAspectRatio="xMidYMid meet">
-          {/* Grid lines */}
           {[0.25, 0.5, 0.75].map(frac => {
             const y = p.t + frac * ch
             const val = max - frac * range
             return <g key={frac}><line x1={p.l} y1={y} x2={W - p.r} y2={y} stroke="currentColor" strokeOpacity={0.05} /><text x={p.l - 4} y={y + 3} fontSize="7" fill="currentColor" fillOpacity={0.3} textAnchor="end">{val.toFixed(0)}</text></g>
           })}
-          {/* Divider: now | projection */}
           <line x1={toX(data.length - 1)} y1={p.t} x2={toX(data.length - 1)} y2={p.t + ch} stroke="currentColor" strokeOpacity={0.15} strokeDasharray="4 2" />
           <text x={toX(data.length - 1)} y={p.t + ch + 12} fontSize="7" fill="currentColor" fillOpacity={0.4} textAnchor="middle">현재</text>
-          {/* Action window fill */}
           {actionStartWeek < projLen && (
             <rect x={actionX1} y={p.t} width={Math.max(0, actionX2 - actionX1)} height={ch} fill="#fbbf24" opacity="0.08" rx="2" />
           )}
-          {/* Limit & action limit lines */}
           <line x1={p.l} y1={toY(limit)} x2={W - p.r} y2={toY(limit)} stroke="#ef4444" strokeWidth="1" strokeDasharray="5 3" />
           <text x={W - p.r + 2} y={toY(limit) + 3} fontSize="7" fill="#ef4444" fillOpacity={0.8}>Limit</text>
           <line x1={p.l} y1={toY(actionLimit)} x2={W - p.r} y2={toY(actionLimit)} stroke="#f59e0b" strokeWidth="0.8" strokeDasharray="3 2" />
           <text x={W - p.r + 2} y={toY(actionLimit) + 3} fontSize="6" fill="#f59e0b" fillOpacity={0.7}>Action</text>
-          {/* Prev TA */}
           {prevPath && <path d={prevPath} fill="none" stroke="#94a3b8" strokeWidth="1.2" strokeDasharray="3 3" opacity="0.5" />}
-          {/* Actual data */}
           <path d={`${actualPath} L ${toX(data.length - 1)} ${p.t + ch} L ${toX(0)} ${p.t + ch} Z`} fill={lightColor} opacity="0.06" />
           <path d={actualPath} fill="none" stroke={lightColor} strokeWidth="2" strokeLinecap="round" />
-          {/* Projection */}
           <path d={projPath} fill="none" stroke={projectionMode === "ai" ? "#6366f1" : lightColor} strokeWidth="1.5" strokeDasharray="6 3" opacity="0.7" />
-          {/* Points */}
           {data.map((v, i) => <circle key={i} cx={toX(i)} cy={toY(v)} r={1.5} fill={lightColor} />)}
-          {/* Action window label */}
           {actionStartWeek < projLen && (
             <text x={(actionX1 + actionX2) / 2} y={p.t + 10} fontSize="7" fill="#b45309" textAnchor="middle">Action Window</text>
           )}
@@ -188,53 +183,6 @@ function ProjectionTrendChart({ eq, category, showPrevTa, projectionMode }: {
   )
 }
 
-// ---- Related Trend Card ----
-function TrendChart({ tag }: { tag: RelatedTrendTag }) {
-  const { values, limit, lowLimit, unit, tagId, description } = tag
-  const allVals = [...values, ...(limit ? [limit] : []), ...(lowLimit ? [lowLimit] : [])]
-  const max = Math.max(...allVals) * 1.05, min = Math.min(...allVals) * 0.95, range = max - min || 1
-  const W = 320, H = 100, pad = { t: 8, b: 16, l: 36, r: 8 }
-  const cw = W - pad.l - pad.r, ch = H - pad.t - pad.b
-  const toX = (i: number) => pad.l + (i / (values.length - 1)) * cw
-  const toY = (v: number) => pad.t + (1 - (v - min) / range) * ch
-  const typeColors: Record<string, string> = { Temperature: "#ef4444", Pressure: "#3b82f6", Flow: "#10b981", Level: "#8b5cf6", Analysis: "#f59e0b", Control: "#6366f1", Performance: "#0d9488" }
-  const color = typeColors[tag.type] || "#6366f1"
-  const lastVal = values[values.length - 1]
-  const isViolation = (limit && lastVal > limit) || (lowLimit && lastVal < lowLimit)
-  const pathD = values.map((v, i) => `${i === 0 ? "M" : "L"} ${toX(i).toFixed(1)} ${toY(v).toFixed(1)}`).join(" ")
-
-  return (
-    <Card className={cn("overflow-hidden", isViolation && "border-red-200")}>
-      <div className="px-3 pt-2 pb-0.5 flex items-center justify-between">
-        <div className="flex items-center gap-2 min-w-0">
-          <span className="font-mono text-xs font-semibold">{tagId}</span>
-          <Badge variant="secondary" className="text-[10px] h-4" style={{ borderColor: color, color }}>{tag.type}</Badge>
-          {isViolation && <Badge variant="destructive" className="text-[10px] h-4">Violation</Badge>}
-        </div>
-        <span className="text-[10px] text-muted-foreground shrink-0">[{unit}]</span>
-      </div>
-      <p className="px-3 text-[11px] text-muted-foreground truncate">{description}</p>
-      <div className="px-1 pb-0.5">
-        <svg viewBox={`0 0 ${W} ${H}`} className="w-full h-20" preserveAspectRatio="xMidYMid meet">
-          {limit && <line x1={pad.l} y1={toY(limit)} x2={W - pad.r} y2={toY(limit)} stroke="#ef4444" strokeWidth="0.8" strokeDasharray="4 2" />}
-          {lowLimit && <line x1={pad.l} y1={toY(lowLimit)} x2={W - pad.r} y2={toY(lowLimit)} stroke="#3b82f6" strokeWidth="0.8" strokeDasharray="4 2" />}
-          <path d={`${pathD} L ${toX(values.length - 1)} ${pad.t + ch} L ${toX(0)} ${pad.t + ch} Z`} fill={color} opacity="0.06" />
-          <path d={pathD} fill="none" stroke={color} strokeWidth="1.5" strokeLinecap="round" />
-          {values.map((v, i) => {
-            const over = (limit && v > limit) || (lowLimit && v < lowLimit)
-            return <circle key={i} cx={toX(i)} cy={toY(v)} r={over ? 2.5 : 1.5} fill={over ? "#ef4444" : color} />
-          })}
-        </svg>
-      </div>
-      <div className="px-3 pb-2 flex items-center justify-between text-[11px]">
-        <span className="text-muted-foreground">현재 <span className={cn("font-semibold", isViolation ? "text-red-600" : "text-foreground")}>{lastVal} {unit}</span></span>
-        {limit && <span className="text-red-400">Max {limit}</span>}
-        {lowLimit && <span className="text-blue-400">Min {lowLimit}</span>}
-      </div>
-    </Card>
-  )
-}
-
 // =========================================
 // HealthCategoryPage - Main
 // =========================================
@@ -252,9 +200,8 @@ export function HealthCategoryPage({ category }: { category: HealthCategory }) {
   // Trend options
   const [projectionMode, setProjectionMode] = useState<"linear" | "ai">("ai")
   const [showPrevTa, setShowPrevTa] = useState(false)
-  const [showRelatedPanel, setShowRelatedPanel] = useState(false)
 
-  // Selected equipment
+  // Selected equipment - table click opens inline trend detail
   const [selectedEquipId, setSelectedEquipId] = useState<string | null>(null)
 
   // Normalized logic edit dialog
@@ -287,7 +234,7 @@ export function HealthCategoryPage({ category }: { category: HealthCategory }) {
   }, [allEquipment, processFilter, modeFilter, lightFilter])
 
   const availableProcesses = useMemo(() => Array.from(new Set(allEquipment.map(e => e.process))).sort(), [allEquipment])
-  const relatedTrends = useMemo(() => selectedEquipId ? getRelatedTrends(category, selectedEquipId) : [], [category, selectedEquipId])
+  const selectedEquip = useMemo(() => allEquipment.find(e => e.id === selectedEquipId), [allEquipment, selectedEquipId])
 
   const counts = useMemo(() => ({
     red: filtered.filter(e => e.trafficLight === "red").length,
@@ -366,36 +313,34 @@ export function HealthCategoryPage({ category }: { category: HealthCategory }) {
 
           <span className="text-xs text-muted-foreground">{filtered.length}건</span>
 
-          {/* Trend mode options */}
-          {viewMode === "trend" && (
-            <div className="flex items-center gap-3 ml-2 pl-3 border-l">
-              <div className="flex items-center gap-1.5">
-                <span className="text-xs text-muted-foreground">Projection:</span>
-                <div className="flex items-center gap-0.5 border rounded p-0.5">
-                  <Button variant={projectionMode === "ai" ? "secondary" : "ghost"} size="sm" className="h-6 px-2 text-[11px]" onClick={() => setProjectionMode("ai")}>AI/ML</Button>
-                  <Button variant={projectionMode === "linear" ? "secondary" : "ghost"} size="sm" className="h-6 px-2 text-[11px]" onClick={() => setProjectionMode("linear")}>Linear</Button>
-                </div>
-              </div>
-              <div className="flex items-center gap-1.5">
-                <Switch id="prev-ta" checked={showPrevTa} onCheckedChange={setShowPrevTa} className="scale-75" />
-                <label htmlFor="prev-ta" className="text-xs text-muted-foreground cursor-pointer">전 TA 비교</label>
+          {/* Trend mode options - visible in both views for the detail panel too */}
+          <div className="flex items-center gap-3 ml-2 pl-3 border-l">
+            <div className="flex items-center gap-1.5">
+              <span className="text-xs text-muted-foreground">Projection:</span>
+              <div className="flex items-center gap-0.5 border rounded p-0.5">
+                <Button variant={projectionMode === "ai" ? "secondary" : "ghost"} size="sm" className="h-6 px-2 text-[11px]" onClick={() => setProjectionMode("ai")}>AI/ML</Button>
+                <Button variant={projectionMode === "linear" ? "secondary" : "ghost"} size="sm" className="h-6 px-2 text-[11px]" onClick={() => setProjectionMode("linear")}>Linear</Button>
               </div>
             </div>
-          )}
+            <div className="flex items-center gap-1.5">
+              <Switch id="prev-ta" checked={showPrevTa} onCheckedChange={setShowPrevTa} className="scale-75" />
+              <label htmlFor="prev-ta" className="text-xs text-muted-foreground cursor-pointer">전 TA 비교</label>
+            </div>
+          </div>
 
           <div className="ml-auto flex items-center gap-1 border rounded-md p-0.5">
-            <Button variant={viewMode === "table" ? "secondary" : "ghost"} size="sm" className="h-7 px-2.5 text-xs gap-1" onClick={() => setViewMode("table")}>
+            <Button variant={viewMode === "table" ? "secondary" : "ghost"} size="sm" className="h-7 px-2.5 text-xs gap-1" onClick={() => { setViewMode("table"); setSelectedEquipId(null) }}>
               <List className="h-3.5 w-3.5" /> 요약
             </Button>
-            <Button variant={viewMode === "trend" ? "secondary" : "ghost"} size="sm" className="h-7 px-2.5 text-xs gap-1" onClick={() => setViewMode("trend")}>
+            <Button variant={viewMode === "trend" ? "secondary" : "ghost"} size="sm" className="h-7 px-2.5 text-xs gap-1" onClick={() => { setViewMode("trend"); setSelectedEquipId(null) }}>
               <LayoutGrid className="h-3.5 w-3.5" /> 트렌드
             </Button>
           </div>
         </div>
 
         {/* Main content */}
-        <div className={cn("flex gap-6", (selectedEquipId && showRelatedPanel) ? "flex-col xl:flex-row" : "flex-col")}>
-          <div className={cn("flex-1 min-w-0", selectedEquipId && showRelatedPanel && "xl:w-3/5")}>
+        <div className={cn("flex gap-6", selectedEquipId && viewMode === "table" ? "flex-col xl:flex-row" : "flex-col")}>
+          <div className={cn("flex-1 min-w-0", selectedEquipId && viewMode === "table" && "xl:w-3/5")}>
 
             {viewMode === "table" ? (
               /* ===== TABLE VIEW ===== */
@@ -432,10 +377,7 @@ export function HealthCategoryPage({ category }: { category: HealthCategory }) {
                               eq.trafficLight === "red" && "bg-red-50/50",
                               eq.projection.needsImmediateAction && "bg-red-50"
                             )}
-                            onClick={() => {
-                              setSelectedEquipId(isSelected ? null : eq.id)
-                              if (!isSelected) setShowRelatedPanel(true)
-                            }}
+                            onClick={() => setSelectedEquipId(isSelected ? null : eq.id)}
                           >
                             <TableCell className="text-center">
                               <div className="flex flex-col items-center gap-0.5">
@@ -470,11 +412,7 @@ export function HealthCategoryPage({ category }: { category: HealthCategory }) {
                               <span className="text-[10px] text-muted-foreground ml-1">{hi.unit}</span>
                             </TableCell>
                             <TableCell>
-                              <Sparkline
-                                data={hi.trend}
-                                limit={hi.limitValue}
-                                color={eq.trafficLight === "red" ? "#ef4444" : eq.trafficLight === "yellow" ? "#f59e0b" : "#10b981"}
-                              />
+                              <Sparkline data={hi.trend} limit={hi.limitValue} color={eq.trafficLight === "red" ? "#ef4444" : eq.trafficLight === "yellow" ? "#f59e0b" : "#10b981"} />
                             </TableCell>
                             <TableCell className="text-right">
                               <div className="flex items-center justify-end gap-1">
@@ -531,44 +469,109 @@ export function HealthCategoryPage({ category }: { category: HealthCategory }) {
               /* ===== TREND VIEW ===== */
               <div className="grid grid-cols-1 xl:grid-cols-2 gap-4">
                 {filtered.map(eq => (
-                  <div key={eq.id} className="cursor-pointer" onClick={() => {
-                    setSelectedEquipId(selectedEquipId === eq.id ? null : eq.id)
-                    setShowRelatedPanel(true)
-                  }}>
-                    <ProjectionTrendChart eq={eq} category={category} showPrevTa={showPrevTa} projectionMode={projectionMode} />
-                  </div>
+                  <ProjectionTrendChart
+                    key={eq.id}
+                    eq={eq}
+                    category={category}
+                    showPrevTa={showPrevTa}
+                    projectionMode={projectionMode}
+                    onAiModelClick={() => router.push(`/optimization/ai-ml?model=${eq.projection.aiModelId}`)}
+                  />
                 ))}
               </div>
             )}
           </div>
 
-          {/* Related trends panel */}
-          {selectedEquipId && showRelatedPanel && (
-            <div className={cn("shrink-0", viewMode === "table" ? "xl:w-2/5" : "w-full")}>
+          {/* Individual equipment trend detail panel (table view only) */}
+          {selectedEquipId && selectedEquip && viewMode === "table" && (
+            <div className="shrink-0 xl:w-2/5">
               <Card>
                 <CardHeader className="pb-3">
                   <div className="flex items-center justify-between">
                     <CardTitle className="text-sm flex items-center gap-2">
                       <TrendingUp className="h-4 w-4" />
-                      연관 트렌드 묶음
-                      <Badge variant="secondary" className="text-[10px]">{relatedTrends.length}개</Badge>
+                      {selectedEquip.id} - {selectedEquip.name}
+                      <Badge variant="outline" className="text-[10px]">{selectedEquip.process}{selectedEquip.mode ? ` / ${selectedEquip.mode}` : ""}</Badge>
                     </CardTitle>
-                    <Button variant="ghost" size="sm" className="h-6 w-6 p-0" onClick={() => { setShowRelatedPanel(false); setSelectedEquipId(null) }}>
+                    <Button variant="ghost" size="sm" className="h-6 w-6 p-0" onClick={() => setSelectedEquipId(null)}>
                       <X className="h-3.5 w-3.5" />
                     </Button>
                   </div>
-                  {(() => {
-                    const eq = allEquipment.find(e => e.id === selectedEquipId)
-                    if (!eq) return null
-                    return <p className="text-xs text-muted-foreground mt-1">{eq.id} <span className="font-medium text-foreground">{eq.name}</span> ({eq.process}{eq.mode ? ` / ${eq.mode}` : ""})</p>
-                  })()}
                 </CardHeader>
-                <CardContent className="pt-0">
-                  <ScrollArea className={cn(viewMode === "table" ? "max-h-[600px]" : "max-h-[400px]")}>
-                    <div className={cn("gap-3", viewMode === "table" ? "grid grid-cols-1" : "grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3")}>
-                      {relatedTrends.map(tag => <TrendChart key={tag.tagId} tag={tag} />)}
+                <CardContent className="pt-0 space-y-4">
+                  {/* Full projection trend chart */}
+                  <ProjectionTrendChart
+                    eq={selectedEquip}
+                    category={category}
+                    showPrevTa={showPrevTa}
+                    projectionMode={projectionMode}
+                    onAiModelClick={() => router.push(`/optimization/ai-ml?model=${selectedEquip.projection.aiModelId}`)}
+                  />
+
+                  {/* Key metrics */}
+                  <div className="grid grid-cols-3 gap-2">
+                    <div className="p-2.5 rounded-lg bg-muted/50 border text-center">
+                      <p className="text-[10px] text-muted-foreground">Drift 변화율</p>
+                      <p className={cn("text-base font-bold", selectedEquip.trafficLight === "red" ? "text-red-600" : selectedEquip.trafficLight === "yellow" ? "text-amber-600" : "text-emerald-600")}>
+                        {selectedEquip.driftPct > 0 ? "+" : ""}{selectedEquip.driftPct.toFixed(0)}%
+                      </p>
                     </div>
-                  </ScrollArea>
+                    <div className="p-2.5 rounded-lg bg-muted/50 border text-center">
+                      <p className="text-[10px] text-muted-foreground">Limit 잔여</p>
+                      <p className={cn("text-base font-bold",
+                        selectedEquip.projection.linearEndOfRun <= 4 ? "text-red-600" :
+                        selectedEquip.projection.linearEndOfRun <= 12 ? "text-amber-600" : "text-foreground"
+                      )}>
+                        {selectedEquip.projection.linearEndOfRun}주
+                      </p>
+                    </div>
+                    <div className="p-2.5 rounded-lg bg-muted/50 border text-center">
+                      <p className="text-[10px] text-muted-foreground">전 TA 동기간</p>
+                      <p className="text-base font-bold text-foreground">
+                        {selectedEquip.healthIndex.prevTaValueAtSameRuntime ?? "-"} <span className="text-xs font-normal text-muted-foreground">{selectedEquip.healthIndex.unit}</span>
+                      </p>
+                    </div>
+                  </div>
+
+                  {/* Normalized info */}
+                  <div className="p-3 rounded-lg border bg-muted/30">
+                    <div className="flex items-center justify-between mb-1">
+                      <span className="text-xs font-medium">{selectedEquip.normalized.hasLogic ? "Normalized 기준" : "Raw Tag 기준"}</span>
+                      <Button variant="ghost" size="sm" className="h-6 px-2 text-[10px]" onClick={() => { setNormTarget(selectedEquip); setShowNormDialog(true) }}>
+                        <Settings2 className="h-3 w-3 mr-1" /> 설정 변경
+                      </Button>
+                    </div>
+                    <p className="text-[11px] text-muted-foreground">{selectedEquip.normalized.description}</p>
+                    {selectedEquip.normalized.hasLogic && (
+                      <p className="text-[11px] font-mono text-muted-foreground mt-0.5">{selectedEquip.normalized.formula}</p>
+                    )}
+                  </div>
+
+                  {/* Action buttons for red items */}
+                  {selectedEquip.trafficLight === "red" && (
+                    <div className="flex gap-2">
+                      <Button size="sm" className="flex-1 gap-1 text-xs bg-orange-600 hover:bg-orange-700" onClick={() => openImprovement(selectedEquip)}>
+                        <ClipboardList className="h-3.5 w-3.5" /> 개선과제 등록
+                      </Button>
+                      <Button size="sm" variant="outline" className="flex-1 gap-1 text-xs border-blue-300 text-blue-600 hover:bg-blue-50" onClick={() => openMonitor(selectedEquip)}>
+                        <Eye className="h-3.5 w-3.5" /> 집중 모니터링
+                      </Button>
+                    </div>
+                  )}
+
+                  {/* AI model link */}
+                  {selectedEquip.projection.aiModelId && (
+                    <Button
+                      variant="outline"
+                      size="sm"
+                      className="w-full gap-1.5 text-xs border-indigo-200 text-indigo-600 hover:bg-indigo-50"
+                      onClick={() => router.push(`/optimization/ai-ml?model=${selectedEquip.projection.aiModelId}`)}
+                    >
+                      <Cpu className="h-3.5 w-3.5" />
+                      AI 모델 관리 ({selectedEquip.projection.aiModelId})
+                      <ExternalLink className="h-3 w-3 ml-auto" />
+                    </Button>
+                  )}
                 </CardContent>
               </Card>
             </div>
@@ -590,22 +593,10 @@ export function HealthCategoryPage({ category }: { category: HealthCategory }) {
                   <p className="text-sm font-medium">{normTarget.id} - {normTarget.name}</p>
                   <p className="text-xs text-muted-foreground mt-1">{normTarget.process}{normTarget.mode ? ` / ${normTarget.mode}` : ""} | {normTarget.healthIndex.name}</p>
                 </div>
-                <div className="space-y-2">
-                  <Label className="text-xs">보정 로직명</Label>
-                  <Input defaultValue={normTarget.normalized.name} />
-                </div>
-                <div className="space-y-2">
-                  <Label className="text-xs">보정 수식</Label>
-                  <Input defaultValue={normTarget.normalized.formula} className="font-mono text-xs" />
-                </div>
-                <div className="space-y-2">
-                  <Label className="text-xs">기준 태그 (Reference)</Label>
-                  <Input defaultValue={normTarget.normalized.referenceTag || ""} placeholder="예: FI-E101 (Feed Flow)" />
-                </div>
-                <div className="space-y-2">
-                  <Label className="text-xs">설명</Label>
-                  <Textarea rows={2} defaultValue={normTarget.normalized.description} />
-                </div>
+                <div className="space-y-2"><Label className="text-xs">보정 로직명</Label><Input defaultValue={normTarget.normalized.name} /></div>
+                <div className="space-y-2"><Label className="text-xs">보정 수식</Label><Input defaultValue={normTarget.normalized.formula} className="font-mono text-xs" /></div>
+                <div className="space-y-2"><Label className="text-xs">기준 태그 (Reference)</Label><Input defaultValue={normTarget.normalized.referenceTag || ""} placeholder="예: FI-E101 (Feed Flow)" /></div>
+                <div className="space-y-2"><Label className="text-xs">설명</Label><Textarea rows={2} defaultValue={normTarget.normalized.description} /></div>
                 <div className="flex items-center gap-2">
                   <Switch defaultChecked={normTarget.normalized.hasLogic} />
                   <Label className="text-xs">Normalized Logic 활성화 (비활성 시 Raw Tag 기준)</Label>
