@@ -141,7 +141,7 @@ export function Sidebar({ unreadAlerts = 3 }: SidebarProps) {
     },
   ]
 
-  // 조치/활동 메뉴 구조
+  // 업무 관리 메뉴 구조
   const actionsMenu: MenuSection[] = [
     {
       id: "alerts",
@@ -163,7 +163,7 @@ export function Sidebar({ unreadAlerts = 3 }: SidebarProps) {
     },
   ]
 
-  // 최적화/인사이트 메뉴 구조
+  // 최적화 메뉴 구조
   const optimizationMenu: MenuSection[] = [
     {
       id: "model-optimization",
@@ -205,56 +205,73 @@ export function Sidebar({ unreadAlerts = 3 }: SidebarProps) {
     },
   ]
 
-  // 지식/문서 메뉴 구조
+  // 지식 관리 메뉴 구조
   const knowledgeMenu: MenuSection[] = [
     {
-      id: "doc-search",
-      label: "문서 검색",
-      icon: Search,
+      id: "knowledge-asset",
+      label: "지식 자산",
+      icon: Layers,
       items: [
-        { label: "문서 검색 (AI)", href: "/knowledge/search", icon: Search },
+        { label: "지식 자산 관리", href: "/knowledge/assets", icon: Layers },
+        { label: "보고서", href: "/knowledge/reports", icon: FileBarChart },
       ]
     },
     {
-      id: "cases",
-      label: "운영사례/케이스",
-      icon: History,
-      items: [
-        { label: "종결 이벤트/Alert", href: "/knowledge/cases", icon: FileText },
-        { label: "운영 로그", href: "/knowledge/cases?tab=logs", icon: Layers },
-        { label: "회의록/TOB", href: "/knowledge/cases?tab=meetings", icon: Users },
-      ]
-    },
-    {
-      id: "reports",
-      label: "최종 레포트",
-      icon: FileBarChart,
-      items: [
-        { label: "최종 레포트", href: "/knowledge/reports", icon: FileBarChart },
-      ]
-    },
-    {
-      id: "guides",
-      label: "운영 가이드",
+      id: "playbooks",
+      label: "운전 Playbook",
       icon: BookOpen,
       items: [
-        { label: "운영 가이드", href: "/knowledge/guides", icon: BookOpen },
+        { label: "운전 Playbook", href: "/knowledge", icon: BookOpen },
       ]
     },
     {
-      id: "procedures",
-      label: "절차서/표준",
+      id: "contingency",
+      label: "비상 대응 절차",
       icon: Shield,
       items: [
-        { label: "절차서/표준", href: "/knowledge/procedures", icon: Shield },
+        { label: "비상 대응 절차", href: "/knowledge/contingency", icon: Shield },
       ]
     },
     {
-      id: "learning",
-      label: "학습/용어",
+      id: "history",
+      label: "운전 이력",
+      icon: History,
+      items: [
+        { label: "공정 운전 이력", href: "/knowledge/history/process", icon: Activity },
+        { label: "알람 이력", href: "/knowledge/history/alert", icon: Bell },
+        { label: "조치 이력", href: "/knowledge/history/action", icon: Wrench },
+      ]
+    },
+    {
+      id: "team-knowledge",
+      label: "팀 지식 공유",
+      icon: Users,
+      items: [
+        { label: "팀 지식 공유", href: "/knowledge/team", icon: Users },
+      ]
+    },
+    {
+      id: "terminology",
+      label: "용어 관리",
       icon: BookOpen,
       items: [
-        { label: "학습/용어", href: "/knowledge/terminology", icon: BookOpen },
+        { label: "용어 관리", href: "/knowledge/terminology", icon: BookOpen },
+      ]
+    },
+    {
+      id: "notes",
+      label: "개인 메모",
+      icon: StickyNote,
+      items: [
+        { label: "개인 메모", href: "/knowledge/notes", icon: StickyNote },
+      ]
+    },
+    {
+      id: "logs",
+      label: "시스템 로그",
+      icon: FileText,
+      items: [
+        { label: "시스템 로그", href: "/knowledge/logs", icon: FileText },
       ]
     },
   ]
@@ -304,7 +321,7 @@ export function Sidebar({ unreadAlerts = 3 }: SidebarProps) {
     },
   ]
 
-  // 과제관리 메뉴 구조
+  // 개선과제 관리 메뉴 구조
   const roadmapMenu: MenuSection[] = [
     {
       id: "worklist",
@@ -354,7 +371,7 @@ export function Sidebar({ unreadAlerts = 3 }: SidebarProps) {
     },
   ]
 
-  // 리뷰/KPI 메뉴 구조
+  // 리뷰 메뉴 구조
   const reviewMenu: MenuSection[] = [
     {
       id: "review-monthly",
