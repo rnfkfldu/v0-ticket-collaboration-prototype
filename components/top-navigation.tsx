@@ -61,45 +61,45 @@ const mainMenus = [
   },
   { 
     id: "actions",
-    label: "업무 관리", 
+    label: "조치/활동", 
     href: "/alerts",
     icon: Zap,
-    description: "이벤트 및 업무 관리"
+    description: "이벤트 및 조치 관리"
   },
   { 
     id: "optimization",
-    label: "최적화", 
+    label: "최적화/인사이트", 
     href: "/optimization/ai-ml",
     icon: TrendingUp,
-    description: "공정 최적화 및 분석"
+    description: "공정 최적화 및 인사이트"
   },
   { 
     id: "roadmap",
-    label: "개선과제", 
+    label: "과제관리", 
     href: "/roadmap",
     icon: Target,
-    description: "TA Worklist 및 개선과제 관리"
+    description: "TA Worklist 및 과제 관리"
   },
   { 
     id: "knowledge",
-    label: "지식 관리", 
+    label: "지식/문서", 
     href: "/knowledge",
     icon: BookOpen,
-    description: "지식 관리 및 검색"
+    description: "문서 검색 및 지식 관리"
   },
   { 
     id: "data-admin",
-    label: "데이터/관리", 
+    label: "데이터/설정", 
     href: "/admin",
     icon: Database,
     description: "데이터 관리 및 시스템 설정"
   },
   { 
     id: "review",
-    label: "리뷰", 
+    label: "리뷰/KPI", 
     href: "/review/monthly",
     icon: BarChart3,
-    description: "운전 리뷰 및 거버넌스"
+    description: "운전 리뷰 및 KPI 거버넌스"
   },
 ]
 
@@ -264,14 +264,14 @@ export function TopNavigation() {
 
         {/* 우측 액션 */}
         <div className="flex items-center gap-2">
-          {/* Event Request 버튼 */}
+          {/* 이벤트 생성 버튼 */}
           <Link href="/new-ticket">
             <Button 
               size="sm" 
               className="gap-1.5 bg-white/20 hover:bg-white/30 text-white border-0 h-8 text-xs"
             >
               <Plus className="h-3.5 w-3.5" />
-              <span className="hidden md:inline">Event Request</span>
+              <span className="hidden md:inline">이벤트 생성</span>
             </Button>
           </Link>
 

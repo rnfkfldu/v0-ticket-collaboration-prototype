@@ -141,7 +141,7 @@ export function Sidebar({ unreadAlerts = 3 }: SidebarProps) {
     },
   ]
 
-  // 업무 관리 메뉴 구조
+  // 조치/활동 메뉴 구조
   const actionsMenu: MenuSection[] = [
     {
       id: "alerts",
@@ -163,7 +163,7 @@ export function Sidebar({ unreadAlerts = 3 }: SidebarProps) {
     },
   ]
 
-  // 최적화 메뉴 구조
+  // 최적화/인사이트 메뉴 구조
   const optimizationMenu: MenuSection[] = [
     {
       id: "model-optimization",
@@ -205,7 +205,7 @@ export function Sidebar({ unreadAlerts = 3 }: SidebarProps) {
     },
   ]
 
-  // 지식 관리 메뉴 구조
+  // 지식/문서 메뉴 구조
   const knowledgeMenu: MenuSection[] = [
     {
       id: "knowledge-asset",
@@ -321,7 +321,7 @@ export function Sidebar({ unreadAlerts = 3 }: SidebarProps) {
     },
   ]
 
-  // 개선과제 관리 메뉴 구조
+  // 과제관리 메뉴 구조
   const roadmapMenu: MenuSection[] = [
     {
       id: "worklist",
@@ -371,7 +371,7 @@ export function Sidebar({ unreadAlerts = 3 }: SidebarProps) {
     },
   ]
 
-  // 리뷰 메뉴 구조
+  // 리뷰/KPI 메뉴 구조
   const reviewMenu: MenuSection[] = [
     {
       id: "review-monthly",
