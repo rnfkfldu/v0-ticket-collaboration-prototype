@@ -48,7 +48,8 @@ import {
   MessageCircleQuestion,
   Headset,
   CalendarDays,
-  Search
+  Search,
+  RefreshCw
 } from "lucide-react"
 import Link from "next/link"
 import { usePathname } from "next/navigation"
@@ -283,6 +284,31 @@ export function Sidebar({ unreadAlerts = 3 }: SidebarProps) {
       icon: BookOpen,
       items: [
         { label: "용어 관리", href: "/knowledge/terminology", icon: BookOpen },
+      ]
+    },
+    {
+      id: "guides",
+      label: "운영 가이드",
+      icon: BookOpen,
+      items: [
+        { label: "Operation Guide", href: "/knowledge/guides", icon: BookOpen },
+        { label: "반복성 가이드", href: "/knowledge/guides?tab=repeatable", icon: RefreshCw },
+      ]
+    },
+    {
+      id: "procedures",
+      label: "절차서/표준",
+      icon: Shield,
+      items: [
+        { label: "절차서/표준", href: "/knowledge/procedures", icon: Shield },
+      ]
+    },
+    {
+      id: "learning",
+      label: "학습/용어",
+      icon: BookOpen,
+      items: [
+        { label: "사전/온톨로지 뷰", href: "/knowledge/learning", icon: BookOpen },
       ]
     },
     {
