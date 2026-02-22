@@ -174,7 +174,7 @@ export default function HealthOverviewPage() {
                         <span className="text-[11px] font-mono font-medium text-red-700">{eq.id}</span>
                         <span className="text-[11px] text-red-600 truncate">{eq.name}</span>
                         <Badge variant="outline" className="ml-auto text-[9px] h-4 border-red-200 text-red-600 shrink-0">
-                          x{eq.slopeRatio.toFixed(1)}
+                          +{eq.driftPct.toFixed(0)}%
                         </Badge>
                       </div>
                     ))}
