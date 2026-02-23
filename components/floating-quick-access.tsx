@@ -172,6 +172,88 @@ const DCS_SCREEN_TAGS: Record<string, string[]> = {
   "G-9003": ["FI-9001", "PI-9001"],
 }
 
+// DCS screen layout: tag positions (%) + equipment shapes for visual schematic
+type TagPoint = { tag: string; x: number; y: number; type: "T" | "P" | "F" | "L" | "C" }
+type Equipment = { id: string; label: string; x: number; y: number; w: number; h: number; shape: "column" | "vessel" | "exchanger" | "pump" | "furnace" | "drum" }
+type PipeLine = { from: [number, number]; to: [number, number] }
+type ScreenLayout = { tags: TagPoint[]; equipment: Equipment[]; pipes: PipeLine[] }
+
+function getTagType(tag: string): "T" | "P" | "F" | "L" | "C" {
+  if (tag.startsWith("TI")) return "T"
+  if (tag.startsWith("PI")) return "P"
+  if (tag.startsWith("FI")) return "F"
+  if (tag.startsWith("LI")) return "L"
+  return "C" // controller
+}
+
+function buildScreenLayout(screenNumber: string): ScreenLayout {
+  const tags = DCS_SCREEN_TAGS[screenNumber] || []
+  const isOverview = screenNumber.endsWith("001")
+  const tagCount = tags.length
+
+  // Generate deterministic positions based on screen + tag
+  const equipment: Equipment[] = []
+  const pipes: PipeLine[] = []
+  const tagPoints: TagPoint[] = []
+
+  if (isOverview) {
+    // Overview screens: wide layout with multiple equipment
+    equipment.push(
+      { id: "col-1", label: "Column", x: 15, y: 20, w: 10, h: 50, shape: "column" },
+      { id: "hx-1", label: "Exchanger", x: 40, y: 25, w: 14, h: 12, shape: "exchanger" },
+      { id: "drum-1", label: "Drum", x: 60, y: 20, w: 12, h: 16, shape: "drum" },
+      { id: "pump-1", label: "Pump", x: 75, y: 55, w: 8, h: 8, shape: "pump" },
+      { id: "furn-1", label: "Furnace", x: 80, y: 18, w: 12, h: 20, shape: "furnace" },
+    )
+    pipes.push(
+      { from: [25, 35], to: [40, 31] },
+      { from: [54, 31], to: [60, 28] },
+      { from: [72, 28], to: [80, 28] },
+      { from: [20, 70], to: [75, 59] },
+      { from: [25, 55], to: [40, 55] },
+    )
+    // Distribute tags around equipment
+    const positions = [
+      { x: 12, y: 15 }, { x: 22, y: 45 }, { x: 18, y: 72 }, { x: 37, y: 20 },
+      { x: 48, y: 42 }, { x: 58, y: 15 }, { x: 68, y: 38 }, { x: 82, y: 42 },
+    ]
+    tags.forEach((tag, i) => {
+      const pos = positions[i % positions.length]
+      tagPoints.push({ tag, x: pos.x + (i * 2) % 5, y: pos.y + (i * 3) % 5, type: getTagType(tag) })
+    })
+  } else {
+    // Detail screens: focused layout
+    equipment.push(
+      { id: "main-eq", label: "Equipment", x: 30, y: 22, w: 16, h: 40, shape: "column" },
+      { id: "hx-2", label: "HX", x: 62, y: 28, w: 14, h: 12, shape: "exchanger" },
+      { id: "pump-2", label: "P", x: 70, y: 60, w: 8, h: 8, shape: "pump" },
+    )
+    pipes.push(
+      { from: [46, 35], to: [62, 34] },
+      { from: [46, 50], to: [70, 64] },
+      { from: [38, 62], to: [38, 75] },
+    )
+    const positions = [
+      { x: 25, y: 18 }, { x: 42, y: 28 }, { x: 28, y: 55 }, { x: 55, y: 22 },
+      { x: 68, y: 45 }, { x: 78, y: 55 }, { x: 50, y: 65 }, { x: 15, y: 40 },
+    ]
+    tags.forEach((tag, i) => {
+      const pos = positions[i % positions.length]
+      tagPoints.push({ tag, x: pos.x + (i * 3) % 7, y: pos.y + (i * 2) % 6, type: getTagType(tag) })
+    })
+  }
+
+  return { tags: tagPoints, equipment, pipes }
+}
+
+const TAG_TYPE_COLORS: Record<string, { bg: string; border: string; text: string; label: string }> = {
+  T: { bg: "bg-red-50", border: "border-red-300", text: "text-red-700", label: "Temperature" },
+  P: { bg: "bg-blue-50", border: "border-blue-300", text: "text-blue-700", label: "Pressure" },
+  F: { bg: "bg-green-50", border: "border-green-300", text: "text-green-700", label: "Flow" },
+  L: { bg: "bg-amber-50", border: "border-amber-300", text: "text-amber-700", label: "Level" },
+  C: { bg: "bg-violet-50", border: "border-violet-300", text: "text-violet-700", label: "Controller" },
+}
+
 // find which unit a tag belongs to
 function findTagUnit(tag: string): string | null {
   for (const [unit, tags] of Object.entries(AVAILABLE_TAGS)) {
@@ -785,127 +867,286 @@ export function FloatingQuickAccess() {
                 </div>
               )}
 
-              {/* Step 3: Screen selected -> tag selection + trend */}
-              {dcsInitialTag && dcsSelectedScreen && (
-                <div className="flex flex-col flex-1 min-h-0 gap-3">
-                  {/* Header */}
-                  <div className="flex items-center gap-2 shrink-0 flex-wrap">
-                    <Button variant="ghost" size="sm" className="gap-1 text-xs cursor-pointer" onClick={() => { setDcsSelectedScreen(null); setDcsScreenTags([]); setDcsSelectedTags([]); setDcsShowTrend(false) }}>
-                      <ChevronRight className="h-3.5 w-3.5 rotate-180" /> 화면 목록
-                    </Button>
-                    <div className="flex items-center gap-1.5 px-2 py-1 rounded-md bg-primary/5 border border-primary/20">
-                      <Monitor className="h-4 w-4 text-primary" />
-                      <span className="font-mono text-sm font-semibold">{dcsSelectedScreen}</span>
-                      <span className="text-xs text-muted-foreground">
-                        {dcsScreens.find(s => s.number === dcsSelectedScreen)?.name}
-                      </span>
-                    </div>
-                    <Badge variant="outline" className="text-xs">{dcsUnit}</Badge>
-                  </div>
+              {/* Step 3: Screen selected -> Visual DCS schematic + tag click + trend */}
+              {dcsInitialTag && dcsSelectedScreen && (() => {
+                const layout = buildScreenLayout(dcsSelectedScreen)
+                const screenName = dcsScreens.find(s => s.number === dcsSelectedScreen)?.name || ""
 
-                  {/* Tag selection from DCS screen */}
-                  <div className="shrink-0">
-                    <p className="text-xs text-muted-foreground mb-2">DCS 화면 내 태그를 선택하세요 (복수 선택 가능)</p>
-                    <div className="flex flex-wrap gap-1.5">
-                      {dcsScreenTags.map((tag, i) => {
-                        const isSelected = dcsSelectedTags.includes(tag)
-                        const isInitial = tag === dcsInitialTag
-                        return (
-                          <button
-                            key={tag}
-                            onClick={() => toggleDcsTag(tag)}
-                            className={cn(
-                              "flex items-center gap-1.5 px-2.5 py-1.5 rounded-md border text-xs font-mono transition-colors cursor-pointer",
-                              isSelected
-                                ? "border-primary bg-primary/10 text-primary font-semibold"
-                                : "border-border hover:border-primary/30 text-muted-foreground hover:text-foreground"
-                            )}
-                            style={isSelected ? { borderLeft: `3px solid ${COLORS[dcsSelectedTags.indexOf(tag) % COLORS.length]}` } : {}}
-                          >
-                            {isSelected && <Check className="h-3 w-3" />}
-                            {tag}
-                            {isInitial && <span className="text-[9px] text-primary/70 ml-0.5">(입력)</span>}
-                          </button>
-                        )
-                      })}
-                    </div>
-                    {dcsSelectedTags.length > 0 && (
-                      <div className="flex items-center gap-2 mt-2">
-                        <span className="text-xs text-muted-foreground">{dcsSelectedTags.length}개 태그 선택됨</span>
-                        <Button
-                          size="sm"
-                          className="h-7 text-xs gap-1.5 cursor-pointer"
-                          onClick={() => setDcsShowTrend(true)}
-                        >
-                          <TrendingUp className="h-3.5 w-3.5" />
-                          트렌드 보기
-                        </Button>
-                        {dcsShowTrend && (
-                          <Button variant="outline" size="sm" className="h-7 text-xs cursor-pointer" onClick={() => setDcsShowTrend(false)}>
-                            태그 재선택
-                          </Button>
-                        )}
+                return (
+                  <div className="flex flex-col flex-1 min-h-0 gap-3">
+                    {/* Header */}
+                    <div className="flex items-center gap-2 shrink-0 flex-wrap">
+                      <Button variant="ghost" size="sm" className="gap-1 text-xs cursor-pointer" onClick={() => { setDcsSelectedScreen(null); setDcsScreenTags([]); setDcsSelectedTags([]); setDcsShowTrend(false) }}>
+                        <ChevronRight className="h-3.5 w-3.5 rotate-180" /> 화면 목록
+                      </Button>
+                      <div className="flex items-center gap-1.5 px-2 py-1 rounded-md bg-primary/5 border border-primary/20">
+                        <Monitor className="h-4 w-4 text-primary" />
+                        <span className="font-mono text-sm font-semibold">{dcsSelectedScreen}</span>
+                        <span className="text-xs text-muted-foreground">{screenName}</span>
                       </div>
-                    )}
-                  </div>
+                      <Badge variant="outline" className="text-xs">{dcsUnit}</Badge>
+                      {dcsSelectedTags.length > 0 && (
+                        <>
+                          <span className="text-xs text-muted-foreground ml-auto">{dcsSelectedTags.length}개 선택</span>
+                          <Button size="sm" className="h-7 text-xs gap-1.5 cursor-pointer" onClick={() => setDcsShowTrend(true)}>
+                            <TrendingUp className="h-3.5 w-3.5" />
+                            트렌드 보기
+                          </Button>
+                        </>
+                      )}
+                    </div>
 
-                  {/* DCS Trend display */}
-                  {dcsShowTrend && dcsSelectedTags.length > 0 && (
                     <ScrollArea className="flex-1 -mx-6 px-6 min-h-0">
-                      {viewMode === "overlay" && dcsSelectedTags.length >= 2 ? (
+                      {/* DCS Schematic */}
+                      {!dcsShowTrend && (
                         <div className="space-y-3 pb-4">
-                          <div className="flex flex-wrap gap-3 px-1">
-                            {dcsTagTrends.map(({ tag, current, unit }, i) => (
-                              <div key={tag} className="flex items-center gap-1.5 text-xs">
-                                <div className="w-3 h-0.5 rounded" style={{ backgroundColor: COLORS[i % COLORS.length] }} />
-                                <span className="font-mono font-medium">{tag}</span>
-                                <span className="text-muted-foreground">({current} {unit})</span>
+                          {/* Legend */}
+                          <div className="flex items-center gap-3 text-[11px]">
+                            <span className="text-muted-foreground">클릭하여 태그 선택:</span>
+                            {Object.entries(TAG_TYPE_COLORS).map(([key, c]) => (
+                              <div key={key} className={cn("flex items-center gap-1 px-1.5 py-0.5 rounded border", c.bg, c.border)}>
+                                <span className={cn("font-semibold", c.text)}>{key}</span>
+                                <span className="text-muted-foreground">{c.label}</span>
                               </div>
                             ))}
                           </div>
-                          <Card className="p-4">
-                            <OverlayTrendChart tags={dcsTagTrends} colors={COLORS} />
+
+                          {/* Visual DCS Screen */}
+                          <Card className="relative overflow-hidden border-2 border-border bg-[#0a1628]" style={{ minHeight: 340 }}>
+                            {/* Grid pattern background */}
+                            <svg className="absolute inset-0 w-full h-full opacity-10" xmlns="http://www.w3.org/2000/svg">
+                              <defs>
+                                <pattern id="dcs-grid" width="20" height="20" patternUnits="userSpaceOnUse">
+                                  <path d="M 20 0 L 0 0 0 20" fill="none" stroke="#6366f1" strokeWidth="0.5" />
+                                </pattern>
+                              </defs>
+                              <rect width="100%" height="100%" fill="url(#dcs-grid)" />
+                            </svg>
+
+                            {/* Screen title bar */}
+                            <div className="relative flex items-center gap-2 px-3 py-1.5 border-b border-white/10 bg-white/5">
+                              <Monitor className="h-3.5 w-3.5 text-cyan-400" />
+                              <span className="text-xs font-mono text-cyan-300">{dcsSelectedScreen}</span>
+                              <span className="text-[11px] text-white/50">{screenName}</span>
+                              <span className="text-[11px] text-white/30 ml-auto">{dcsUnit}</span>
+                            </div>
+
+                            {/* Equipment and pipes SVG layer */}
+                            <svg className="absolute inset-0 w-full h-full" style={{ top: 28 }} xmlns="http://www.w3.org/2000/svg">
+                              {/* Pipes */}
+                              {layout.pipes.map((pipe, i) => (
+                                <line
+                                  key={`pipe-${i}`}
+                                  x1={`${pipe.from[0]}%`} y1={`${pipe.from[1]}%`}
+                                  x2={`${pipe.to[0]}%`} y2={`${pipe.to[1]}%`}
+                                  stroke="#22d3ee" strokeWidth="2" opacity="0.3"
+                                  strokeDasharray="4 2"
+                                />
+                              ))}
+                              {/* Equipment shapes */}
+                              {layout.equipment.map(eq => (
+                                <g key={eq.id}>
+                                  {eq.shape === "column" && (
+                                    <>
+                                      <rect x={`${eq.x}%`} y={`${eq.y}%`} width={`${eq.w}%`} height={`${eq.h}%`}
+                                        rx="4" fill="none" stroke="#38bdf8" strokeWidth="1.5" opacity="0.4" />
+                                      {/* Internal trays */}
+                                      {[0.2, 0.4, 0.6, 0.8].map((f, i) => (
+                                        <line key={i}
+                                          x1={`${eq.x + 1}%`} y1={`${eq.y + eq.h * f}%`}
+                                          x2={`${eq.x + eq.w - 1}%`} y2={`${eq.y + eq.h * f}%`}
+                                          stroke="#38bdf8" strokeWidth="0.5" opacity="0.25"
+                                        />
+                                      ))}
+                                    </>
+                                  )}
+                                  {eq.shape === "exchanger" && (
+                                    <>
+                                      <rect x={`${eq.x}%`} y={`${eq.y}%`} width={`${eq.w}%`} height={`${eq.h}%`}
+                                        rx="2" fill="none" stroke="#a78bfa" strokeWidth="1.5" opacity="0.4" />
+                                      <line x1={`${eq.x + 2}%`} y1={`${eq.y + eq.h / 2}%`}
+                                        x2={`${eq.x + eq.w - 2}%`} y2={`${eq.y + eq.h / 2}%`}
+                                        stroke="#a78bfa" strokeWidth="0.5" opacity="0.3" strokeDasharray="3 2" />
+                                    </>
+                                  )}
+                                  {eq.shape === "drum" && (
+                                    <rect x={`${eq.x}%`} y={`${eq.y}%`} width={`${eq.w}%`} height={`${eq.h}%`}
+                                      rx="8" fill="none" stroke="#34d399" strokeWidth="1.5" opacity="0.4" />
+                                  )}
+                                  {eq.shape === "pump" && (
+                                    <circle cx={`${eq.x + eq.w / 2}%`} cy={`${eq.y + eq.h / 2}%`}
+                                      r={`${eq.w / 2}%`} fill="none" stroke="#fb923c" strokeWidth="1.5" opacity="0.4" />
+                                  )}
+                                  {eq.shape === "furnace" && (
+                                    <>
+                                      <rect x={`${eq.x}%`} y={`${eq.y}%`} width={`${eq.w}%`} height={`${eq.h}%`}
+                                        fill="none" stroke="#f87171" strokeWidth="1.5" opacity="0.4" />
+                                      <line x1={`${eq.x + 2}%`} y1={`${eq.y + eq.h - 3}%`}
+                                        x2={`${eq.x + eq.w / 3}%`} y2={`${eq.y + eq.h - 8}%`}
+                                        stroke="#f87171" strokeWidth="1" opacity="0.3" />
+                                      <line x1={`${eq.x + eq.w / 2}%`} y1={`${eq.y + eq.h - 3}%`}
+                                        x2={`${eq.x + eq.w * 2 / 3}%`} y2={`${eq.y + eq.h - 8}%`}
+                                        stroke="#f87171" strokeWidth="1" opacity="0.3" />
+                                    </>
+                                  )}
+                                  {/* Equipment label */}
+                                  <text x={`${eq.x + eq.w / 2}%`} y={`${eq.y + eq.h + 4}%`}
+                                    textAnchor="middle" fill="#64748b" fontSize="9" fontFamily="monospace">{eq.label}</text>
+                                </g>
+                              ))}
+                            </svg>
+
+                            {/* Clickable tag points */}
+                            <div className="relative" style={{ minHeight: 310, paddingTop: 28 }}>
+                              {layout.tags.map(pt => {
+                                const isSelected = dcsSelectedTags.includes(pt.tag)
+                                const isInitial = pt.tag === dcsInitialTag
+                                const tc = TAG_TYPE_COLORS[pt.type]
+                                const colorIdx = isSelected ? dcsSelectedTags.indexOf(pt.tag) : -1
+                                const trendData = (() => {
+                                  // show mini value
+                                  const base = pt.type === "T" ? 350 : pt.type === "P" ? 15 : pt.type === "F" ? 1000 : 50
+                                  return (base + (Math.random() - 0.5) * base * 0.05).toFixed(1)
+                                })()
+                                const unitLabel = pt.type === "T" ? "\u00b0C" : pt.type === "P" ? "kg/cm\u00b2" : pt.type === "F" ? "m\u00b3/h" : pt.type === "L" ? "%" : ""
+
+                                return (
+                                  <button
+                                    key={pt.tag}
+                                    onClick={() => toggleDcsTag(pt.tag)}
+                                    className={cn(
+                                      "absolute flex flex-col items-start gap-0 transition-all cursor-pointer group z-10",
+                                      isSelected ? "scale-105" : "hover:scale-105"
+                                    )}
+                                    style={{ left: `${pt.x}%`, top: `${pt.y}%`, transform: "translate(-50%, -50%)" }}
+                                    title={`${pt.tag} - 클릭하여 ${isSelected ? '제거' : '추가'}`}
+                                  >
+                                    {/* Connection line dot */}
+                                    <div className={cn(
+                                      "absolute -bottom-1 left-1/2 -translate-x-1/2 w-1.5 h-1.5 rounded-full",
+                                      isSelected ? "bg-primary" : "bg-cyan-500/40"
+                                    )} />
+
+                                    {/* Tag card */}
+                                    <div className={cn(
+                                      "rounded-md border px-2 py-1 shadow-lg backdrop-blur-sm transition-all",
+                                      isSelected
+                                        ? "border-primary bg-primary/20 ring-1 ring-primary/40"
+                                        : "border-white/20 bg-white/5 group-hover:border-white/40 group-hover:bg-white/10"
+                                    )}>
+                                      <div className="flex items-center gap-1.5">
+                                        {isSelected && (
+                                          <div className="w-2 h-2 rounded-full shrink-0" style={{ backgroundColor: COLORS[colorIdx % COLORS.length] }} />
+                                        )}
+                                        {!isSelected && (
+                                          <div className={cn("w-1.5 h-1.5 rounded-full shrink-0", 
+                                            pt.type === "T" ? "bg-red-400" : pt.type === "P" ? "bg-blue-400" : pt.type === "F" ? "bg-green-400" : pt.type === "L" ? "bg-amber-400" : "bg-violet-400"
+                                          )} />
+                                        )}
+                                        <span className={cn(
+                                          "font-mono text-[10px] font-semibold",
+                                          isSelected ? "text-primary" : "text-white/80"
+                                        )}>
+                                          {pt.tag}
+                                        </span>
+                                        {isInitial && <span className="text-[8px] text-cyan-400 font-medium">*</span>}
+                                      </div>
+                                      <div className={cn(
+                                        "font-mono text-[11px] font-bold mt-0.5",
+                                        isSelected ? "text-white" : "text-white/60"
+                                      )}>
+                                        {trendData} <span className="text-[9px] font-normal opacity-60">{unitLabel}</span>
+                                      </div>
+                                    </div>
+                                  </button>
+                                )
+                              })}
+                            </div>
                           </Card>
+
+                          {/* Selected tags summary */}
+                          {dcsSelectedTags.length > 0 && (
+                            <div className="flex items-center gap-2 flex-wrap">
+                              <span className="text-xs text-muted-foreground">선택된 태그:</span>
+                              {dcsSelectedTags.map((tag, i) => (
+                                <Badge key={tag} variant="secondary" className="gap-1 font-mono text-xs cursor-pointer" onClick={() => toggleDcsTag(tag)}>
+                                  <div className="w-2 h-2 rounded-full" style={{ backgroundColor: COLORS[i % COLORS.length] }} />
+                                  {tag}
+                                  <X className="h-3 w-3 ml-0.5" />
+                                </Badge>
+                              ))}
+                            </div>
+                          )}
                         </div>
-                      ) : (
-                        <div className="grid grid-cols-1 lg:grid-cols-2 gap-3 pb-4">
-                          {dcsTagTrends.map(({ tag, values, unit, high, low, current }, i) => {
-                            const isViolation = (high !== null && current > high) || (low !== null && current < low)
-                            return (
-                              <Card key={tag} className={cn("overflow-hidden", isViolation && "border-red-200")}>
-                                <div className="px-3 pt-2.5 pb-0 flex items-center justify-between">
-                                  <div className="flex items-center gap-2">
-                                    <div className="w-2.5 h-2.5 rounded-full shrink-0" style={{ backgroundColor: COLORS[i % COLORS.length] }} />
-                                    <span className="font-mono text-sm font-semibold">{tag}</span>
-                                    {tag === dcsInitialTag && <Badge variant="outline" className="text-[10px] px-1 py-0 h-4 border-primary/30 text-primary">입력</Badge>}
-                                    {isViolation && <Badge variant="destructive" className="text-[10px] px-1.5 py-0 h-4">Limit 초과</Badge>}
+                      )}
+
+                      {/* DCS Trend display */}
+                      {dcsShowTrend && dcsSelectedTags.length > 0 && (
+                        <div className="space-y-3 pb-4">
+                          <div className="flex items-center gap-2">
+                            <Button variant="outline" size="sm" className="h-7 text-xs gap-1.5 cursor-pointer" onClick={() => setDcsShowTrend(false)}>
+                              <Monitor className="h-3.5 w-3.5" />
+                              DCS 화면으로 돌아가기
+                            </Button>
+                            <span className="text-xs text-muted-foreground">{dcsSelectedTags.length}개 태그 트렌드</span>
+                          </div>
+
+                          {viewMode === "overlay" && dcsSelectedTags.length >= 2 ? (
+                            <div className="space-y-3">
+                              <div className="flex flex-wrap gap-3 px-1">
+                                {dcsTagTrends.map(({ tag, current, unit }, i) => (
+                                  <div key={tag} className="flex items-center gap-1.5 text-xs">
+                                    <div className="w-3 h-0.5 rounded" style={{ backgroundColor: COLORS[i % COLORS.length] }} />
+                                    <span className="font-mono font-medium">{tag}</span>
+                                    <span className="text-muted-foreground">({current} {unit})</span>
                                   </div>
-                                  <span className="text-xs text-muted-foreground">[{unit}]</span>
-                                </div>
-                                <div className="px-2">
-                                  <TrendChart values={values} high={high} low={low} color={COLORS[i % COLORS.length]} isAlert={isViolation} height="h-28" />
-                                </div>
-                                <div className="px-3 pb-2.5 flex items-center justify-between text-xs border-t border-border/50 pt-1.5">
-                                  <div>
-                                    <span className="text-muted-foreground">현재 </span>
-                                    <span className={cn("font-semibold", isViolation ? "text-red-600" : "text-foreground")}>{current} {unit}</span>
-                                  </div>
-                                  {high !== null && <div><span className="text-muted-foreground">H </span><span className="text-red-500 font-medium">{high}</span></div>}
-                                  {low !== null && <div><span className="text-muted-foreground">L </span><span className="text-blue-500 font-medium">{low}</span></div>}
-                                  <div>
-                                    <span className="text-muted-foreground">범위 </span>
-                                    <span className="font-medium">{Math.min(...values).toFixed(1)} ~ {Math.max(...values).toFixed(1)}</span>
-                                  </div>
-                                </div>
+                                ))}
+                              </div>
+                              <Card className="p-4">
+                                <OverlayTrendChart tags={dcsTagTrends} colors={COLORS} />
                               </Card>
-                            )
-                          })}
+                            </div>
+                          ) : (
+                            <div className="grid grid-cols-1 lg:grid-cols-2 gap-3">
+                              {dcsTagTrends.map(({ tag, values, unit, high, low, current }, i) => {
+                                const isViolation = (high !== null && current > high) || (low !== null && current < low)
+                                return (
+                                  <Card key={tag} className={cn("overflow-hidden", isViolation && "border-red-200")}>
+                                    <div className="px-3 pt-2.5 pb-0 flex items-center justify-between">
+                                      <div className="flex items-center gap-2">
+                                        <div className="w-2.5 h-2.5 rounded-full shrink-0" style={{ backgroundColor: COLORS[i % COLORS.length] }} />
+                                        <span className="font-mono text-sm font-semibold">{tag}</span>
+                                        {tag === dcsInitialTag && <Badge variant="outline" className="text-[10px] px-1 py-0 h-4 border-primary/30 text-primary">입력</Badge>}
+                                        {isViolation && <Badge variant="destructive" className="text-[10px] px-1.5 py-0 h-4">Limit 초과</Badge>}
+                                      </div>
+                                      <span className="text-xs text-muted-foreground">[{unit}]</span>
+                                    </div>
+                                    <div className="px-2">
+                                      <TrendChart values={values} high={high} low={low} color={COLORS[i % COLORS.length]} isAlert={isViolation} height="h-28" />
+                                    </div>
+                                    <div className="px-3 pb-2.5 flex items-center justify-between text-xs border-t border-border/50 pt-1.5">
+                                      <div>
+                                        <span className="text-muted-foreground">현재 </span>
+                                        <span className={cn("font-semibold", isViolation ? "text-red-600" : "text-foreground")}>{current} {unit}</span>
+                                      </div>
+                                      {high !== null && <div><span className="text-muted-foreground">H </span><span className="text-red-500 font-medium">{high}</span></div>}
+                                      {low !== null && <div><span className="text-muted-foreground">L </span><span className="text-blue-500 font-medium">{low}</span></div>}
+                                      <div>
+                                        <span className="text-muted-foreground">범위 </span>
+                                        <span className="font-medium">{Math.min(...values).toFixed(1)} ~ {Math.max(...values).toFixed(1)}</span>
+                                      </div>
+                                    </div>
+                                  </Card>
+                                )
+                              })}
+                            </div>
+                          )}
                         </div>
                       )}
                     </ScrollArea>
-                  )}
-                </div>
-              )}
+                  </div>
+                )
+              })()}
             </>
           )}
 
