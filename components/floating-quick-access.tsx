@@ -432,12 +432,14 @@ export function FloatingQuickAccess() {
 
   // --- Save trend to group ---
   const handleSaveTrend = () => {
+    const tagsToSave = trendTab === "dcs" ? [...dcsSelectedTags] : [...activeTags]
+    const unitLabel = trendTab === "dcs" && dcsUnit ? dcsUnit : "사용자"
     if (saveMode === "new" && newGroupName.trim()) {
       const ng: TrendGroup = {
         id: `tg-${Date.now()}`,
         name: newGroupName.trim(),
-        tags: [...activeTags],
-        unit: "사용자",
+        tags: tagsToSave,
+        unit: unitLabel,
         updatedAt: new Date().toISOString().slice(0, 10),
       }
       setTrendGroups(prev => [ng, ...prev])
@@ -447,7 +449,7 @@ export function FloatingQuickAccess() {
     } else if (saveMode === "existing" && saveTargetId) {
       setTrendGroups(prev => prev.map(g => {
         if (g.id === saveTargetId) {
-          const merged = Array.from(new Set([...g.tags, ...activeTags]))
+          const merged = Array.from(new Set([...g.tags, ...tagsToSave]))
           return { ...g, tags: merged, updatedAt: new Date().toISOString().slice(0, 10) }
         }
         return g
@@ -596,6 +598,13 @@ export function FloatingQuickAccess() {
                 )}
                 {/* Save button (basic tab) */}
                 {trendTab === "basic" && activeTags.length > 0 && (
+                  <Button variant="outline" size="sm" className="gap-1.5 text-xs cursor-pointer" onClick={() => { setShowSaveDialog(true); setSaveMode("new"); setNewGroupName(""); setSaveTargetId("") }}>
+                    <Save className="h-3.5 w-3.5" />
+                    트렌드 저장
+                  </Button>
+                )}
+                {/* Save button (DCS tab) */}
+                {trendTab === "dcs" && dcsSelectedTags.length > 0 && (
                   <Button variant="outline" size="sm" className="gap-1.5 text-xs cursor-pointer" onClick={() => { setShowSaveDialog(true); setSaveMode("new"); setNewGroupName(""); setSaveTargetId("") }}>
                     <Save className="h-3.5 w-3.5" />
                     트렌드 저장
