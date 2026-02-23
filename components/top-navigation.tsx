@@ -83,7 +83,7 @@ const mainMenus = [
   { 
     id: "knowledge",
     label: "지식/문서", 
-    href: "/knowledge",
+    href: "/knowledge/search",
     icon: BookOpen,
     description: "문서 검색 및 지식 관리"
   },
