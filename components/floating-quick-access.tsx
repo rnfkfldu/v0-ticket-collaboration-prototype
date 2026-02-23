@@ -4,7 +4,7 @@ import { useState, useCallback, useMemo, useRef } from "react"
 import { useRouter } from "next/navigation"
 import {
   TrendingUp, LayoutGrid, LineChart, Plus, X, Search, Bookmark, Trash2,
-  ChevronRight, Tag, Save, Layers, FolderPlus, Check, Eye
+  ChevronRight, Tag, Save, Layers, FolderPlus, Check, Eye, Monitor
 } from "lucide-react"
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
@@ -14,7 +14,7 @@ import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from "
 import { ScrollArea } from "@/components/ui/scroll-area"
 import { Label } from "@/components/ui/label"
 import { cn } from "@/lib/utils"
-import { AVAILABLE_TAGS } from "@/lib/process-data"
+import { AVAILABLE_TAGS, DCS_GRAPHICS } from "@/lib/process-data"
 
 // --- Types ---
 interface TrendGroup {
@@ -143,16 +143,65 @@ function OverlayTrendChart({ tags, colors }: { tags: { tag: string; values: numb
 
 const COLORS = ["#6366f1", "#0d9488", "#f59e0b", "#ec4899", "#8b5cf6", "#06b6d4", "#f97316", "#10b981"]
 
+// DCS screen -> tag mapping (which tags appear on each DCS graphic)
+const DCS_SCREEN_TAGS: Record<string, string[]> = {
+  "G-1001": ["TI-1001", "TI-1002", "PI-1001", "FI-1001", "LI-1001", "TIC-1001", "PIC-1001", "FIC-1001"],
+  "G-1002": ["TI-1001", "TI-1002", "PI-1001", "LI-1001", "TIC-1001"],
+  "G-1003": ["TI-1001", "TI-1002", "FI-1001"],
+  "G-1004": ["TI-1001", "PI-1001", "FI-1001", "TIC-1001", "FIC-1001"],
+  "G-2001": ["TI-2001", "TI-2002", "PI-2001", "FI-2001", "LI-2001", "TIC-2001", "PIC-2001", "FIC-2001"],
+  "G-2002": ["TI-2001", "TI-2002", "PI-2001", "LI-2001"],
+  "G-2003": ["PI-2001", "TI-2001", "TIC-2001"],
+  "G-2004": ["TI-2002", "FI-2001", "LI-2001", "FIC-2001"],
+  "G-3001": ["TI-3001", "TI-3002", "PI-3001", "FI-3001", "LI-3001", "TIC-3001", "PIC-3001", "FIC-2001"],
+  "G-3002": ["TI-3001", "TI-3002", "PI-3001", "TIC-3001"],
+  "G-3003": ["TI-3001", "TI-3002", "FI-3001", "LI-3001"],
+  "G-3004": ["PI-3001", "FI-3001", "PIC-3001", "FIC-2001"],
+  "G-4001": ["TI-4001", "TI-4002", "PI-4001", "FI-4001", "LI-4001", "TIC-4001", "PIC-4001", "FIC-2001"],
+  "G-4002": ["TI-4001", "TI-4002", "PI-4001", "TIC-4001"],
+  "G-4003": ["TI-4002", "PI-4001", "FI-4001", "LI-4001"],
+  "G-4004": ["FI-4001", "PI-4001", "PIC-4001", "FIC-2001"],
+  "G-5001": ["TI-5001", "TI-5002", "PI-5001", "FI-5001", "LI-5001", "TIC-5001", "PIC-5001", "FIC-2001"],
+  "G-5002": ["TI-5001", "TI-5002", "PI-5001", "TIC-5001"],
+  "G-5003": ["TI-5002", "FI-5001", "LI-5001"],
+  "G-6001": ["TI-6001", "TI-6002", "PI-6001", "FI-6001", "LI-6001", "TIC-6001", "PIC-6001", "FIC-2001"],
+  "G-6002": ["TI-6001", "TI-6002", "PI-6001", "TIC-6001"],
+  "G-6003": ["TI-6002", "FI-6001", "LI-6001"],
+  "G-9001": ["TI-9001", "PI-9001", "FI-9001", "TIC-9001"],
+  "G-9002": ["PI-9001", "FI-9001", "LI-9001", "PIC-9001"],
+  "G-9003": ["FI-9001", "PI-9001"],
+}
+
+// find which unit a tag belongs to
+function findTagUnit(tag: string): string | null {
+  for (const [unit, tags] of Object.entries(AVAILABLE_TAGS)) {
+    if (tags.includes(tag)) return unit
+  }
+  return null
+}
+
 export function FloatingQuickAccess() {
   const router = useRouter()
   const [isOpen, setIsOpen] = useState(false)
   const [activePanel, setActivePanel] = useState<"menu" | "trend" | "saved-trends" | "dashboards">("menu")
 
   // --- 1) Trend Viewer State (always fresh) ---
+  const [trendTab, setTrendTab] = useState<"basic" | "dcs">("basic")
   const [tagInput, setTagInput] = useState("")
   const [activeTags, setActiveTags] = useState<string[]>([])
   const [suggestions, setSuggestions] = useState<string[]>([])
   const [viewMode, setViewMode] = useState<"individual" | "overlay">("individual")
+
+  // --- DCS tab state ---
+  const [dcsTagInput, setDcsTagInput] = useState("")
+  const [dcsSuggestions, setDcsSuggestions] = useState<string[]>([])
+  const [dcsInitialTag, setDcsInitialTag] = useState<string | null>(null)
+  const [dcsUnit, setDcsUnit] = useState<string | null>(null)
+  const [dcsScreens, setDcsScreens] = useState<{ number: string; name: string }[]>([])
+  const [dcsSelectedScreen, setDcsSelectedScreen] = useState<string | null>(null)
+  const [dcsScreenTags, setDcsScreenTags] = useState<string[]>([])
+  const [dcsSelectedTags, setDcsSelectedTags] = useState<string[]>([])
+  const [dcsShowTrend, setDcsShowTrend] = useState(false)
 
   // --- Save dialog state ---
   const [showSaveDialog, setShowSaveDialog] = useState(false)
@@ -208,6 +257,64 @@ export function FloatingQuickAccess() {
     }
   }, [tagInput, suggestions, allTags, addTag])
 
+  // --- DCS tab handlers ---
+  const handleDcsTagInput = useCallback((value: string) => {
+    setDcsTagInput(value)
+    if (value.length > 0) {
+      setDcsSuggestions(allTags.filter(t => t.toLowerCase().includes(value.toLowerCase())).slice(0, 8))
+    } else {
+      setDcsSuggestions([])
+    }
+  }, [allTags])
+
+  const handleDcsTagSelect = useCallback((tag: string) => {
+    setDcsTagInput("")
+    setDcsSuggestions([])
+    setDcsInitialTag(tag)
+    const unit = findTagUnit(tag)
+    setDcsUnit(unit)
+    if (unit && DCS_GRAPHICS[unit]) {
+      // filter screens that contain this tag
+      const screens = DCS_GRAPHICS[unit].filter(s => DCS_SCREEN_TAGS[s.number]?.includes(tag))
+      setDcsScreens(screens.length > 0 ? screens : DCS_GRAPHICS[unit])
+    } else {
+      setDcsScreens([])
+    }
+    setDcsSelectedScreen(null)
+    setDcsScreenTags([])
+    setDcsSelectedTags([])
+    setDcsShowTrend(false)
+  }, [])
+
+  const handleDcsScreenSelect = useCallback((screenNumber: string) => {
+    setDcsSelectedScreen(screenNumber)
+    const tags = DCS_SCREEN_TAGS[screenNumber] || []
+    setDcsScreenTags(tags)
+    // auto-select initial tag
+    setDcsSelectedTags(dcsInitialTag && tags.includes(dcsInitialTag) ? [dcsInitialTag] : [])
+    setDcsShowTrend(false)
+  }, [dcsInitialTag])
+
+  const toggleDcsTag = useCallback((tag: string) => {
+    setDcsSelectedTags(prev => prev.includes(tag) ? prev.filter(t => t !== tag) : [...prev, tag])
+  }, [])
+
+  const handleDcsKeyDown = useCallback((e: React.KeyboardEvent<HTMLInputElement>) => {
+    if (e.key === "Enter" && dcsTagInput.trim()) {
+      const exact = allTags.find(t => t.toLowerCase() === dcsTagInput.trim().toLowerCase())
+      if (exact) handleDcsTagSelect(exact)
+      else if (dcsSuggestions.length > 0) handleDcsTagSelect(dcsSuggestions[0])
+    }
+  }, [dcsTagInput, dcsSuggestions, allTags, handleDcsTagSelect])
+
+  const resetDcsState = useCallback(() => {
+    setDcsTagInput(""); setDcsSuggestions([]); setDcsInitialTag(null); setDcsUnit(null)
+    setDcsScreens([]); setDcsSelectedScreen(null); setDcsScreenTags([]); setDcsSelectedTags([]); setDcsShowTrend(false)
+  }, [])
+
+  // DCS selected tag trends
+  const dcsTagTrends = useMemo(() => dcsSelectedTags.map(tag => ({ tag, ...generateTagTrend(tag) })), [dcsSelectedTags])
+
   // --- Requirement 1: Always start fresh ---
   const openTrendFresh = () => {
     setActiveTags([])
@@ -216,6 +323,8 @@ export function FloatingQuickAccess() {
     setViewMode("individual")
     setFromGroupName(null)
     setSavedMsg("")
+    setTrendTab("basic")
+    resetDcsState()
     setActivePanel("trend")
   }
 
@@ -236,6 +345,7 @@ export function FloatingQuickAccess() {
     setShowSaveDialog(false)
     setShowNewGroupDialog(false)
     setSavedMsg("")
+    resetDcsState()
   }
 
   // --- Save trend to group ---
@@ -353,11 +463,11 @@ export function FloatingQuickAccess() {
               <DialogTitle className="flex items-center gap-2">
                 <LineChart className="h-5 w-5 text-primary" />
                 태그 트렌드 조회
-                {fromGroupName && <Badge variant="secondary" className="ml-2 text-xs font-normal">{fromGroupName}</Badge>}
+                {trendTab === "basic" && fromGroupName && <Badge variant="secondary" className="ml-2 text-xs font-normal">{fromGroupName}</Badge>}
               </DialogTitle>
               <div className="flex items-center gap-2">
-                {/* View mode toggle */}
-                {activeTags.length >= 2 && (
+                {/* View mode toggle (basic tab only) */}
+                {trendTab === "basic" && activeTags.length >= 2 && (
                   <div className="flex items-center gap-1 border border-border rounded-md p-0.5">
                     <button
                       onClick={() => setViewMode("individual")}
@@ -379,8 +489,31 @@ export function FloatingQuickAccess() {
                     </button>
                   </div>
                 )}
-                {/* Save button */}
-                {activeTags.length > 0 && (
+                {/* View mode toggle (DCS tab) */}
+                {trendTab === "dcs" && dcsShowTrend && dcsSelectedTags.length >= 2 && (
+                  <div className="flex items-center gap-1 border border-border rounded-md p-0.5">
+                    <button
+                      onClick={() => setViewMode("individual")}
+                      className={cn(
+                        "px-2.5 py-1 rounded text-xs font-medium transition-colors cursor-pointer",
+                        viewMode === "individual" ? "bg-primary text-primary-foreground" : "text-muted-foreground hover:text-foreground"
+                      )}
+                    >
+                      개별 보기
+                    </button>
+                    <button
+                      onClick={() => setViewMode("overlay")}
+                      className={cn(
+                        "px-2.5 py-1 rounded text-xs font-medium transition-colors cursor-pointer",
+                        viewMode === "overlay" ? "bg-primary text-primary-foreground" : "text-muted-foreground hover:text-foreground"
+                      )}
+                    >
+                      겹쳐 보기
+                    </button>
+                  </div>
+                )}
+                {/* Save button (basic tab) */}
+                {trendTab === "basic" && activeTags.length > 0 && (
                   <Button variant="outline" size="sm" className="gap-1.5 text-xs cursor-pointer" onClick={() => { setShowSaveDialog(true); setSaveMode("new"); setNewGroupName(""); setSaveTargetId("") }}>
                     <Save className="h-3.5 w-3.5" />
                     트렌드 저장
@@ -389,6 +522,30 @@ export function FloatingQuickAccess() {
               </div>
             </div>
           </DialogHeader>
+
+          {/* Tab switcher */}
+          <div className="flex items-center gap-1 border border-border rounded-lg p-1 shrink-0 bg-muted/30">
+            <button
+              onClick={() => setTrendTab("basic")}
+              className={cn(
+                "flex-1 flex items-center justify-center gap-2 px-3 py-2 rounded-md text-sm font-medium transition-colors cursor-pointer",
+                trendTab === "basic" ? "bg-background shadow-sm text-foreground" : "text-muted-foreground hover:text-foreground"
+              )}
+            >
+              <LineChart className="h-4 w-4" />
+              기본 조회
+            </button>
+            <button
+              onClick={() => setTrendTab("dcs")}
+              className={cn(
+                "flex-1 flex items-center justify-center gap-2 px-3 py-2 rounded-md text-sm font-medium transition-colors cursor-pointer",
+                trendTab === "dcs" ? "bg-background shadow-sm text-foreground" : "text-muted-foreground hover:text-foreground"
+              )}
+            >
+              <Monitor className="h-4 w-4" />
+              DCS 화면 기반 조회
+            </button>
+          </div>
 
           {/* Saved confirmation */}
           {savedMsg && (
@@ -399,6 +556,9 @@ export function FloatingQuickAccess() {
             </div>
           )}
 
+          {/* ===== BASIC TAB ===== */}
+          {trendTab === "basic" && (
+            <>
           {/* Tag input */}
           <div className="space-y-2 shrink-0">
             <div className="relative">
@@ -532,6 +692,223 @@ export function FloatingQuickAccess() {
               </div>
             )}
           </ScrollArea>
+            </>
+          )}
+
+          {/* ===== DCS TAB ===== */}
+          {trendTab === "dcs" && (
+            <>
+              {/* Step 1: Tag input */}
+              {!dcsInitialTag && (
+                <div className="space-y-4 shrink-0">
+                  <div className="relative">
+                    <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
+                    <Input
+                      value={dcsTagInput}
+                      onChange={(e) => handleDcsTagInput(e.target.value)}
+                      onKeyDown={handleDcsKeyDown}
+                      placeholder="태그 ID를 입력하세요 (해당 태그의 DCS 화면을 찾습니다)"
+                      className="pl-9"
+                      autoFocus
+                    />
+                    {dcsSuggestions.length > 0 && (
+                      <div className="absolute top-full left-0 right-0 mt-1 bg-popover border border-border rounded-md shadow-lg z-10 py-1 max-h-48 overflow-auto">
+                        {dcsSuggestions.map(tag => (
+                          <button key={tag} onClick={() => handleDcsTagSelect(tag)} className="w-full text-left px-3 py-1.5 text-sm hover:bg-muted flex items-center gap-2 cursor-pointer">
+                            <Tag className="h-3 w-3 text-muted-foreground" />
+                            <span className="font-mono">{tag}</span>
+                            <span className="text-xs text-muted-foreground ml-auto">{findTagUnit(tag) || ""}</span>
+                          </button>
+                        ))}
+                      </div>
+                    )}
+                  </div>
+                  <div className="flex flex-col items-center justify-center py-16 text-center">
+                    <div className="h-16 w-16 rounded-full bg-muted flex items-center justify-center mb-4">
+                      <Monitor className="h-8 w-8 text-muted-foreground" />
+                    </div>
+                    <p className="text-sm font-medium mb-1">태그를 입력하여 관련 DCS 화면을 찾으세요</p>
+                    <p className="text-xs text-muted-foreground max-w-sm">입력된 태그가 포함된 DCS 그래픽 화면 목록이 표시되며, 해당 화면의 태그를 선택하여 트렌드를 조회할 수 있습니다.</p>
+                  </div>
+                </div>
+              )}
+
+              {/* Step 2: DCS screen list */}
+              {dcsInitialTag && !dcsSelectedScreen && (
+                <div className="space-y-3 shrink-0">
+                  <div className="flex items-center gap-2">
+                    <Button variant="ghost" size="sm" className="gap-1 text-xs cursor-pointer" onClick={resetDcsState}>
+                      <X className="h-3.5 w-3.5" /> 초기화
+                    </Button>
+                    <Badge variant="secondary" className="font-mono">{dcsInitialTag}</Badge>
+                    {dcsUnit && <Badge variant="outline">{dcsUnit}</Badge>}
+                    <span className="text-xs text-muted-foreground">태그가 포함된 DCS 화면 {dcsScreens.length}개</span>
+                  </div>
+                  <ScrollArea className="flex-1 min-h-0 max-h-[60vh]">
+                    <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-3 pb-4">
+                      {dcsScreens.map(screen => {
+                        const screenTags = DCS_SCREEN_TAGS[screen.number] || []
+                        const hasInitial = screenTags.includes(dcsInitialTag!)
+                        return (
+                          <button
+                            key={screen.number}
+                            onClick={() => handleDcsScreenSelect(screen.number)}
+                            className={cn(
+                              "text-left p-4 rounded-lg border transition-all cursor-pointer hover:shadow-md",
+                              hasInitial ? "border-primary/30 bg-primary/5 hover:border-primary/50" : "border-border hover:border-primary/30 hover:bg-muted/50"
+                            )}
+                          >
+                            <div className="flex items-center gap-2 mb-2">
+                              <Monitor className="h-5 w-5 text-primary" />
+                              <span className="font-mono text-sm font-semibold">{screen.number}</span>
+                            </div>
+                            <p className="text-sm font-medium mb-2">{screen.name}</p>
+                            <div className="flex flex-wrap gap-1">
+                              {screenTags.map(tag => (
+                                <span
+                                  key={tag}
+                                  className={cn(
+                                    "font-mono text-[10px] px-1.5 py-0.5 rounded",
+                                    tag === dcsInitialTag ? "bg-primary/10 text-primary font-semibold border border-primary/20" : "bg-muted text-muted-foreground"
+                                  )}
+                                >
+                                  {tag}
+                                </span>
+                              ))}
+                            </div>
+                            <p className="text-[11px] text-muted-foreground mt-2">{screenTags.length}개 태그</p>
+                          </button>
+                        )
+                      })}
+                    </div>
+                  </ScrollArea>
+                </div>
+              )}
+
+              {/* Step 3: Screen selected -> tag selection + trend */}
+              {dcsInitialTag && dcsSelectedScreen && (
+                <div className="flex flex-col flex-1 min-h-0 gap-3">
+                  {/* Header */}
+                  <div className="flex items-center gap-2 shrink-0 flex-wrap">
+                    <Button variant="ghost" size="sm" className="gap-1 text-xs cursor-pointer" onClick={() => { setDcsSelectedScreen(null); setDcsScreenTags([]); setDcsSelectedTags([]); setDcsShowTrend(false) }}>
+                      <ChevronRight className="h-3.5 w-3.5 rotate-180" /> 화면 목록
+                    </Button>
+                    <div className="flex items-center gap-1.5 px-2 py-1 rounded-md bg-primary/5 border border-primary/20">
+                      <Monitor className="h-4 w-4 text-primary" />
+                      <span className="font-mono text-sm font-semibold">{dcsSelectedScreen}</span>
+                      <span className="text-xs text-muted-foreground">
+                        {dcsScreens.find(s => s.number === dcsSelectedScreen)?.name}
+                      </span>
+                    </div>
+                    <Badge variant="outline" className="text-xs">{dcsUnit}</Badge>
+                  </div>
+
+                  {/* Tag selection from DCS screen */}
+                  <div className="shrink-0">
+                    <p className="text-xs text-muted-foreground mb-2">DCS 화면 내 태그를 선택하세요 (복수 선택 가능)</p>
+                    <div className="flex flex-wrap gap-1.5">
+                      {dcsScreenTags.map((tag, i) => {
+                        const isSelected = dcsSelectedTags.includes(tag)
+                        const isInitial = tag === dcsInitialTag
+                        return (
+                          <button
+                            key={tag}
+                            onClick={() => toggleDcsTag(tag)}
+                            className={cn(
+                              "flex items-center gap-1.5 px-2.5 py-1.5 rounded-md border text-xs font-mono transition-colors cursor-pointer",
+                              isSelected
+                                ? "border-primary bg-primary/10 text-primary font-semibold"
+                                : "border-border hover:border-primary/30 text-muted-foreground hover:text-foreground"
+                            )}
+                            style={isSelected ? { borderLeft: `3px solid ${COLORS[dcsSelectedTags.indexOf(tag) % COLORS.length]}` } : {}}
+                          >
+                            {isSelected && <Check className="h-3 w-3" />}
+                            {tag}
+                            {isInitial && <span className="text-[9px] text-primary/70 ml-0.5">(입력)</span>}
+                          </button>
+                        )
+                      })}
+                    </div>
+                    {dcsSelectedTags.length > 0 && (
+                      <div className="flex items-center gap-2 mt-2">
+                        <span className="text-xs text-muted-foreground">{dcsSelectedTags.length}개 태그 선택됨</span>
+                        <Button
+                          size="sm"
+                          className="h-7 text-xs gap-1.5 cursor-pointer"
+                          onClick={() => setDcsShowTrend(true)}
+                        >
+                          <TrendingUp className="h-3.5 w-3.5" />
+                          트렌드 보기
+                        </Button>
+                        {dcsShowTrend && (
+                          <Button variant="outline" size="sm" className="h-7 text-xs cursor-pointer" onClick={() => setDcsShowTrend(false)}>
+                            태그 재선택
+                          </Button>
+                        )}
+                      </div>
+                    )}
+                  </div>
+
+                  {/* DCS Trend display */}
+                  {dcsShowTrend && dcsSelectedTags.length > 0 && (
+                    <ScrollArea className="flex-1 -mx-6 px-6 min-h-0">
+                      {viewMode === "overlay" && dcsSelectedTags.length >= 2 ? (
+                        <div className="space-y-3 pb-4">
+                          <div className="flex flex-wrap gap-3 px-1">
+                            {dcsTagTrends.map(({ tag, current, unit }, i) => (
+                              <div key={tag} className="flex items-center gap-1.5 text-xs">
+                                <div className="w-3 h-0.5 rounded" style={{ backgroundColor: COLORS[i % COLORS.length] }} />
+                                <span className="font-mono font-medium">{tag}</span>
+                                <span className="text-muted-foreground">({current} {unit})</span>
+                              </div>
+                            ))}
+                          </div>
+                          <Card className="p-4">
+                            <OverlayTrendChart tags={dcsTagTrends} colors={COLORS} />
+                          </Card>
+                        </div>
+                      ) : (
+                        <div className="grid grid-cols-1 lg:grid-cols-2 gap-3 pb-4">
+                          {dcsTagTrends.map(({ tag, values, unit, high, low, current }, i) => {
+                            const isViolation = (high !== null && current > high) || (low !== null && current < low)
+                            return (
+                              <Card key={tag} className={cn("overflow-hidden", isViolation && "border-red-200")}>
+                                <div className="px-3 pt-2.5 pb-0 flex items-center justify-between">
+                                  <div className="flex items-center gap-2">
+                                    <div className="w-2.5 h-2.5 rounded-full shrink-0" style={{ backgroundColor: COLORS[i % COLORS.length] }} />
+                                    <span className="font-mono text-sm font-semibold">{tag}</span>
+                                    {tag === dcsInitialTag && <Badge variant="outline" className="text-[10px] px-1 py-0 h-4 border-primary/30 text-primary">입력</Badge>}
+                                    {isViolation && <Badge variant="destructive" className="text-[10px] px-1.5 py-0 h-4">Limit 초과</Badge>}
+                                  </div>
+                                  <span className="text-xs text-muted-foreground">[{unit}]</span>
+                                </div>
+                                <div className="px-2">
+                                  <TrendChart values={values} high={high} low={low} color={COLORS[i % COLORS.length]} isAlert={isViolation} height="h-28" />
+                                </div>
+                                <div className="px-3 pb-2.5 flex items-center justify-between text-xs border-t border-border/50 pt-1.5">
+                                  <div>
+                                    <span className="text-muted-foreground">현재 </span>
+                                    <span className={cn("font-semibold", isViolation ? "text-red-600" : "text-foreground")}>{current} {unit}</span>
+                                  </div>
+                                  {high !== null && <div><span className="text-muted-foreground">H </span><span className="text-red-500 font-medium">{high}</span></div>}
+                                  {low !== null && <div><span className="text-muted-foreground">L </span><span className="text-blue-500 font-medium">{low}</span></div>}
+                                  <div>
+                                    <span className="text-muted-foreground">범위 </span>
+                                    <span className="font-medium">{Math.min(...values).toFixed(1)} ~ {Math.max(...values).toFixed(1)}</span>
+                                  </div>
+                                </div>
+                              </Card>
+                            )
+                          })}
+                        </div>
+                      )}
+                    </ScrollArea>
+                  )}
+                </div>
+              )}
+            </>
+          )}
+
         </DialogContent>
       </Dialog>
 
