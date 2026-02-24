@@ -1,6 +1,6 @@
 "use client"
 
-import React, { useState, useMemo } from "react"
+import React, { useState, useMemo, useCallback } from "react"
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
 import { Button } from "@/components/ui/button"
 import { Badge } from "@/components/ui/badge"
@@ -24,6 +24,7 @@ import {
   type HealthCategory, type HealthEquipment, type TrafficLight,
   HEALTH_CATEGORIES, PROCESS_MODES, getEquipmentData,
 } from "@/lib/health-data"
+import { saveFocusMonitoringItem } from "@/lib/personalized-alarms"
 import { AppShell } from "@/components/app-shell"
 import { useRouter } from "next/navigation"
 
@@ -680,7 +681,23 @@ export function HealthCategoryPage({ category }: { category: HealthCategory }) {
             </div>
             <DialogFooter>
               <Button variant="outline" onClick={() => setShowMonitorDialog(false)}>취소</Button>
-              <Button variant="default" className="bg-blue-600 hover:bg-blue-700" onClick={() => setShowMonitorDialog(false)}>모니터링 추가</Button>
+              <Button variant="default" className="bg-blue-600 hover:bg-blue-700" onClick={() => {
+                if (actionTarget) {
+                  saveFocusMonitoringItem({
+                    equipId: actionTarget.id,
+                    equipName: actionTarget.name,
+                    process: actionTarget.process,
+                    category: actionTarget.equipmentType,
+                    healthIndexName: actionTarget.healthIndex.name,
+                    healthIndexUnit: actionTarget.healthIndex.unit,
+                    currentValue: actionTarget.healthIndex.currentValue,
+                    limitValue: actionTarget.healthIndex.limitValue,
+                    driftPct: actionTarget.driftPct,
+                    trend: actionTarget.healthIndex.trend,
+                  })
+                }
+                setShowMonitorDialog(false)
+              }}>모니터링 추가</Button>
             </DialogFooter>
           </DialogContent>
         </Dialog>

@@ -1,6 +1,6 @@
 "use client"
 
-import { useState } from "react"
+import React, { useState, useEffect, useCallback } from "react"
 import { useRouter } from "next/navigation"
 import { AppShell } from "@/components/app-shell"
 import { Button } from "@/components/ui/button"
@@ -55,14 +55,12 @@ import {
   Sparkles,
   Target,
   Flame,
-  Droplets,
   Thermometer,
-  Settings,
   FileBarChart,
-  Wind,
 } from "lucide-react"
 import { cn } from "@/lib/utils"
 import { HEALTH_CATEGORIES, PROCESSES, getEquipmentData, type HealthCategory } from "@/lib/health-data"
+import { getPersonalizedAlarms, getCustomKPIs, saveCustomKPI, deleteCustomKPI, getFocusMonitoringItems, type PersonalizedAlarm, type CustomKPI, type FocusMonitoringItem } from "@/lib/personalized-alarms"
 import Link from "next/link"
 
 // Alert 타입 정의
@@ -758,6 +756,47 @@ export default function AlertsPage() {
   const [showPidDialog, setShowPidDialog] = useState(false)
   const [showDatasheetDialog, setShowDatasheetDialog] = useState(false)
   const [showAllVariables, setShowAllVariables] = useState(false)
+
+  // Daily Monitoring 운전변수 트렌드 상태
+  const [expandedVarTag, setExpandedVarTag] = useState<string | null>(null)
+
+  // Custom KPI 추가 상태
+  const [showAddKpiDialog, setShowAddKpiDialog] = useState(false)
+  const [kpiName, setKpiName] = useState("")
+  const [kpiValue, setKpiValue] = useState("")
+  const [kpiTarget, setKpiTarget] = useState("")
+  const [kpiUnit, setKpiUnit] = useState("")
+  const [customKpis, setCustomKpis] = useState<CustomKPI[]>([])
+  const [personalizedAlarms, setPersonalizedAlarms] = useState<PersonalizedAlarm[]>([])
+  const [focusMonitoringItems, setFocusMonitoringItems] = useState<FocusMonitoringItem[]>([])
+
+  // Load personalized data on mount
+  useEffect(() => {
+    const loadData = () => {
+      setCustomKpis(getCustomKPIs())
+      setPersonalizedAlarms(getPersonalizedAlarms())
+      setFocusMonitoringItems(getFocusMonitoringItems())
+    }
+    loadData()
+    const handleAlarmChange = () => setPersonalizedAlarms(getPersonalizedAlarms())
+    const handleKpiChange = () => setCustomKpis(getCustomKPIs())
+    const handleFocusChange = () => setFocusMonitoringItems(getFocusMonitoringItems())
+    window.addEventListener("personalized-alarms-changed", handleAlarmChange)
+    window.addEventListener("custom-kpis-changed", handleKpiChange)
+    window.addEventListener("focus-monitoring-changed", handleFocusChange)
+    return () => {
+      window.removeEventListener("personalized-alarms-changed", handleAlarmChange)
+      window.removeEventListener("custom-kpis-changed", handleKpiChange)
+      window.removeEventListener("focus-monitoring-changed", handleFocusChange)
+    }
+  }, [])
+
+  const handleAddKpi = useCallback(() => {
+    if (!kpiName || !kpiValue || !kpiTarget) return
+    saveCustomKPI({ name: kpiName, value: parseFloat(kpiValue), target: parseFloat(kpiTarget), unit: kpiUnit })
+    setKpiName(""); setKpiValue(""); setKpiTarget(""); setKpiUnit("")
+    setShowAddKpiDialog(false)
+  }, [kpiName, kpiValue, kpiTarget, kpiUnit])
 
   // Tag -> Equipment hierarchy
   const TAG_EQ: Record<string, { process: string; zone: string; equipment: string; eqId: string; eqType: string; installed: string; lastTA: string }> = {
@@ -2231,15 +2270,70 @@ export default function AlertsPage() {
                           </CardTitle>
                         </CardHeader>
                         <CardContent>
-                          <div className="space-y-3">
-                            {/* Operating Mode */}
-                            <div className="flex items-center gap-3 p-2 bg-muted/30 rounded-lg">
-                              <Activity className="h-4 w-4 text-primary shrink-0" />
-                              <span className="text-xs font-medium text-muted-foreground">운전 모드</span>
-                              <Badge className="text-xs bg-primary/10 text-primary hover:bg-primary/10">{selectedAlert.unit?.includes("HCR") ? "W150N / Full Rate" : "HS Mode"}</Badge>
+                          <div className="space-y-4">
+                            {/* 1) Operating Mode - Current & Future */}
+                            <div className="p-2.5 bg-muted/30 rounded-lg space-y-2">
+                              <div className="flex items-center gap-2">
+                                <Activity className="h-4 w-4 text-primary shrink-0" />
+                                <span className="text-xs font-medium text-muted-foreground">운전 모드</span>
+                              </div>
+                              <div className="grid grid-cols-2 gap-2">
+                                <div className="p-2 bg-card rounded border">
+                                  <p className="text-[10px] text-muted-foreground mb-1">현재 운전모드</p>
+                                  <Badge className="text-xs bg-primary/10 text-primary hover:bg-primary/10">
+                                    {selectedAlert.unit?.includes("HCR") ? "W150N / Full Rate" : "HS Mode"}
+                                  </Badge>
+                                </div>
+                                <div className="p-2 bg-card rounded border">
+                                  <p className="text-[10px] text-muted-foreground mb-1">향후 운전모드 (예정)</p>
+                                  <Badge variant="outline" className="text-xs">
+                                    {selectedAlert.unit?.includes("HCR") ? "W600N / Full Rate" : "RFCC Mode"}
+                                  </Badge>
+                                  <span className="text-[10px] text-muted-foreground ml-1.5">{'(3/15~)'}</span>
+                                </div>
+                              </div>
                             </div>
 
-                            {/* Product Spec Target vs Actual */}
+                            {/* 2) Feed 처리량 by Area */}
+                            <div>
+                              <p className="text-xs font-medium mb-2 flex items-center gap-1.5">
+                                <BarChart3 className="h-3.5 w-3.5 text-blue-500" />Feed 처리량 (Area별 Target vs Actual)
+                              </p>
+                              <table className="w-full text-xs">
+                                <thead><tr className="border-b bg-muted/30">
+                                  <th className="text-left px-2 py-1 font-medium text-muted-foreground">Area</th>
+                                  <th className="text-right px-2 py-1 font-medium text-muted-foreground">Target (BD)</th>
+                                  <th className="text-right px-2 py-1 font-medium text-muted-foreground">Actual (BD)</th>
+                                  <th className="text-right px-2 py-1 font-medium text-muted-foreground">Gap</th>
+                                  <th className="text-center px-2 py-1 font-medium text-muted-foreground w-12">달성률</th>
+                                </tr></thead>
+                                <tbody>
+                                  {[
+                                    { area: "HCR 1st Stage", target: 42000, actual: 41250 },
+                                    { area: "HCR 2nd Stage", target: 38000, actual: 37800 },
+                                    { area: "FPU", target: 12000, actual: 11500 },
+                                  ].map(f => {
+                                    const gap = f.actual - f.target
+                                    const pctVal = (f.actual / f.target * 100).toFixed(1)
+                                    return (
+                                      <tr key={f.area} className="border-b last:border-0">
+                                        <td className="px-2 py-1.5 font-medium">{f.area}</td>
+                                        <td className="px-2 py-1.5 text-right font-mono">{f.target.toLocaleString()}</td>
+                                        <td className="px-2 py-1.5 text-right font-mono font-medium">{f.actual.toLocaleString()}</td>
+                                        <td className={cn("px-2 py-1.5 text-right font-mono", gap >= 0 ? "text-green-600" : "text-red-600")}>{gap >= 0 ? "+" : ""}{gap.toLocaleString()}</td>
+                                        <td className="px-2 py-1.5 text-center">
+                                          <span className={cn("text-[10px] font-medium px-1.5 py-0.5 rounded", parseFloat(pctVal) >= 98 ? "bg-green-100 text-green-700" : parseFloat(pctVal) >= 95 ? "bg-amber-100 text-amber-700" : "bg-red-100 text-red-700")}>
+                                            {pctVal}%
+                                          </span>
+                                        </td>
+                                      </tr>
+                                    )
+                                  })}
+                                </tbody>
+                              </table>
+                            </div>
+
+                            {/* 3) Product Spec Target vs Actual - Kept */}
                             <div>
                               <p className="text-xs font-medium mb-2 flex items-center gap-1.5"><Target className="h-3.5 w-3.5 text-teal-500" />Product Spec (Target vs Actual)</p>
                               <table className="w-full text-xs">
@@ -2271,39 +2365,96 @@ export default function AlertsPage() {
                               </table>
                             </div>
 
-                            {/* Product Yield */}
-                            {selectedAlert.data?.items && (
-                              <div>
-                                <p className="text-xs font-medium mb-2 flex items-center gap-1.5"><BarChart3 className="h-3.5 w-3.5 text-indigo-500" />Product 유량 및 수율</p>
-                                <div className="space-y-1.5">
-                                  {selectedAlert.data.items.map((item, i) => (
-                                    <div key={i} className="flex items-center justify-between p-2 bg-muted/30 rounded">
-                                      <span className="text-xs font-medium">{item.name}</span>
-                                      <div className="flex items-center gap-2">
-                                        <span className="text-xs font-mono">{item.value}</span>
-                                        <Badge variant={item.status === "warning" ? "destructive" : "secondary"} className="text-[10px]">
-                                          {item.status === "warning" ? "주의" : "정상"}
-                                        </Badge>
-                                      </div>
-                                    </div>
-                                  ))}
-                                </div>
-                              </div>
-                            )}
-
-                            {/* Custom KPIs */}
+                            {/* 4) Product 유량, 수율, DR - Comparison Table */}
                             <div>
-                              <p className="text-xs font-medium mb-2 flex items-center gap-1.5"><TrendingUp className="h-3.5 w-3.5 text-emerald-500" />주요 퍼포먼스 지표</p>
+                              <p className="text-xs font-medium mb-2 flex items-center gap-1.5"><BarChart3 className="h-3.5 w-3.5 text-indigo-500" />Product 유량 / 수율 / DR 비교</p>
+                              <div className="overflow-x-auto">
+                                <table className="w-full text-xs">
+                                  <thead><tr className="border-b bg-muted/30">
+                                    <th className="text-left px-2 py-1 font-medium text-muted-foreground">Product</th>
+                                    <th className="text-right px-2 py-1 font-medium text-muted-foreground">유량 (BD)</th>
+                                    <th className="text-right px-2 py-1 font-medium text-muted-foreground">수율 (%)</th>
+                                    <th className="text-right px-2 py-1 font-medium text-muted-foreground">DR Target</th>
+                                    <th className="text-right px-2 py-1 font-medium text-muted-foreground">DR Actual</th>
+                                    <th className="text-center px-2 py-1 font-medium text-muted-foreground w-10">ST</th>
+                                  </tr></thead>
+                                  <tbody>
+                                    {[
+                                      { prod: "LPG", flow: 5839, yield: 1.8, drTgt: 1.5, drAct: 1.8 },
+                                      { prod: "Naphtha", flow: 45990, yield: 14.0, drTgt: 14.5, drAct: 14.0 },
+                                      { prod: "Kero", flow: 36603, yield: 11.1, drTgt: 11.0, drAct: 11.1 },
+                                      { prod: "LK", flow: 23049, yield: 7.0, drTgt: 7.2, drAct: 7.0 },
+                                      { prod: "LGO", flow: 33680, yield: 10.2, drTgt: 10.5, drAct: 10.2 },
+                                      { prod: "HGO", flow: 38710, yield: 11.7, drTgt: 12.0, drAct: 11.7 },
+                                      { prod: "AR", flow: 145812, yield: 44.2, drTgt: 43.3, drAct: 44.2 },
+                                    ].map(p => {
+                                      const drGap = Math.abs(p.drAct - p.drTgt)
+                                      const ok = drGap <= 1.0
+                                      return (
+                                        <tr key={p.prod} className="border-b last:border-0">
+                                          <td className="px-2 py-1 font-medium">{p.prod}</td>
+                                          <td className="px-2 py-1 text-right font-mono">{p.flow.toLocaleString()}</td>
+                                          <td className="px-2 py-1 text-right font-mono">{p.yield.toFixed(1)}</td>
+                                          <td className="px-2 py-1 text-right font-mono text-muted-foreground">{p.drTgt.toFixed(1)}</td>
+                                          <td className="px-2 py-1 text-right font-mono font-medium">{p.drAct.toFixed(1)}</td>
+                                          <td className="px-2 py-1 text-center"><span className={cn("w-2 h-2 rounded-full inline-block", ok ? "bg-green-500" : "bg-amber-500")} /></td>
+                                        </tr>
+                                      )
+                                    })}
+                                    <tr className="border-t font-semibold bg-muted/20">
+                                      <td className="px-2 py-1">SUM</td>
+                                      <td className="px-2 py-1 text-right font-mono">329,683</td>
+                                      <td className="px-2 py-1 text-right font-mono">100.0</td>
+                                      <td className="px-2 py-1 text-right font-mono text-muted-foreground">100.0</td>
+                                      <td className="px-2 py-1 text-right font-mono">100.0</td>
+                                      <td className="px-2 py-1"></td>
+                                    </tr>
+                                  </tbody>
+                                </table>
+                              </div>
+                            </div>
+
+                            {/* 5) 주요 퍼포먼스 지표 - Custom addable */}
+                            <div>
+                              <div className="flex items-center justify-between mb-2">
+                                <p className="text-xs font-medium flex items-center gap-1.5"><TrendingUp className="h-3.5 w-3.5 text-emerald-500" />주요 퍼포먼스 지표</p>
+                                <Button variant="ghost" size="sm" className="h-6 text-[10px] gap-1 text-primary" onClick={() => setShowAddKpiDialog(true)}>
+                                  <Plus className="h-3 w-3" />지표 추가
+                                </Button>
+                              </div>
+                              {/* Default KPIs */}
                               {[
-                                { name: "COT (Coil Outlet Temp)", value: 366.2, target: 370, unit: "\u00b0C" },
-                                { name: "Energy Intensity", value: 12.7, target: 12.0, unit: "Gcal/kBD" },
+                                { name: "COT (Coil Outlet Temp)", value: 366.2, target: 370, unit: "\u00b0C", id: "default-1" },
+                                { name: "Energy Intensity", value: 12.7, target: 12.0, unit: "Gcal/kBD", id: "default-2" },
                               ].map(kpi => {
                                 const pct = Math.min((kpi.value / kpi.target) * 100, 120)
                                 const isGood = kpi.value >= kpi.target * 0.95
                                 return (
-                                  <div key={kpi.name} className="space-y-1 mb-2">
+                                  <div key={kpi.id} className="space-y-1 mb-2">
                                     <div className="flex items-center justify-between text-xs">
                                       <span className="font-medium">{kpi.name}</span>
+                                      <span className={cn("font-mono font-semibold", isGood ? "text-green-600" : "text-amber-600")}>
+                                        {kpi.value} {kpi.unit} <span className="text-muted-foreground font-normal">/ {kpi.target}</span>
+                                      </span>
+                                    </div>
+                                    <div className="w-full bg-muted rounded-full h-1.5">
+                                      <div className={cn("h-1.5 rounded-full", isGood ? "bg-green-500" : "bg-amber-500")} style={{ width: `${Math.min(pct, 100)}%` }} />
+                                    </div>
+                                  </div>
+                                )
+                              })}
+                              {/* Custom KPIs from storage */}
+                              {customKpis.map(kpi => {
+                                const pct = kpi.target > 0 ? Math.min((kpi.value / kpi.target) * 100, 120) : 50
+                                const isGood = kpi.target > 0 ? kpi.value >= kpi.target * 0.95 : true
+                                return (
+                                  <div key={kpi.id} className="space-y-1 mb-2 group">
+                                    <div className="flex items-center justify-between text-xs">
+                                      <span className="font-medium flex items-center gap-1">
+                                        {kpi.name}
+                                        <Badge variant="outline" className="text-[8px] h-3.5 px-1">Custom</Badge>
+                                        <button onClick={() => deleteCustomKPI(kpi.id)} className="opacity-0 group-hover:opacity-100 transition-opacity ml-1 cursor-pointer"><X className="h-3 w-3 text-muted-foreground hover:text-red-500" /></button>
+                                      </span>
                                       <span className={cn("font-mono font-semibold", isGood ? "text-green-600" : "text-amber-600")}>
                                         {kpi.value} {kpi.unit} <span className="text-muted-foreground font-normal">/ {kpi.target}</span>
                                       </span>
@@ -2322,10 +2473,16 @@ export default function AlertsPage() {
                       {/* ===== 4. 주요 운전변수 현황 ===== */}
                       <Card>
                         <CardHeader className="pb-2">
-                          <CardTitle className="text-sm flex items-center gap-2">
-                            <Thermometer className="h-4 w-4" />주요 운전변수 현황
-                            <Badge variant="secondary" className="text-[10px]">Operation Guide vs Actual</Badge>
-                          </CardTitle>
+                          <div className="flex items-center justify-between">
+                            <CardTitle className="text-sm flex items-center gap-2">
+                              <Thermometer className="h-4 w-4" />주요 운전변수 현황
+                              <Badge variant="secondary" className="text-[10px]">Operation Guide vs Actual</Badge>
+                            </CardTitle>
+                            <div className="flex items-center gap-1.5 text-[10px] text-muted-foreground">
+                              <Clock className="h-3 w-3" />
+                              기준 시간: 2026-02-25 07:00
+                            </div>
+                          </div>
                         </CardHeader>
                         <CardContent>
                           <div className="overflow-x-auto">
@@ -2339,32 +2496,75 @@ export default function AlertsPage() {
                                 <th className="text-center px-2 py-1.5 font-medium text-muted-foreground">Range</th>
                               </tr></thead>
                               <tbody>
-                                {[
-                                  { tag: "TI-1052", name: "Column Top Temp", val: "122.3", guide: "125", range: "120~130", st: "normal" },
-                                  { tag: "PI-1102", name: "Column Top Press", val: "1.35", guide: "1.5", range: "1.2~1.8", st: "normal" },
-                                  { tag: "TI-1352", name: "Furnace Outlet Temp", val: "363.2", guide: "365", range: "360~370", st: "normal" },
-                                  { tag: "FI-1252", name: "Feed Flow Rate", val: "342", guide: "350", range: "300~370", st: "normal" },
-                                  { tag: "FI-1452", name: "Reflux Flow Rate", val: "88.5", guide: "90", range: "80~100", st: "normal" },
-                                  { tag: "TI-1552", name: "OVHD Temp", val: "108.1", guide: "110", range: "105~115", st: "normal" },
-                                  { tag: "LI-1652", name: "Column Level", val: "51.2", guide: "50", range: "40~60", st: "normal" },
-                                  { tag: "AI-1752", name: "AR Flash Point", val: "69.5", guide: "65", range: ">65", st: "normal" },
-                                  { tag: "TI-2025", name: "Desalter Outlet", val: "134.8", guide: "135", range: "130~140", st: "normal" },
-                                  { tag: "PI-2125", name: "Column Bottom Press", val: "1.85", guide: "1.9", range: "1.7~2.1", st: "normal" },
-                                  { tag: "TI-2225", name: "Kero Draw Temp", val: "188.4", guide: "190", range: "180~195", st: "normal" },
-                                  { tag: "TI-2325", name: "LGO Draw Temp", val: "268.7", guide: "270", range: "260~280", st: "normal" },
-                                  { tag: "TI-2425", name: "HGO Draw Temp", val: "323.1", guide: "325", range: "315~335", st: "normal" },
-                                  { tag: "FI-2525", name: "Steam Flow", val: "4.5", guide: "4.5", range: "3.5~5.5", st: "normal" },
-                                  { tag: "TI-2625", name: "Condenser Outlet", val: "54.2", guide: "55", range: "48~60", st: "normal" },
-                                ].map(v => (
-                                  <tr key={v.tag} className={cn("border-b last:border-0", v.st === "warning" && "bg-amber-50/50")}>
-                                    <td className="px-2 py-1.5"><span className={cn("w-2 h-2 rounded-full inline-block", v.st === "warning" ? "bg-amber-500" : "bg-green-500")} /></td>
-                                    <td className="px-2 py-1.5 font-mono text-muted-foreground">{v.tag}</td>
-                                    <td className="px-2 py-1.5">{v.name}</td>
-                                    <td className="px-2 py-1.5 text-right font-mono font-medium">{v.val}</td>
-                                    <td className="px-2 py-1.5 text-right font-mono text-muted-foreground">{v.guide}</td>
-                                    <td className="px-2 py-1.5 text-center text-muted-foreground">{v.range}</td>
-                                  </tr>
-                                ))}
+                                {(() => {
+                                  const varData = [
+                                    { tag: "TI-1052", name: "Column Top Temp", val: "122.3", guide: "125", range: "120~130", st: "normal", trend: [121.5, 121.8, 122.0, 122.1, 122.3, 122.2, 122.4, 122.3] },
+                                    { tag: "PI-1102", name: "Column Top Press", val: "1.35", guide: "1.5", range: "1.2~1.8", st: "normal", trend: [1.33, 1.34, 1.35, 1.34, 1.35, 1.36, 1.35, 1.35] },
+                                    { tag: "TI-1352", name: "Furnace Outlet Temp", val: "363.2", guide: "365", range: "360~370", st: "normal", trend: [362.8, 363.0, 363.1, 363.5, 363.2, 363.0, 363.3, 363.2] },
+                                    { tag: "FI-1252", name: "Feed Flow Rate", val: "342", guide: "350", range: "300~370", st: "normal", trend: [340, 341, 342, 343, 342, 341, 342, 342] },
+                                    { tag: "FI-1452", name: "Reflux Flow Rate", val: "88.5", guide: "90", range: "80~100", st: "normal", trend: [87.5, 88.0, 88.2, 88.5, 88.3, 88.4, 88.5, 88.5] },
+                                    { tag: "TI-1552", name: "OVHD Temp", val: "108.1", guide: "110", range: "105~115", st: "normal", trend: [107.8, 108.0, 108.1, 108.2, 108.0, 108.1, 108.1, 108.1] },
+                                    { tag: "LI-1652", name: "Column Level", val: "51.2", guide: "50", range: "40~60", st: "normal", trend: [50.5, 50.8, 51.0, 51.2, 51.1, 51.0, 51.2, 51.2] },
+                                    { tag: "AI-1752", name: "AR Flash Point", val: "69.5", guide: "65", range: ">65", st: "normal", trend: [68.5, 69.0, 69.2, 69.5, 69.3, 69.4, 69.5, 69.5] },
+                                    { tag: "TI-2025", name: "Desalter Outlet", val: "134.8", guide: "135", range: "130~140", st: "normal", trend: [134.2, 134.5, 134.6, 134.8, 134.7, 134.8, 134.8, 134.8] },
+                                    { tag: "PI-2125", name: "Column Bottom Press", val: "1.85", guide: "1.9", range: "1.7~2.1", st: "normal", trend: [1.83, 1.84, 1.85, 1.84, 1.85, 1.86, 1.85, 1.85] },
+                                    { tag: "TI-2225", name: "Kero Draw Temp", val: "188.4", guide: "190", range: "180~195", st: "normal", trend: [187.8, 188.0, 188.2, 188.4, 188.3, 188.4, 188.4, 188.4] },
+                                    { tag: "TI-2325", name: "LGO Draw Temp", val: "268.7", guide: "270", range: "260~280", st: "normal", trend: [268.0, 268.2, 268.5, 268.7, 268.6, 268.7, 268.7, 268.7] },
+                                    { tag: "TI-2425", name: "HGO Draw Temp", val: "323.1", guide: "325", range: "315~335", st: "normal", trend: [322.5, 322.8, 323.0, 323.1, 323.0, 323.1, 323.1, 323.1] },
+                                    { tag: "FI-2525", name: "Steam Flow", val: "4.5", guide: "4.5", range: "3.5~5.5", st: "normal", trend: [4.4, 4.5, 4.5, 4.5, 4.4, 4.5, 4.5, 4.5] },
+                                    { tag: "TI-2625", name: "Condenser Outlet", val: "54.2", guide: "55", range: "48~60", st: "normal", trend: [53.8, 54.0, 54.1, 54.2, 54.1, 54.2, 54.2, 54.2] },
+                                  ]
+                                  return varData.map(v => (
+                                    <React.Fragment key={v.tag}>
+                                      <tr
+                                        className={cn("border-b cursor-pointer hover:bg-muted/30 transition-colors", v.st === "warning" && "bg-amber-50/50", expandedVarTag === v.tag && "bg-primary/5")}
+                                        onClick={() => setExpandedVarTag(expandedVarTag === v.tag ? null : v.tag)}
+                                      >
+                                        <td className="px-2 py-1.5"><span className={cn("w-2 h-2 rounded-full inline-block", v.st === "warning" ? "bg-amber-500" : "bg-green-500")} /></td>
+                                        <td className="px-2 py-1.5 font-mono text-muted-foreground">{v.tag}</td>
+                                        <td className="px-2 py-1.5">{v.name}</td>
+                                        <td className="px-2 py-1.5 text-right font-mono font-medium">{v.val}</td>
+                                        <td className="px-2 py-1.5 text-right font-mono text-muted-foreground">{v.guide}</td>
+                                        <td className="px-2 py-1.5 text-center text-muted-foreground flex items-center justify-center gap-1">
+                                          {v.range}
+                                          <ChevronDown className={cn("h-3 w-3 transition-transform", expandedVarTag === v.tag && "rotate-180")} />
+                                        </td>
+                                      </tr>
+                                      {expandedVarTag === v.tag && (
+                                        <tr>
+                                          <td colSpan={6} className="px-2 py-2 bg-muted/20">
+                                            <div className="space-y-1.5">
+                                              <div className="flex items-center justify-between text-[10px] text-muted-foreground">
+                                                <span>최근 8시간 트렌드 ({v.tag})</span>
+                                                <span>Guide: {v.guide} | Range: {v.range}</span>
+                                              </div>
+                                              <div className="h-16 flex items-end gap-px">
+                                                {v.trend.map((val, i) => {
+                                                  const min = Math.min(...v.trend) * 0.998
+                                                  const max = Math.max(...v.trend) * 1.002
+                                                  const h = max > min ? ((val - min) / (max - min)) * 100 : 50
+                                                  return (
+                                                    <div key={i} className="flex-1 flex flex-col items-center gap-0.5">
+                                                      <div className="w-full bg-primary/70 rounded-t" style={{ height: `${Math.max(h, 5)}%` }} />
+                                                      <span className="text-[8px] text-muted-foreground font-mono">{val}</span>
+                                                    </div>
+                                                  )
+                                                })}
+                                              </div>
+                                              <div className="flex justify-between text-[8px] text-muted-foreground">
+                                                <span>23:00</span>
+                                                <span>01:00</span>
+                                                <span>03:00</span>
+                                                <span>05:00</span>
+                                                <span>07:00</span>
+                                              </div>
+                                            </div>
+                                          </td>
+                                        </tr>
+                                      )}
+                                    </React.Fragment>
+                                  ))
+                                })()}
                               </tbody>
                             </table>
                           </div>
@@ -2379,10 +2579,14 @@ export default function AlertsPage() {
                           </CardTitle>
                         </CardHeader>
                         <CardContent>
-                          <div className="grid grid-cols-2 gap-3">
-                            {/* Custom Alarms */}
+                          <div className="grid grid-cols-2 gap-4">
+                            {/* Custom Alarms - from personalized alarm storage */}
                             <div>
-                              <p className="text-xs font-medium mb-2 flex items-center gap-1.5"><Bell className="h-3 w-3 text-amber-500" />Custom 알람</p>
+                              <p className="text-xs font-medium mb-2 flex items-center gap-1.5">
+                                <Bell className="h-3 w-3 text-amber-500" />Custom 알람 목록
+                                <Badge variant="secondary" className="text-[8px] h-4">{personalizedAlarms.filter(a => a.active).length + 2}</Badge>
+                              </p>
+                              {/* Default custom alarms */}
                               {[
                                 { tag: "AI-1752", name: "AR Flash Point < 65\u00b0C", current: "69.5\u00b0C", ok: true },
                                 { tag: "TI-1352", name: "Furnace Outlet > 370\u00b0C", current: "363.2\u00b0C", ok: true },
@@ -2393,28 +2597,102 @@ export default function AlertsPage() {
                                   <span className="font-mono shrink-0">{item.current}</span>
                                 </div>
                               ))}
-                            </div>
-                            {/* Health Focus */}
-                            <div>
-                              <p className="text-xs font-medium mb-2 flex items-center gap-1.5"><Flame className="h-3 w-3 text-red-500" />장기 건전성 집중 모니터링</p>
-                              {(() => {
-                                const allEquip = [...getEquipmentData("fouling"), ...getEquipmentData("coking")]
-                                const focusItems = allEquip.filter(eq => eq.trafficLight === "red").slice(0, 2)
-                                return focusItems.length > 0 ? focusItems.map(eq => (
-                                  <div key={eq.id} className="flex items-center gap-2 p-2 border border-red-100 bg-red-50/30 rounded mb-1.5 text-xs">
-                                    <span className="w-2 h-2 rounded-full bg-red-500 shrink-0" />
+                              {/* Personalized alarms from floating button registration */}
+                              {personalizedAlarms.filter(a => a.active).map(alarm => {
+                                const currentVal = (parseFloat(alarm.tagId.replace(/\D/g, "")) % 100 + 50).toFixed(1)
+                                const violated = (alarm.min !== undefined && parseFloat(currentVal) < alarm.min) || (alarm.max !== undefined && parseFloat(currentVal) > alarm.max)
+                                return (
+                                  <div key={alarm.id} className={cn("flex items-center gap-2 p-2 border rounded mb-1.5 text-xs", violated && "border-red-200 bg-red-50/30")}>
+                                    <span className={cn("w-2 h-2 rounded-full shrink-0", violated ? "bg-red-500" : "bg-green-500")} />
                                     <div className="flex-1 min-w-0">
-                                      <p className="truncate font-medium">{eq.id} - {eq.name}</p>
-                                      <p className="text-muted-foreground">{eq.healthIndex.name}: {eq.healthIndex.currentValue} {eq.healthIndex.unit}</p>
+                                      <p className="truncate">{alarm.tagId}: {alarm.min !== undefined ? `Min ${alarm.min}` : ""}{alarm.min !== undefined && alarm.max !== undefined ? " ~ " : ""}{alarm.max !== undefined ? `Max ${alarm.max}` : ""} {alarm.unit}</p>
+                                      {alarm.tagDescription && <p className="text-[10px] text-muted-foreground truncate">{alarm.tagDescription}</p>}
                                     </div>
-                                  </div>
-                                )) : (
-                                  <div className="text-center py-4 text-xs text-muted-foreground">
-                                    <CheckCircle className="h-5 w-5 text-green-400 mx-auto mb-1" />
-                                    집중 모니터링 항목 없음
+                                    <span className="font-mono shrink-0">{currentVal} {alarm.unit}</span>
                                   </div>
                                 )
-                              })()}
+                              })}
+                              {personalizedAlarms.filter(a => a.active).length === 0 && (
+                                <p className="text-[10px] text-muted-foreground py-1">우측 하단 플로팅 버튼에서 개인화 알림을 등록하세요.</p>
+                              )}
+                            </div>
+
+                            {/* Health Focus - from focus monitoring storage + trend */}
+                            <div>
+                              <p className="text-xs font-medium mb-2 flex items-center gap-1.5">
+                                <Flame className="h-3 w-3 text-red-500" />장기 건전성 집중 모니터링
+                                <Badge variant="secondary" className="text-[8px] h-4">{focusMonitoringItems.length}</Badge>
+                              </p>
+                              {focusMonitoringItems.length > 0 ? focusMonitoringItems.map(item => (
+                                <div key={item.id} className="p-2 border border-red-100 bg-red-50/30 rounded mb-2 text-xs">
+                                  <div className="flex items-center gap-2 mb-1.5">
+                                    <span className="w-2 h-2 rounded-full bg-red-500 shrink-0" />
+                                    <span className="font-medium">{item.equipId} - {item.equipName}</span>
+                                    <Badge variant="outline" className="text-[8px] h-4 ml-auto">{item.process}</Badge>
+                                  </div>
+                                  <div className="flex items-center justify-between text-[10px] text-muted-foreground mb-1">
+                                    <span>{item.healthIndexName}: <span className="font-mono font-medium text-foreground">{item.currentValue} {item.healthIndexUnit}</span></span>
+                                    <span>Limit: {item.limitValue} | Drift {item.driftPct > 0 ? "+" : ""}{item.driftPct.toFixed(0)}%</span>
+                                  </div>
+                                  {/* Mini trend chart */}
+                                  <div className="h-10 flex items-end gap-px mt-1">
+                                    {(item.trend.length > 0 ? item.trend.slice(-12) : []).map((val, i, arr) => {
+                                      const mn = Math.min(...arr) * 0.99
+                                      const mx = Math.max(...arr) * 1.01
+                                      const h = mx > mn ? ((val - mn) / (mx - mn)) * 100 : 50
+                                      return (
+                                        <div key={i} className="flex-1 bg-red-400/60 rounded-t" style={{ height: `${Math.max(h, 5)}%` }} />
+                                      )
+                                    })}
+                                  </div>
+                                  {item.trend.length > 0 && (
+                                    <div className="flex justify-between text-[8px] text-muted-foreground mt-0.5">
+                                      <span>12주 전</span>
+                                      <span>현재</span>
+                                    </div>
+                                  )}
+                                </div>
+                              )) : (
+                                <div>
+                                  {/* Fallback: show red traffic light items from health data */}
+                                  {(() => {
+                                    const allEquip = [...getEquipmentData("fouling"), ...getEquipmentData("coking")]
+                                    const focusItems = allEquip.filter(eq => eq.trafficLight === "red").slice(0, 2)
+                                    return focusItems.length > 0 ? focusItems.map(eq => (
+                                      <div key={eq.id} className="p-2 border border-red-100 bg-red-50/30 rounded mb-2 text-xs">
+                                        <div className="flex items-center gap-2 mb-1.5">
+                                          <span className="w-2 h-2 rounded-full bg-red-500 shrink-0" />
+                                          <span className="font-medium">{eq.id} - {eq.name}</span>
+                                          <Badge variant="outline" className="text-[8px] h-4 ml-auto">{eq.process}</Badge>
+                                        </div>
+                                        <div className="flex items-center justify-between text-[10px] text-muted-foreground mb-1">
+                                          <span>{eq.healthIndex.name}: <span className="font-mono font-medium text-foreground">{eq.healthIndex.currentValue} {eq.healthIndex.unit}</span></span>
+                                          <span>Drift {eq.driftPct > 0 ? "+" : ""}{eq.driftPct.toFixed(0)}%</span>
+                                        </div>
+                                        {/* Mini trend */}
+                                        <div className="h-10 flex items-end gap-px mt-1">
+                                          {eq.healthIndex.trend.slice(-12).map((val, i, arr) => {
+                                            const mn = Math.min(...arr) * 0.99
+                                            const mx = Math.max(...arr) * 1.01
+                                            const h = mx > mn ? ((val - mn) / (mx - mn)) * 100 : 50
+                                            return <div key={i} className="flex-1 bg-red-400/60 rounded-t" style={{ height: `${Math.max(h, 5)}%` }} />
+                                          })}
+                                        </div>
+                                        <div className="flex justify-between text-[8px] text-muted-foreground mt-0.5">
+                                          <span>12주 전</span>
+                                          <span>현재</span>
+                                        </div>
+                                      </div>
+                                    )) : (
+                                      <div className="text-center py-4 text-xs text-muted-foreground">
+                                        <CheckCircle className="h-5 w-5 text-green-400 mx-auto mb-1" />
+                                        집중 모니터링 항목 없음
+                                      </div>
+                                    )
+                                  })()}
+                                  <p className="text-[10px] text-muted-foreground">운전현황 {'>'} 장기 건전성 관리에서 집중 모니터링을 등록하세요.</p>
+                                </div>
+                              )}
                             </div>
                           </div>
                         </CardContent>
@@ -3972,7 +4250,7 @@ export default function AlertsPage() {
               <div className="space-y-1">
                 <span className="text-xs text-muted-foreground">목적 및 배경</span>
                 <div className="p-3 bg-muted/30 rounded-lg text-sm">
-                  HCR Unit의 Advanced Process Control(APC) 시스템 고도화를 통한 운전 안정성 향상 및 수율 ��적화. Phase 2에서는 Reactor Temperature Control Loop의 PID 파라미터 최적화 및 Cascade Control 구현을 목표로 함.
+                  HCR Unit의 Advanced Process Control(APC) 시스템 고도화를 통한 운전 안정�� 향상 및 수율 ��적화. Phase 2에서는 Reactor Temperature Control Loop의 PID 파라미터 최적화 및 Cascade Control 구현을 목표로 함.
                 </div>
               </div>
               <div className="space-y-1">
@@ -4123,6 +4401,42 @@ export default function AlertsPage() {
                 <MessageSquare className="h-4 w-4 mr-2" />
                 CSR 전송
               </Button>
+            </DialogFooter>
+          </DialogContent>
+        </Dialog>
+
+        {/* Custom KPI 추가 다이얼로그 */}
+        <Dialog open={showAddKpiDialog} onOpenChange={setShowAddKpiDialog}>
+          <DialogContent className="max-w-sm">
+            <DialogHeader>
+              <DialogTitle className="flex items-center gap-2 text-sm">
+                <TrendingUp className="h-4 w-4 text-emerald-500" />
+                퍼포먼스 지표 추가
+              </DialogTitle>
+            </DialogHeader>
+            <div className="space-y-3 py-2">
+              <div className="space-y-1.5">
+                <Label className="text-xs">지표명</Label>
+                <Input value={kpiName} onChange={e => setKpiName(e.target.value)} placeholder="예: Conversion Rate" className="text-sm" />
+              </div>
+              <div className="grid grid-cols-3 gap-2">
+                <div className="space-y-1.5">
+                  <Label className="text-xs">현재값</Label>
+                  <Input type="number" value={kpiValue} onChange={e => setKpiValue(e.target.value)} placeholder="0" className="text-sm font-mono" />
+                </div>
+                <div className="space-y-1.5">
+                  <Label className="text-xs">목표값</Label>
+                  <Input type="number" value={kpiTarget} onChange={e => setKpiTarget(e.target.value)} placeholder="0" className="text-sm font-mono" />
+                </div>
+                <div className="space-y-1.5">
+                  <Label className="text-xs">단위</Label>
+                  <Input value={kpiUnit} onChange={e => setKpiUnit(e.target.value)} placeholder="%" className="text-sm" />
+                </div>
+              </div>
+            </div>
+            <DialogFooter>
+              <Button variant="outline" size="sm" onClick={() => setShowAddKpiDialog(false)}>취소</Button>
+              <Button size="sm" onClick={handleAddKpi} disabled={!kpiName || !kpiValue || !kpiTarget}>추가</Button>
             </DialogFooter>
           </DialogContent>
         </Dialog>
