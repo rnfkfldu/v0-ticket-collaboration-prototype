@@ -35,9 +35,22 @@ import {
   X,
   ChevronDown,
   ChevronUp,
+  Sparkles,
+  BookOpen,
+  Monitor,
+  Target,
+  Plus,
+  Settings,
+  Flame,
+  Eye,
+  ClipboardList,
+  MessageSquare,
+  FileBarChart,
+  Bell,
 } from "lucide-react"
 import { cn } from "@/lib/utils"
 import { ALL_PROCESSES } from "@/lib/user-context"
+import { getEquipmentData } from "@/lib/health-data"
 import Link from "next/link"
 
 // CDU process flow nodes
@@ -100,6 +113,517 @@ function generateFeedData(unitName: string) {
       { label: "AR", bd: 127762, pct: 38.7, color: "#64748b" },
     ]
   }
+}
+
+// ================================================================
+// Daily Monitoring Overview Sub-Component
+// ================================================================
+
+// Product spec data
+function generateProductSpecs(unitName: string) {
+  const hash = unitName.split("").reduce((a, c) => a + c.charCodeAt(0), 0)
+  return [
+    { product: "LPG", spec: "C5+ Content", unit: "vol%", target: 2.0, actual: +(1.8 + (hash % 5) * 0.1).toFixed(1), max: 3.0 },
+    { product: "Naphtha", spec: "EP (End Point)", unit: "\u00b0C", target: 180, actual: +(178 + (hash % 4)).toFixed(0), max: 185 },
+    { product: "Kero", spec: "Flash Point", unit: "\u00b0C", target: 38, actual: +(39 + (hash % 3)).toFixed(0), min: 38 },
+    { product: "LGO", spec: "Sulfur Content", unit: "ppm", target: 10, actual: +(8 + (hash % 5)).toFixed(0), max: 15 },
+    { product: "HGO", spec: "Pour Point", unit: "\u00b0C", target: -9, actual: +(-10 + (hash % 3)).toFixed(0), max: -6 },
+    { product: "AR", spec: "CCR", unit: "wt%", target: 8.0, actual: +(7.5 + (hash % 8) * 0.1).toFixed(1), max: 10.0 },
+  ]
+}
+
+// Extended variables for 20 items
+function generateExtendedVariables(unitName: string) {
+  const hash = unitName.split("").reduce((a, c) => a + c.charCodeAt(0), 0)
+  return [
+    { tag: `TI-${1000 + hash % 100}`, name: "Column Top Temp", value: +(120 + hash % 30).toFixed(1), unit: "\u00b0C", guide: 125, guideRange: "120~130", status: (hash % 5 === 0 ? "warning" : "normal") as "warning" | "normal" },
+    { tag: `PI-${1100 + hash % 100}`, name: "Column Top Press", value: +(1.2 + (hash % 5) * 0.1).toFixed(2), unit: "kg/cm\u00b2", guide: 1.5, guideRange: "1.2~1.8", status: "normal" as const },
+    { tag: `TI-${1300 + hash % 100}`, name: "Furnace Outlet Temp", value: +(360 + hash % 15).toFixed(1), unit: "\u00b0C", guide: 365, guideRange: "360~370", status: (hash % 3 === 0 ? "warning" : "normal") as "warning" | "normal" },
+    { tag: `FI-${1200 + hash % 100}`, name: "Feed Flow Rate", value: +(330 + hash % 40), unit: "m\u00b3/h", guide: 350, guideRange: "300~370", status: "normal" as const },
+    { tag: `FI-${1400 + hash % 100}`, name: "Reflux Flow Rate", value: +(85 + hash % 20).toFixed(1), unit: "m\u00b3/h", guide: 90, guideRange: "80~100", status: "normal" as const },
+    { tag: `TI-${1500 + hash % 100}`, name: "OVHD Temp", value: +(105 + hash % 15).toFixed(1), unit: "\u00b0C", guide: 110, guideRange: "105~115", status: "normal" as const },
+    { tag: `LI-${1600 + hash % 100}`, name: "Column Level", value: +(48 + hash % 10).toFixed(1), unit: "%", guide: 50, guideRange: "40~60", status: "normal" as const },
+    { tag: `AI-${1700 + hash % 100}`, name: "AR Flash Point", value: +(68 + hash % 12).toFixed(1), unit: "\u00b0C", guide: 65, guideRange: ">65", status: (hash % 4 === 0 ? "warning" : "normal") as "warning" | "normal" },
+    { tag: `TI-${2000 + hash % 50}`, name: "Desalter Outlet Temp", value: +(132 + hash % 8).toFixed(1), unit: "\u00b0C", guide: 135, guideRange: "130~140", status: "normal" as const },
+    { tag: `PI-${2100 + hash % 50}`, name: "Column Bottom Press", value: +(1.8 + (hash % 4) * 0.05).toFixed(2), unit: "kg/cm\u00b2", guide: 1.9, guideRange: "1.7~2.1", status: "normal" as const },
+    { tag: `TI-${2200 + hash % 50}`, name: "Kero Draw Temp", value: +(185 + hash % 10).toFixed(1), unit: "\u00b0C", guide: 190, guideRange: "180~195", status: "normal" as const },
+    { tag: `TI-${2300 + hash % 50}`, name: "LGO Draw Temp", value: +(265 + hash % 10).toFixed(1), unit: "\u00b0C", guide: 270, guideRange: "260~280", status: "normal" as const },
+    { tag: `TI-${2400 + hash % 50}`, name: "HGO Draw Temp", value: +(320 + hash % 10).toFixed(1), unit: "\u00b0C", guide: 325, guideRange: "315~335", status: "normal" as const },
+    { tag: `FI-${2500 + hash % 50}`, name: "Steam Flow (Stripping)", value: +(4.2 + (hash % 8) * 0.1).toFixed(1), unit: "ton/hr", guide: 4.5, guideRange: "3.5~5.5", status: "normal" as const },
+    { tag: `TI-${2600 + hash % 50}`, name: "Condenser Outlet Temp", value: +(52 + hash % 8).toFixed(1), unit: "\u00b0C", guide: 55, guideRange: "48~60", status: "normal" as const },
+    { tag: `PI-${2700 + hash % 50}`, name: "Ejector Suction Press", value: +(22 + hash % 8).toFixed(1), unit: "mmHg", guide: 25, guideRange: "18~30", status: "normal" as const },
+    { tag: `FI-${2800 + hash % 50}`, name: "Naphtha Rundown", value: +(58 + hash % 12), unit: "m\u00b3/h", guide: 62, guideRange: "50~70", status: "normal" as const },
+    { tag: `TI-${2900 + hash % 50}`, name: "Column Skin Temp", value: +(348 + hash % 8).toFixed(1), unit: "\u00b0C", guide: 350, guideRange: "340~360", status: "normal" as const },
+    { tag: `AI-${3000 + hash % 50}`, name: "OVHD pH (Corrosion)", value: +(5.8 + (hash % 5) * 0.1).toFixed(1), unit: "pH", guide: 6.0, guideRange: "5.5~7.0", status: "normal" as const },
+    { tag: `FI-${3100 + hash % 50}`, name: "Wash Water Flow", value: +(12 + hash % 5).toFixed(1), unit: "m\u00b3/h", guide: 14, guideRange: "10~18", status: "normal" as const },
+  ]
+}
+
+// Custom performance KPIs
+function generateCustomKPIs(unitName: string) {
+  const hash = unitName.split("").reduce((a, c) => a + c.charCodeAt(0), 0)
+  const base = unitName.includes("HCR") ? [
+    { id: "kpi-1", name: "HCR Conversion", value: +(82.5 + (hash % 8) * 0.3).toFixed(1), unit: "%", target: 85, isDefault: true },
+    { id: "kpi-2", name: "H2 Consumption", value: +(185 + hash % 20), unit: "Nm\u00b3/m\u00b3", target: 200, isDefault: true },
+  ] : [
+    { id: "kpi-1", name: "COT (Coil Outlet Temp)", value: +(365 + (hash % 10)).toFixed(1), unit: "\u00b0C", target: 370, isDefault: true },
+    { id: "kpi-2", name: "Energy Intensity", value: +(12.5 + (hash % 5) * 0.2).toFixed(1), unit: "Gcal/kBD", target: 12.0, isDefault: true },
+  ]
+  return base
+}
+
+// Standing issues (ticket-based)
+function generateStandingIssues(unitName: string) {
+  const hash = unitName.split("").reduce((a, c) => a + c.charCodeAt(0), 0)
+  return [
+    { id: "SI-001", title: `P-${200 + hash % 50}B Seal Oil Leak 경미 발견`, severity: "warning" as const, date: "2026-02-20", status: "monitoring" as const, source: "현장 TOB", linkedTicket: "EVT-045" },
+    { id: "SI-002", title: `E-${100 + hash % 30}A U값 하락 추세 (Fouling 진행 가능성)`, severity: "info" as const, date: "2026-02-18", status: "monitoring" as const, source: "장기 건전성", linkedTicket: null },
+    { id: "SI-003", title: `Arabian Medium 전환 후 WABT 상승 모니터링`, severity: "warning" as const, date: "2026-02-15", status: "action-required" as const, source: "운전원 등록", linkedTicket: "EVT-042" },
+  ]
+}
+
+type FeedDataType = ReturnType<typeof generateFeedData>
+type VariablesType = ReturnType<typeof generateVariables>
+
+function DailyMonitoringOverview({ unitName, feedData, variables, warningCount }: { unitName: string; feedData: FeedDataType; variables: VariablesType; warningCount: number }) {
+  const [showAddKPI, setShowAddKPI] = useState(false)
+  const [customKPIs, setCustomKPIs] = useState(() => generateCustomKPIs(unitName))
+  const [newKPIName, setNewKPIName] = useState("")
+  const productSpecs = useMemo(() => generateProductSpecs(unitName), [unitName])
+  const extVars = useMemo(() => generateExtendedVariables(unitName), [unitName])
+  const standingIssues = useMemo(() => generateStandingIssues(unitName), [unitName])
+
+  // Health focus monitoring items - from 장기 건전성 관리 module
+  const healthFocusItems = useMemo(() => {
+    const allEquip = [
+      ...getEquipmentData("fouling"),
+      ...getEquipmentData("coking"),
+      ...getEquipmentData("catalyst-aging"),
+    ]
+    // Items with red traffic light as "집중 모니터링" candidates
+    return allEquip
+      .filter(eq => eq.trafficLight === "red" && eq.process === (unitName.includes("CDU") ? "CDU" : unitName.includes("VDU") ? "VDU" : unitName.includes("HCR") ? "HCR" : unitName.includes("CCR") ? "CCR" : unitName.includes("FCC") ? "FCC" : "CDU"))
+      .slice(0, 4)
+  }, [unitName])
+
+  const hash = unitName.split("").reduce((a: number, c: string) => a + c.charCodeAt(0), 0)
+  const operatingMode = unitName.includes("HCR") ? "W150N / Full Rate" : unitName.includes("VDU") ? "HVGO Max" : unitName.includes("CDU") ? "HS Mode" : unitName.includes("FCC") ? "Max Gasoline" : "Normal"
+
+  return (
+    <div className="space-y-6">
+      {/* ===== 1. AI Summary ===== */}
+      <Card className="border-l-4 border-l-teal-500">
+        <CardContent className="py-4">
+          <div className="flex items-start gap-3">
+            <div className="h-8 w-8 rounded-lg bg-teal-50 flex items-center justify-center shrink-0 mt-0.5">
+              <Sparkles className="h-4 w-4 text-teal-600" />
+            </div>
+            <div className="flex-1 min-w-0">
+              <div className="flex items-center gap-2 mb-2">
+                <h3 className="text-sm font-semibold">AI Daily Summary</h3>
+                <Badge variant="secondary" className="text-[10px]">GenAI</Badge>
+                <span className="text-[10px] text-muted-foreground ml-auto">2026-02-25 07:00 생성</span>
+              </div>
+
+              {/* TOB Summary */}
+              <div className="p-3 bg-muted/40 rounded-lg mb-3">
+                <p className="text-xs font-medium text-muted-foreground mb-1.5">생산팀 TOB 요약</p>
+                <p className="text-xs leading-relaxed">
+                  전일 {unitName} {operatingMode} 운전 유지. 현장 특이사항: P-{200 + hash % 50}B Seal Oil 미세 누출 발견(경미), 정비팀 모니터링 중.
+                  야간 Crude 전환 작업 완료(Arabian Light {'→'} Arabian Medium, S함량 +0.3%p). 금일 08:00 정기 Safety Meeting 예정.
+                </p>
+              </div>
+
+              {/* Key Variable Changes */}
+              <div className="p-3 bg-muted/40 rounded-lg">
+                <p className="text-xs font-medium text-muted-foreground mb-1.5">주요 운전변수 변화 요약</p>
+                <div className="space-y-1.5">
+                  {[
+                    { label: "Feed Rate", change: "+0.5%", detail: `${(330 + hash % 40).toLocaleString()} m\u00b3/h (안정)`, status: "normal" as const },
+                    { label: "Furnace Outlet", change: "+1.2\u00b0C", detail: "Feed 전환 대응, 정상 범위", status: "normal" as const },
+                    { label: "OVHD pH", change: "-0.2", detail: "5.8 (정상 범위, 지속 관찰)", status: "warning" as const },
+                    { label: "Column dP", change: "+0.01 kg/cm\u00b2", detail: "안정적 추세 유지", status: "normal" as const },
+                  ].map(item => (
+                    <div key={item.label} className="flex items-center gap-2 text-xs">
+                      <span className={cn("w-1.5 h-1.5 rounded-full shrink-0", item.status === "warning" ? "bg-amber-500" : "bg-green-500")} />
+                      <span className="font-medium w-28 shrink-0">{item.label}</span>
+                      <span className="text-muted-foreground">{item.change}</span>
+                      <span className="text-muted-foreground ml-1">{item.detail}</span>
+                    </div>
+                  ))}
+                </div>
+              </div>
+            </div>
+          </div>
+        </CardContent>
+      </Card>
+
+      {/* ===== 2. Quick Link Buttons ===== */}
+      <div className="flex gap-2">
+        <Button variant="outline" size="sm" className="text-xs gap-1.5 bg-card"><Monitor className="h-3.5 w-3.5" />DCS</Button>
+        <Button variant="outline" size="sm" className="text-xs gap-1.5 bg-card"><FileBarChart className="h-3.5 w-3.5" />SFD</Button>
+        <Button variant="outline" size="sm" className="text-xs gap-1.5 bg-card"><BookOpen className="h-3.5 w-3.5" />TOB</Button>
+        <Button variant="outline" size="sm" className="text-xs gap-1.5 bg-card"><ClipboardList className="h-3.5 w-3.5" />운영계획서</Button>
+      </div>
+
+      {/* ===== 3. 주요 운영 현황 ===== */}
+      <div>
+        <h3 className="text-sm font-semibold mb-3 flex items-center gap-2"><Gauge className="h-4 w-4" />주요 운영 현황</h3>
+
+        {/* Operating Mode */}
+        <Card className="mb-3">
+          <CardContent className="py-3 flex items-center gap-4">
+            <div className="flex items-center gap-2">
+              <Activity className="h-4 w-4 text-primary" />
+              <span className="text-xs font-medium text-muted-foreground">운전 모드</span>
+            </div>
+            <Badge className="text-xs bg-primary/10 text-primary hover:bg-primary/10">{operatingMode}</Badge>
+            <div className="ml-auto flex items-center gap-4 text-xs text-muted-foreground">
+              <span>전환일: 2026-02-01</span>
+              <span>연속 운전: {24 + hash % 30}일</span>
+            </div>
+          </CardContent>
+        </Card>
+
+        <div className="grid grid-cols-3 gap-4 mb-3">
+          {/* Feed 처리량 */}
+          <Card>
+            <CardHeader className="pb-2">
+              <CardTitle className="text-xs flex items-center gap-1.5">
+                <Droplets className="h-3.5 w-3.5 text-blue-500" />Feed 처리량
+              </CardTitle>
+            </CardHeader>
+            <CardContent>
+              {feedData.feeds.map(f => (
+                <div key={f.name} className="text-center space-y-2">
+                  <div className="relative mx-auto w-20 h-20">
+                    <svg viewBox="0 0 100 100" className="w-full h-full -rotate-90">
+                      <circle cx="50" cy="50" r="40" fill="none" stroke="#e2e8f0" strokeWidth="8" />
+                      <circle cx="50" cy="50" r="40" fill="none" stroke="#0d9488" strokeWidth="8" strokeDasharray={`${f.percentage * 2.51} 251`} strokeLinecap="round" />
+                    </svg>
+                    <div className="absolute inset-0 flex items-center justify-center">
+                      <span className="text-sm font-bold text-primary">{f.percentage}%</span>
+                    </div>
+                  </div>
+                  <div className="text-xs space-y-0.5">
+                    <div className="flex justify-between"><span className="text-muted-foreground">Actual</span><span className="font-mono font-medium">{f.actual.toLocaleString()} BD</span></div>
+                    <div className="flex justify-between"><span className="text-muted-foreground">Capacity</span><span className="font-mono">{f.capacity.toLocaleString()} BD</span></div>
+                  </div>
+                </div>
+              ))}
+            </CardContent>
+          </Card>
+
+          {/* Product Spec: Target vs Actual */}
+          <Card className="col-span-2">
+            <CardHeader className="pb-2">
+              <CardTitle className="text-xs flex items-center gap-1.5">
+                <Target className="h-3.5 w-3.5 text-teal-500" />Product Spec (Target vs Actual)
+              </CardTitle>
+            </CardHeader>
+            <CardContent>
+              <table className="w-full text-xs">
+                <thead>
+                  <tr className="border-b bg-muted/30">
+                    <th className="text-left px-2 py-1.5 font-medium text-muted-foreground">Product</th>
+                    <th className="text-left px-2 py-1.5 font-medium text-muted-foreground">Spec</th>
+                    <th className="text-center px-2 py-1.5 font-medium text-muted-foreground">Unit</th>
+                    <th className="text-right px-2 py-1.5 font-medium text-muted-foreground">Target</th>
+                    <th className="text-right px-2 py-1.5 font-medium text-muted-foreground">Actual</th>
+                    <th className="text-center px-2 py-1.5 font-medium text-muted-foreground">Status</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  {productSpecs.map(s => {
+                    const ok = s.max ? s.actual <= s.max : s.min ? s.actual >= s.min : Math.abs(s.actual - s.target) < s.target * 0.1
+                    return (
+                      <tr key={s.product} className="border-b last:border-0">
+                        <td className="px-2 py-1.5 font-medium">{s.product}</td>
+                        <td className="px-2 py-1.5 text-muted-foreground">{s.spec}</td>
+                        <td className="px-2 py-1.5 text-center text-muted-foreground">{s.unit}</td>
+                        <td className="px-2 py-1.5 text-right font-mono">{s.target}</td>
+                        <td className={cn("px-2 py-1.5 text-right font-mono font-medium", ok ? "" : "text-amber-600")}>{s.actual}</td>
+                        <td className="px-2 py-1.5 text-center">
+                          {ok ? <span className="w-2 h-2 bg-green-500 rounded-full inline-block" /> : <span className="w-2 h-2 bg-amber-500 rounded-full inline-block" />}
+                        </td>
+                      </tr>
+                    )
+                  })}
+                </tbody>
+              </table>
+            </CardContent>
+          </Card>
+        </div>
+
+        {/* Product yield + Custom KPIs */}
+        <div className="grid grid-cols-2 gap-4">
+          {/* Product Yield */}
+          <Card>
+            <CardHeader className="pb-2">
+              <CardTitle className="text-xs flex items-center gap-1.5">
+                <BarChart3 className="h-3.5 w-3.5 text-indigo-500" />Product 유량 및 수율
+              </CardTitle>
+            </CardHeader>
+            <CardContent>
+              <table className="w-full text-xs">
+                <thead>
+                  <tr className="border-b">
+                    <th className="text-left py-1.5 font-medium text-muted-foreground">Product</th>
+                    <th className="text-right py-1.5 font-medium text-muted-foreground">BD</th>
+                    <th className="text-right py-1.5 font-medium text-muted-foreground">Yield %</th>
+                    <th className="text-left py-1.5 font-medium text-muted-foreground pl-3">Distribution</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  {feedData.products.map(p => (
+                    <tr key={p.label} className="border-b last:border-0">
+                      <td className="py-1.5 flex items-center gap-1.5">
+                        <span className="w-2.5 h-2.5 rounded-full shrink-0" style={{ backgroundColor: p.color }} />
+                        {p.label}
+                      </td>
+                      <td className="text-right py-1.5 font-mono">{p.bd.toLocaleString()}</td>
+                      <td className="text-right py-1.5 font-mono">{p.pct}</td>
+                      <td className="py-1.5 pl-3">
+                        <div className="w-full bg-muted rounded-full h-1.5">
+                          <div className="h-1.5 rounded-full" style={{ width: `${Math.min(p.pct * 2.5, 100)}%`, backgroundColor: p.color }} />
+                        </div>
+                      </td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+            </CardContent>
+          </Card>
+
+          {/* Custom Performance KPIs */}
+          <Card>
+            <CardHeader className="pb-2">
+              <div className="flex items-center justify-between">
+                <CardTitle className="text-xs flex items-center gap-1.5">
+                  <TrendingUp className="h-3.5 w-3.5 text-emerald-500" />주요 퍼포먼스 지표
+                </CardTitle>
+                <Button variant="ghost" size="sm" className="h-6 text-xs gap-1 text-primary" onClick={() => setShowAddKPI(true)}>
+                  <Plus className="h-3 w-3" />추가
+                </Button>
+              </div>
+            </CardHeader>
+            <CardContent>
+              <div className="space-y-3">
+                {customKPIs.map(kpi => {
+                  const pct = Math.min((kpi.value / kpi.target) * 100, 120)
+                  const isGood = kpi.value >= kpi.target * 0.95
+                  return (
+                    <div key={kpi.id} className="space-y-1.5">
+                      <div className="flex items-center justify-between text-xs">
+                        <span className="font-medium">{kpi.name}</span>
+                        <div className="flex items-center gap-2">
+                          <span className={cn("font-mono font-semibold", isGood ? "text-green-600" : "text-amber-600")}>
+                            {kpi.value} {kpi.unit}
+                          </span>
+                          <span className="text-muted-foreground">/ {kpi.target} {kpi.unit}</span>
+                        </div>
+                      </div>
+                      <div className="w-full bg-muted rounded-full h-2 relative">
+                        <div className={cn("h-2 rounded-full transition-all", isGood ? "bg-green-500" : "bg-amber-500")} style={{ width: `${Math.min(pct, 100)}%` }} />
+                        <div className="absolute top-0 h-2 w-0.5 bg-foreground/30" style={{ left: `${(kpi.target / (kpi.target * 1.2)) * 100}%` }} />
+                      </div>
+                    </div>
+                  )
+                })}
+              </div>
+
+              {/* Add KPI inline form */}
+              {showAddKPI && (
+                <div className="mt-3 p-2.5 border rounded-lg bg-muted/30 space-y-2">
+                  <input
+                    value={newKPIName} onChange={e => setNewKPIName(e.target.value)}
+                    placeholder="지표명 (예: Heater Efficiency)"
+                    className="w-full h-7 text-xs border rounded px-2"
+                  />
+                  <div className="flex gap-2">
+                    <Button variant="outline" size="sm" className="h-6 text-xs flex-1" onClick={() => { setShowAddKPI(false); setNewKPIName("") }}>취소</Button>
+                    <Button size="sm" className="h-6 text-xs flex-1" disabled={!newKPIName.trim()} onClick={() => {
+                      setCustomKPIs([...customKPIs, { id: `kpi-${Date.now()}`, name: newKPIName, value: 0, unit: "", target: 100, isDefault: false }])
+                      setNewKPIName(""); setShowAddKPI(false)
+                    }}>추가</Button>
+                  </div>
+                </div>
+              )}
+            </CardContent>
+          </Card>
+        </div>
+      </div>
+
+      {/* ===== 4. 주요 운전변수 현황 ===== */}
+      <div>
+        <h3 className="text-sm font-semibold mb-3 flex items-center gap-2">
+          <Thermometer className="h-4 w-4" />
+          주요 운전변수 현황
+          <Badge variant="secondary" className="text-[10px]">Operation Guide vs Actual</Badge>
+          {warningCount > 0 && <Badge variant="destructive" className="text-[10px] gap-1"><AlertTriangle className="h-3 w-3" />{warningCount} Warning</Badge>}
+        </h3>
+        <Card>
+          <div className="overflow-x-auto">
+            <table className="w-full text-xs">
+              <thead>
+                <tr className="border-b bg-muted/30">
+                  <th className="text-left px-3 py-2 font-medium text-muted-foreground w-8">상태</th>
+                  <th className="text-left px-3 py-2 font-medium text-muted-foreground">Tag ID</th>
+                  <th className="text-left px-3 py-2 font-medium text-muted-foreground">Description</th>
+                  <th className="text-right px-3 py-2 font-medium text-muted-foreground">Actual</th>
+                  <th className="text-center px-3 py-2 font-medium text-muted-foreground">Unit</th>
+                  <th className="text-right px-3 py-2 font-medium text-muted-foreground">Guide</th>
+                  <th className="text-center px-3 py-2 font-medium text-muted-foreground">Guide Range</th>
+                  <th className="text-center px-3 py-2 font-medium text-muted-foreground" style={{minWidth: 120}}>Deviation</th>
+                </tr>
+              </thead>
+              <tbody>
+                {extVars.map(v => {
+                  const dev = v.value - v.guide
+                  const devPct = v.guide !== 0 ? (dev / v.guide) * 100 : 0
+                  return (
+                    <tr key={v.tag} className={cn("border-b last:border-0 hover:bg-muted/20", v.status === "warning" && "bg-amber-50/50")}>
+                      <td className="px-3 py-2"><span className={cn("w-2.5 h-2.5 rounded-full inline-block", v.status === "warning" ? "bg-amber-500" : "bg-green-500")} /></td>
+                      <td className="px-3 py-2 font-mono text-muted-foreground">{v.tag}</td>
+                      <td className="px-3 py-2">{v.name}</td>
+                      <td className={cn("px-3 py-2 text-right font-mono font-medium", v.status === "warning" ? "text-amber-700" : "")}>{v.value}</td>
+                      <td className="px-3 py-2 text-center text-muted-foreground">{v.unit}</td>
+                      <td className="px-3 py-2 text-right font-mono text-muted-foreground">{v.guide}</td>
+                      <td className="px-3 py-2 text-center text-muted-foreground">{v.guideRange}</td>
+                      <td className="px-3 py-2">
+                        <div className="flex items-center gap-1.5 justify-center">
+                          <div className="w-16 bg-muted rounded-full h-1.5 relative">
+                            <div className={cn("h-1.5 rounded-full", Math.abs(devPct) > 5 ? "bg-amber-500" : "bg-green-500")}
+                              style={{ width: `${Math.min(Math.abs(devPct) * 5, 100)}%`, marginLeft: dev < 0 ? "auto" : 0 }} />
+                          </div>
+                          <span className={cn("text-[10px] font-mono w-12 text-right", Math.abs(devPct) > 5 ? "text-amber-600" : "text-muted-foreground")}>
+                            {dev >= 0 ? "+" : ""}{dev.toFixed(1)}
+                          </span>
+                        </div>
+                      </td>
+                    </tr>
+                  )
+                })}
+              </tbody>
+            </table>
+          </div>
+        </Card>
+      </div>
+
+      {/* ===== 5. 추가 모니터링 항목 ===== */}
+      <div>
+        <h3 className="text-sm font-semibold mb-3 flex items-center gap-2">
+          <Eye className="h-4 w-4" />
+          추가 모니터링 항목
+        </h3>
+        <div className="grid grid-cols-2 gap-4">
+          {/* Custom Alarms */}
+          <Card>
+            <CardHeader className="pb-2">
+              <div className="flex items-center justify-between">
+                <CardTitle className="text-xs flex items-center gap-1.5">
+                  <Bell className="h-3.5 w-3.5 text-amber-500" />Custom 알람 항목
+                </CardTitle>
+                <Badge variant="secondary" className="text-[10px]">{2 + (hash % 3)}건</Badge>
+              </div>
+            </CardHeader>
+            <CardContent>
+              <div className="space-y-2">
+                {[
+                  { tag: `AI-${1700 + hash % 100}`, name: "AR Flash Point < 65\u00b0C", type: "Low Limit", current: `${68 + hash % 12}\u00b0C`, status: "normal" as const },
+                  { tag: `TI-${1300 + hash % 100}`, name: "Furnace Outlet > 370\u00b0C", type: "High Limit", current: `${360 + hash % 15}\u00b0C`, status: "normal" as const },
+                  { tag: `PI-${2100 + hash % 50}`, name: "Column dP > 0.6 kg/cm\u00b2", type: "High Limit", current: `${(0.42 + (hash % 10) * 0.01).toFixed(2)} kg/cm\u00b2`, status: "normal" as const },
+                ].slice(0, 2 + (hash % 2)).map(item => (
+                  <div key={item.tag} className="flex items-center gap-2 p-2 border rounded text-xs">
+                    <span className={cn("w-2 h-2 rounded-full shrink-0", item.status === "normal" ? "bg-green-500" : "bg-red-500")} />
+                    <div className="flex-1 min-w-0">
+                      <p className="font-medium truncate">{item.name}</p>
+                      <p className="text-muted-foreground">{item.tag} | {item.type}</p>
+                    </div>
+                    <span className="font-mono shrink-0">{item.current}</span>
+                  </div>
+                ))}
+              </div>
+            </CardContent>
+          </Card>
+
+          {/* Health Focus Monitoring - linked to 장기 건전성 관리 */}
+          <Card>
+            <CardHeader className="pb-2">
+              <div className="flex items-center justify-between">
+                <CardTitle className="text-xs flex items-center gap-1.5">
+                  <Flame className="h-3.5 w-3.5 text-red-500" />장기 건전성 집중 모니터링
+                </CardTitle>
+                <Link href="/operations/health/overview" className="text-[10px] text-primary hover:underline flex items-center gap-0.5">
+                  건전성 관리 <ExternalLink className="h-2.5 w-2.5" />
+                </Link>
+              </div>
+            </CardHeader>
+            <CardContent>
+              {healthFocusItems.length > 0 ? (
+                <div className="space-y-2">
+                  {healthFocusItems.map(eq => (
+                    <Link key={eq.id} href={`/operations/health/${eq.equipmentType.includes("열교환") ? "fouling" : eq.equipmentType.includes("가열") ? "coking" : "catalyst-aging"}`}
+                      className="flex items-center gap-2 p-2 border border-red-100 bg-red-50/30 rounded text-xs hover:bg-red-50 transition-colors">
+                      <span className="w-2 h-2 rounded-full bg-red-500 shrink-0" />
+                      <div className="flex-1 min-w-0">
+                        <p className="font-medium truncate">{eq.id} - {eq.name}</p>
+                        <p className="text-muted-foreground">{eq.healthIndex.name}: {eq.healthIndex.currentValue} {eq.healthIndex.unit} | Drift {eq.driftPct > 0 ? "+" : ""}{eq.driftPct.toFixed(0)}%</p>
+                      </div>
+                      <Badge variant="outline" className="text-[10px] border-red-200 text-red-600 shrink-0">
+                        {eq.projection.linearEndOfRun}주
+                      </Badge>
+                    </Link>
+                  ))}
+                </div>
+              ) : (
+                <div className="text-center py-6 text-xs text-muted-foreground">
+                  <CheckCircle className="h-6 w-6 text-green-400 mx-auto mb-1.5" />
+                  집중 모니터링 등록 항목 없음
+                </div>
+              )}
+            </CardContent>
+          </Card>
+        </div>
+      </div>
+
+      {/* ===== 6. Standing Issue ===== */}
+      <div>
+        <h3 className="text-sm font-semibold mb-3 flex items-center gap-2">
+          <MessageSquare className="h-4 w-4" />
+          Standing Issue
+          <Badge variant="secondary" className="text-[10px]">{standingIssues.length}건</Badge>
+        </h3>
+        <Card>
+          <div className="divide-y">
+            {standingIssues.map(issue => (
+              <div key={issue.id} className="p-3 flex items-start gap-3 hover:bg-muted/20 transition-colors">
+                <span className={cn("w-2.5 h-2.5 rounded-full mt-1 shrink-0",
+                  issue.severity === "warning" ? "bg-amber-500" : issue.severity === "danger" ? "bg-red-500" : "bg-blue-400")} />
+                <div className="flex-1 min-w-0">
+                  <div className="flex items-center gap-2 mb-0.5">
+                    <span className="text-xs font-medium">{issue.title}</span>
+                    <Badge variant={issue.status === "action-required" ? "destructive" : "secondary"} className="text-[10px] shrink-0">
+                      {issue.status === "action-required" ? "Action 필요" : "모니터링 중"}
+                    </Badge>
+                  </div>
+                  <div className="flex items-center gap-3 text-[10px] text-muted-foreground">
+                    <span>{issue.date}</span>
+                    <span>출처: {issue.source}</span>
+                    {issue.linkedTicket && (
+                      <Link href="/alerts" className="text-primary hover:underline flex items-center gap-0.5">
+                        {issue.linkedTicket} <ExternalLink className="h-2.5 w-2.5" />
+                      </Link>
+                    )}
+                  </div>
+                </div>
+              </div>
+            ))}
+          </div>
+        </Card>
+      </div>
+    </div>
+  )
 }
 
 // ================================================================
@@ -836,8 +1360,10 @@ export default function UnitDetailPage() {
               <div className="border-t pt-4">
                 <h4 className="text-xs font-semibold text-muted-foreground mb-2">Quick Link</h4>
                 <div className="grid grid-cols-2 gap-2">
-                  <Button variant="outline" size="sm" className="text-xs h-8 bg-card justify-center">생산포탈</Button>
-                  <Button variant="outline" size="sm" className="text-xs h-8 bg-card justify-center">SFD</Button>
+                  <Button variant="outline" size="sm" className="text-xs h-8 bg-card justify-center gap-1"><Monitor className="h-3 w-3" />DCS</Button>
+                  <Button variant="outline" size="sm" className="text-xs h-8 bg-card justify-center gap-1"><FileBarChart className="h-3 w-3" />SFD</Button>
+                  <Button variant="outline" size="sm" className="text-xs h-8 bg-card justify-center gap-1"><BookOpen className="h-3 w-3" />TOB</Button>
+                  <Button variant="outline" size="sm" className="text-xs h-8 bg-card justify-center gap-1"><ClipboardList className="h-3 w-3" />운영계획서</Button>
                 </div>
               </div>
 
@@ -860,124 +1386,15 @@ export default function UnitDetailPage() {
               <Tabs defaultValue="overview" className="h-full">
                 <div className="border-b bg-card px-6">
                   <TabsList className="bg-transparent h-10 p-0 gap-0">
-                    <TabsTrigger value="overview" className="rounded-none border-b-2 border-transparent data-[state=active]:border-primary data-[state=active]:bg-transparent data-[state=active]:shadow-none px-4 text-xs">Unit Overview</TabsTrigger>
+                    <TabsTrigger value="overview" className="rounded-none border-b-2 border-transparent data-[state=active]:border-primary data-[state=active]:bg-transparent data-[state=active]:shadow-none px-4 text-xs">Daily Monitoring</TabsTrigger>
                     <TabsTrigger value="variables" className="rounded-none border-b-2 border-transparent data-[state=active]:border-primary data-[state=active]:bg-transparent data-[state=active]:shadow-none px-4 text-xs">Key Operating Variables</TabsTrigger>
                     <TabsTrigger value="anomaly" className="rounded-none border-b-2 border-transparent data-[state=active]:border-primary data-[state=active]:bg-transparent data-[state=active]:shadow-none px-4 text-xs">Anomaly Detection</TabsTrigger>
                   </TabsList>
                 </div>
 
-                {/* Unit Overview */}
+                {/* Unit Overview - Daily Monitoring Alert */}
                 <TabsContent value="overview" className="p-6 space-y-6 mt-0">
-                  <div>
-                    <h3 className="text-sm font-semibold mb-3">Process Status</h3>
-                    <Card className="p-4">
-                      <svg viewBox="0 0 900 360" className="w-full h-auto">
-                        <defs>
-                          <marker id="arrowhead" markerWidth="8" markerHeight="6" refX="8" refY="3" orient="auto">
-                            <polygon points="0 0, 8 3, 0 6" fill="#94a3b8" />
-                          </marker>
-                        </defs>
-                        {/* Connections */}
-                        {CDU_CONNECTIONS.map((conn, i) => {
-                          const from = CDU_NODES.find(n => n.id === conn.from)!
-                          const to = CDU_NODES.find(n => n.id === conn.to)!
-                          const x1 = from.x + from.w
-                          const y1 = from.y + from.h / 2
-                          const x2 = to.x
-                          const y2 = to.y + to.h / 2
-                          return (
-                            <g key={i}>
-                              <line x1={x1} y1={y1} x2={x2} y2={y2} stroke="#cbd5e1" strokeWidth="1.5" markerEnd="url(#arrowhead)" />
-                              {conn.label && (
-                                <text x={(x1 + x2) / 2} y={y2 - 8} textAnchor="middle" fontSize="9" fill="#94a3b8">{conn.label}</text>
-                              )}
-                            </g>
-                          )
-                        })}
-                        {/* Nodes */}
-                        {CDU_NODES.map(node => (
-                          <g key={node.id}>
-                            <rect
-                              x={node.x} y={node.y} width={node.w} height={node.h}
-                              rx={node.type === "column" ? 8 : 4}
-                              fill={node.type === "feed" ? "#f1f5f9" : node.type === "column" ? "#e0f2fe" : node.type === "product" ? "#f0fdf4" : node.type === "downstream" ? "#fef3c7" : "#f8fafc"}
-                              stroke={node.type === "column" ? "#0ea5e9" : node.type === "product" ? "#22c55e" : node.type === "downstream" ? "#f59e0b" : "#cbd5e1"}
-                              strokeWidth="1.5"
-                            />
-                            <text x={node.x + node.w / 2} y={node.y + node.h / 2 + 4} textAnchor="middle" fontSize="11" fontWeight="500" fill="#334155">
-                              {node.label}
-                            </text>
-                          </g>
-                        ))}
-                      </svg>
-                    </Card>
-                  </div>
-
-                  {/* Analyze Section */}
-                  <div>
-                    <h3 className="text-sm font-semibold mb-3">Analyze</h3>
-                    <div className="grid grid-cols-2 gap-4">
-                      {/* Feed */}
-                      <Card>
-                        <CardHeader className="pb-2">
-                          <CardTitle className="text-sm">Feed 처리량</CardTitle>
-                        </CardHeader>
-                        <CardContent>
-                          <div className="grid grid-cols-1 gap-4">
-                            {feedData.feeds.map(f => (
-                              <div key={f.name} className="text-center space-y-3 p-4 border rounded-lg">
-                                <p className="text-sm font-semibold">{f.name}</p>
-                                <p className="text-xs text-muted-foreground">{f.subLabel}</p>
-                                <div className="relative mx-auto w-28 h-28">
-                                  <svg viewBox="0 0 100 100" className="w-full h-full -rotate-90">
-                                    <circle cx="50" cy="50" r="40" fill="none" stroke="#e2e8f0" strokeWidth="8" />
-                                    <circle cx="50" cy="50" r="40" fill="none" stroke="#0d9488" strokeWidth="8" strokeDasharray={`${f.percentage * 2.51} 251`} strokeLinecap="round" />
-                                  </svg>
-                                  <div className="absolute inset-0 flex items-center justify-center">
-                                    <span className="text-lg font-bold text-primary">{f.percentage}%</span>
-                                  </div>
-                                </div>
-                                <div className="text-xs space-y-1">
-                                  <div className="flex justify-between"><span className="text-muted-foreground">Actual</span><span className="font-medium">{f.actual.toLocaleString()} BD</span></div>
-                                  <div className="flex justify-between"><span className="text-muted-foreground">Capacity</span><span>{f.capacity.toLocaleString()} BD</span></div>
-                                </div>
-                              </div>
-                            ))}
-                          </div>
-                        </CardContent>
-                      </Card>
-
-                      {/* Product Yield */}
-                      <Card>
-                        <CardHeader className="pb-2">
-                          <CardTitle className="text-sm">Product Yield</CardTitle>
-                        </CardHeader>
-                        <CardContent>
-                          <table className="w-full text-xs">
-                            <thead>
-                              <tr className="border-b">
-                                <th className="text-left py-2 font-medium text-muted-foreground">Label</th>
-                                <th className="text-right py-2 font-medium text-muted-foreground">BD</th>
-                                <th className="text-right py-2 font-medium text-muted-foreground">%</th>
-                              </tr>
-                            </thead>
-                            <tbody>
-                              {feedData.products.map(p => (
-                                <tr key={p.label} className="border-b last:border-0">
-                                  <td className="py-2 flex items-center gap-2">
-                                    <span className="w-2.5 h-2.5 rounded-full" style={{ backgroundColor: p.color }} />
-                                    {p.label}
-                                  </td>
-                                  <td className="text-right py-2 font-mono">{p.bd.toLocaleString()}</td>
-                                  <td className="text-right py-2">{p.pct}</td>
-                                </tr>
-                              ))}
-                            </tbody>
-                          </table>
-                        </CardContent>
-                      </Card>
-                    </div>
-                  </div>
+                  <DailyMonitoringOverview unitName={unitName} feedData={feedData} variables={variables} warningCount={warningCount} />
                 </TabsContent>
 
                 {/* Key Operating Variables */}
