@@ -48,7 +48,10 @@ import {
   History,
   RotateCcw,
   LayoutGrid,
-  Maximize2
+  Maximize2,
+  FileImage,
+  ChevronUp,
+  Wrench
 } from "lucide-react"
 import { cn } from "@/lib/utils"
 import { HEALTH_CATEGORIES, PROCESSES, getEquipmentData, type HealthCategory } from "@/lib/health-data"
@@ -299,7 +302,7 @@ const SAMPLE_ALERTS: AlertItem[] = [
     alarmHistory: [
       { timestamp: "2025-02-01 22:45", value: 780, action: "Shelved (계획 감량)" }
     ],
-    alarmBackground: "CDU Feed 정상 운전 범위. 저유량 시 제품 품질 영향 가능.",
+    alarmBackground: "CDU Feed 정상 운전 범위. 저유량 시 제품 ��질 영향 가능.",
     shelvedReason: "2월 계획 감량 운전 중 (2025-02-01 ~ 2025-02-07)",
     shelvedUntil: "2025-02-07",
     data: {
@@ -743,6 +746,32 @@ export default function AlertsPage() {
   // DCS 화면 및 장치 정보 상태
   const [activeDcsScreen, setActiveDcsScreen] = useState(0)
   const [showEquipmentDialog, setShowEquipmentDialog] = useState(false)
+  const [showPidDialog, setShowPidDialog] = useState(false)
+  const [showDatasheetDialog, setShowDatasheetDialog] = useState(false)
+  const [showAllVariables, setShowAllVariables] = useState(false)
+
+  // Tag -> Equipment hierarchy
+  const TAG_EQ: Record<string, { process: string; zone: string; equipment: string; eqId: string; eqType: string; installed: string; lastTA: string }> = {
+    "TI-2001": { process: "HCR", zone: "1st Stage Section", equipment: "C-201 Reactor", eqId: "R-2001", eqType: "Fixed Bed Reactor", installed: "2015", lastTA: "2024-06" },
+    "TI-2002": { process: "HCR", zone: "2nd Stage Section", equipment: "C-202 Reactor", eqId: "R-2002", eqType: "Fixed Bed Reactor", installed: "2015", lastTA: "2024-06" },
+    "TI-2003": { process: "HCR", zone: "1st Stage Section", equipment: "C-201 Reactor", eqId: "R-2001", eqType: "Fixed Bed Reactor", installed: "2015", lastTA: "2024-06" },
+    "PI-2001": { process: "HCR", zone: "1st Stage Section", equipment: "C-201 Reactor", eqId: "R-2001", eqType: "Fixed Bed Reactor", installed: "2015", lastTA: "2024-06" },
+    "FI-2001": { process: "HCR", zone: "Feed Section", equipment: "P-201 Feed Pump", eqId: "P-2001", eqType: "Centrifugal Pump", installed: "2015", lastTA: "2024-06" },
+    "AI-2001": { process: "HCR", zone: "1st Stage Section", equipment: "C-201 Reactor", eqId: "R-2001", eqType: "Fixed Bed Reactor", installed: "2015", lastTA: "2024-06" },
+    "FI-2010": { process: "HCR", zone: "Quench Section", equipment: "Quench System", eqId: "Q-2001", eqType: "Quench Gas System", installed: "2015", lastTA: "2024-06" },
+    "TI-1001": { process: "CDU", zone: "Atmospheric Section", equipment: "C-101 Column", eqId: "C-1001", eqType: "Distillation Column", installed: "2010", lastTA: "2024-06" },
+    "TI-1002": { process: "CDU", zone: "Vacuum Section", equipment: "C-102 Column", eqId: "C-1002", eqType: "Vacuum Column", installed: "2010", lastTA: "2024-06" },
+    "PI-1001": { process: "CDU", zone: "Atmospheric Section", equipment: "C-101 Column", eqId: "C-1001", eqType: "Distillation Column", installed: "2010", lastTA: "2024-06" },
+    "PI-3001": { process: "VDU", zone: "Vacuum Section", equipment: "C-301 Column", eqId: "C-3001", eqType: "Vacuum Distillation Column", installed: "2012", lastTA: "2024-06" },
+    "TI-3001": { process: "VDU", zone: "Feed Section", equipment: "H-301 Furnace", eqId: "H-3001", eqType: "Fired Heater", installed: "2012", lastTA: "2024-06" },
+    "TI-4001": { process: "FCC", zone: "Regenerator Section", equipment: "Regenerator", eqId: "R-4001", eqType: "FCC Regenerator", installed: "2013", lastTA: "2024-06" },
+    "TI-4002": { process: "FCC", zone: "Reactor Section", equipment: "FCC Reactor", eqId: "R-4002", eqType: "Riser Reactor", installed: "2013", lastTA: "2024-06" },
+    "LI-1001": { process: "CDU", zone: "Atmospheric Section", equipment: "D-101 Drum", eqId: "D-1001", eqType: "Reflux Drum", installed: "2010", lastTA: "2024-06" },
+  }
+  const getTagEq = (tagId?: string) => {
+    if (!tagId) return null
+    return TAG_EQ[tagId] || { process: selectedAlert?.unit || "HCR", zone: "General Section", equipment: "Unknown", eqId: "-", eqType: "-", installed: "-", lastTA: "-" }
+  }
 
   // 문서 리뷰 상태
   const [docReviewComment, setDocReviewComment] = useState("")
@@ -1027,6 +1056,9 @@ export default function AlertsPage() {
     setExpandedReviewSections([])
     setActiveDcsScreen(0)
     setShowEquipmentDialog(false)
+    setShowPidDialog(false)
+    setShowDatasheetDialog(false)
+    setShowAllVariables(false)
   }
 
   // Standing Issue 추가 등록 핸들러
@@ -1359,6 +1391,21 @@ export default function AlertsPage() {
                         </CardHeader>
                         <CardContent>
                           <div className="space-y-3">
+                            {/* Process hierarchy breadcrumb */}
+                            {(() => {
+                              const eq = getTagEq(selectedAlert.data?.tagId)
+                              return eq ? (
+                                <div className="flex items-center gap-1 text-xs flex-wrap bg-muted/30 rounded-md px-2.5 py-1.5">
+                                  <Badge variant="secondary" className="text-[10px] px-1.5 py-0 bg-primary/10 text-primary font-semibold">{eq.process}</Badge>
+                                  <ChevronRight className="h-3 w-3 text-muted-foreground shrink-0" />
+                                  <span className="text-muted-foreground">{eq.zone}</span>
+                                  <ChevronRight className="h-3 w-3 text-muted-foreground shrink-0" />
+                                  <button className="font-medium text-primary hover:underline cursor-pointer flex items-center gap-0.5" onClick={() => setShowEquipmentDialog(true)}>
+                                    {eq.equipment}<ExternalLink className="h-2.5 w-2.5" />
+                                  </button>
+                                </div>
+                              ) : null
+                            })()}
                             <div className="grid grid-cols-2 gap-3">
                               <div className="space-y-1">
                                 <span className="text-xs text-muted-foreground">Tag ID</span>
@@ -1392,10 +1439,21 @@ export default function AlertsPage() {
                                 <p className="text-xs mt-1">{selectedAlert.alarmBackground}</p>
                               </div>
                             )}
-                            <Button variant="outline" size="sm" className="w-full text-xs mt-2" onClick={() => setShowEquipmentDialog(true)}>
-                              <BarChart3 className="h-3.5 w-3.5 mr-1.5" />
-                              장치 정보 및 정비이력 보기
-                            </Button>
+                            {/* Action buttons */}
+                            <div className="grid grid-cols-1 gap-1.5 mt-2">
+                              <Button variant="outline" size="sm" className="w-full text-xs justify-start" onClick={() => setShowEquipmentDialog(true)}>
+                                <Wrench className="h-3.5 w-3.5 mr-1.5" />
+                                장치 정보 및 정비이력 보기
+                              </Button>
+                              <Button variant="outline" size="sm" className="w-full text-xs justify-start" onClick={() => setShowPidDialog(true)}>
+                                <FileImage className="h-3.5 w-3.5 mr-1.5" />
+                                관련 P&ID 도면 보기
+                              </Button>
+                              <Button variant="outline" size="sm" className="w-full text-xs justify-start" onClick={() => setShowDatasheetDialog(true)}>
+                                <FileText className="h-3.5 w-3.5 mr-1.5" />
+                                관련 데이터시트 보기
+                              </Button>
+                            </div>
                           </div>
                         </CardContent>
                       </Card>
@@ -1434,33 +1492,59 @@ export default function AlertsPage() {
                               <span className="text-xs text-amber-600">S: 2.59% (Heavy)</span>
                             </div>
                           </div>
-                          {/* 주요 변수 상태 */}
-                          <div className="border rounded-lg overflow-hidden">
-                            <div className="px-3 py-2 bg-muted/50 text-xs font-medium text-muted-foreground flex items-center gap-2">
-                              <Gauge className="h-3.5 w-3.5" />
-                              알람 발생 시점 주요 변수 상태
-                            </div>
-                            <div className="divide-y">
-                              {[
-                                { tag: "TI-2001", name: "Reactor Inlet Temp", value: "412°C", guide: "< 400°C", status: "critical" as const },
-                                { tag: "FI-2001", name: "Feed Flow Rate", value: "120.5 m3/h", guide: "100~130", status: "normal" as const },
-                                { tag: "PI-2001", name: "Reactor Pressure", value: "35.2 bar", guide: "33~37", status: "normal" as const },
-                                { tag: "TI-2003", name: "Reactor WABT", value: "396.5°C", guide: "< 410°C", status: "warning" as const },
-                                { tag: "AI-2001", name: "H2/Oil Ratio", value: "1,050 Nm3/m3", guide: "> 950", status: "normal" as const },
-                                { tag: "FI-2010", name: "Quench Gas Flow", value: "15,200 Nm3/h", guide: "12K~18K", status: "normal" as const },
-                              ].map((v, i) => (
-                                <div key={i} className="flex items-center px-3 py-1.5 text-xs hover:bg-muted/20">
-                                  <span className="font-mono w-20 text-muted-foreground">{v.tag}</span>
-                                  <span className="flex-1">{v.name}</span>
-                                  <span className={cn("font-medium w-28 text-right", v.status === "critical" ? "text-red-600" : v.status === "warning" ? "text-amber-600" : "text-foreground")}>{v.value}</span>
-                                  <span className="text-muted-foreground w-24 text-right">{v.guide}</span>
-                                  <span className="w-6 flex justify-end">
-                                    {v.status === "critical" ? <AlertCircle className="h-3.5 w-3.5 text-red-500" /> : v.status === "warning" ? <AlertTriangle className="h-3.5 w-3.5 text-amber-500" /> : <CheckCircle className="h-3.5 w-3.5 text-green-500" />}
-                                  </span>
+                          {/* 주요 변수 상태 - 3개 기본, 확장 시 15개 */}
+                          {(() => {
+                            const allVars = [
+                              { tag: "TI-2001", name: "Reactor Inlet Temp", value: "412\u00b0C", guide: "< 400\u00b0C", status: "critical" as const },
+                              { tag: "PI-2001", name: "Reactor Pressure", value: "35.2 bar", guide: "33~37", status: "normal" as const },
+                              { tag: "TI-2003", name: "Reactor WABT", value: "396.5\u00b0C", guide: "< 410\u00b0C", status: "warning" as const },
+                              { tag: "FI-2001", name: "Feed Flow Rate", value: "120.5 m\u00b3/h", guide: "100~130", status: "normal" as const },
+                              { tag: "AI-2001", name: "H2/Oil Ratio", value: "1,050 Nm\u00b3/m\u00b3", guide: "> 950", status: "normal" as const },
+                              { tag: "FI-2010", name: "Quench Gas Flow", value: "15,200 Nm\u00b3/h", guide: "12K~18K", status: "normal" as const },
+                              { tag: "TI-2005", name: "1st Bed \u0394T", value: "28.5\u00b0C", guide: "< 35\u00b0C", status: "normal" as const },
+                              { tag: "TI-2006", name: "2nd Bed \u0394T", value: "32.1\u00b0C", guide: "< 35\u00b0C", status: "warning" as const },
+                              { tag: "TI-2007", name: "Separator Temp", value: "52.3\u00b0C", guide: "45~60\u00b0C", status: "normal" as const },
+                              { tag: "PI-2003", name: "Separator Pressure", value: "33.8 bar", guide: "32~36", status: "normal" as const },
+                              { tag: "FI-2015", name: "H2 Makeup Flow", value: "8,500 Nm\u00b3/h", guide: "7K~10K", status: "normal" as const },
+                              { tag: "LI-2001", name: "Separator Level", value: "48%", guide: "40~60%", status: "normal" as const },
+                              { tag: "TI-2010", name: "Product Stripper Top", value: "165\u00b0C", guide: "155~175\u00b0C", status: "normal" as const },
+                              { tag: "PI-2005", name: "Stripper Pressure", value: "3.2 bar", guide: "2.8~3.5", status: "normal" as const },
+                              { tag: "FI-2020", name: "Wash Water Flow", value: "2.8 m\u00b3/h", guide: "2~4", status: "normal" as const },
+                            ]
+                            const displayVars = showAllVariables ? allVars : allVars.slice(0, 3)
+                            return (
+                              <div className="border rounded-lg overflow-hidden">
+                                <div className="px-3 py-2 bg-muted/50 text-xs font-medium text-muted-foreground flex items-center gap-2">
+                                  <Gauge className="h-3.5 w-3.5" />
+                                  알람 발생 시점 주요 변수 상태
+                                  <Badge variant="secondary" className="text-[10px] ml-auto">{showAllVariables ? allVars.length : 3} / {allVars.length}</Badge>
                                 </div>
-                              ))}
-                            </div>
-                          </div>
+                                <div className="divide-y">
+                                  {displayVars.map((v, i) => (
+                                    <div key={i} className="flex items-center px-3 py-1.5 text-xs hover:bg-muted/20">
+                                      <span className="font-mono w-20 text-muted-foreground">{v.tag}</span>
+                                      <span className="flex-1">{v.name}</span>
+                                      <span className={cn("font-medium w-28 text-right", v.status === "critical" ? "text-red-600" : v.status === "warning" ? "text-amber-600" : "text-foreground")}>{v.value}</span>
+                                      <span className="text-muted-foreground w-24 text-right">{v.guide}</span>
+                                      <span className="w-6 flex justify-end">
+                                        {v.status === "critical" ? <AlertCircle className="h-3.5 w-3.5 text-red-500" /> : v.status === "warning" ? <AlertTriangle className="h-3.5 w-3.5 text-amber-500" /> : <CheckCircle className="h-3.5 w-3.5 text-green-500" />}
+                                      </span>
+                                    </div>
+                                  ))}
+                                </div>
+                                <button
+                                  onClick={() => setShowAllVariables(p => !p)}
+                                  className="w-full px-3 py-2 text-xs text-primary hover:bg-muted/30 flex items-center justify-center gap-1.5 border-t cursor-pointer font-medium transition-colors"
+                                >
+                                  {showAllVariables ? (
+                                    <><ChevronUp className="h-3.5 w-3.5" />주요 변수 3개만 보기</>
+                                  ) : (
+                                    <><ChevronDown className="h-3.5 w-3.5" />전체 운전변수 {allVars.length}개 보기</>
+                                  )}
+                                </button>
+                              </div>
+                            )
+                          })()}
                         </CardContent>
                       </Card>
                     </div>
@@ -3307,6 +3391,208 @@ export default function AlertsPage() {
           </DialogContent>
         </Dialog>
 
+        {/* P&ID 도면 다이얼로그 */}
+        <Dialog open={showPidDialog} onOpenChange={setShowPidDialog}>
+          <DialogContent className="max-w-3xl max-h-[85vh] overflow-y-auto">
+            <DialogHeader>
+              <DialogTitle className="flex items-center gap-2">
+                <FileImage className="h-5 w-5 text-blue-600" />
+                관련 P&ID 도면
+                {selectedAlert?.data?.tagId && <Badge variant="secondary" className="font-mono text-xs">{selectedAlert.data.tagId}</Badge>}
+              </DialogTitle>
+            </DialogHeader>
+            {(() => {
+              const eq = getTagEq(selectedAlert?.data?.tagId)
+              return (
+                <div className="space-y-4">
+                  {eq && (
+                    <div className="flex items-center gap-1.5 text-xs">
+                      <Badge variant="outline" className="text-[10px]">{eq.process}</Badge>
+                      <ChevronRight className="h-3 w-3 text-muted-foreground" />
+                      <span className="text-muted-foreground">{eq.zone}</span>
+                      <ChevronRight className="h-3 w-3 text-muted-foreground" />
+                      <span className="font-medium">{eq.equipment}</span>
+                    </div>
+                  )}
+                  <Card className="overflow-hidden border-2">
+                    <div className="bg-[#f8f9fa] relative" style={{ minHeight: 420 }}>
+                      <svg width="100%" height="420" viewBox="0 0 800 420" className="w-full">
+                        <defs>
+                          <pattern id="pid-grid" width="20" height="20" patternUnits="userSpaceOnUse">
+                            <path d="M 20 0 L 0 0 0 20" fill="none" stroke="#e5e7eb" strokeWidth="0.5" />
+                          </pattern>
+                        </defs>
+                        <rect width="800" height="420" fill="url(#pid-grid)" />
+                        {/* Title block */}
+                        <rect x="560" y="370" width="230" height="45" fill="white" stroke="#374151" strokeWidth="1" />
+                        <text x="570" y="388" fontSize="9" fill="#6b7280" fontFamily="monospace">{'DWG: PID-'}{eq?.process || 'HCR'}{'-'}{eq?.zone?.split(' ')[0] || '001'}{'-001'}</text>
+                        <text x="570" y="403" fontSize="8" fill="#9ca3af" fontFamily="monospace">REV.5 | 2024-06-15 | APPROVED</text>
+                        {/* Equipment - Reactor */}
+                        <rect x="300" y="60" width="100" height="200" rx="8" fill="none" stroke="#1e40af" strokeWidth="2" />
+                        <text x="350" y="170" textAnchor="middle" fontSize="11" fontWeight="bold" fill="#1e40af">{eq?.eqId || 'R-2001'}</text>
+                        <text x="350" y="185" textAnchor="middle" fontSize="9" fill="#6b7280">{eq?.equipment || 'Reactor'}</text>
+                        {[100, 140, 180, 220].map(y => <line key={y} x1="310" y1={y} x2="390" y2={y} stroke="#93c5fd" strokeWidth="0.5" />)}
+                        {/* Feed line */}
+                        <line x1="100" y1="120" x2="300" y2="120" stroke="#374151" strokeWidth="2" />
+                        <polygon points="295,116 305,120 295,124" fill="#374151" />
+                        {/* Product line */}
+                        <line x1="400" y1="200" x2="550" y2="200" stroke="#374151" strokeWidth="2" />
+                        <polygon points="545,196 555,200 545,204" fill="#374151" />
+                        {/* Quench line */}
+                        <line x1="350" y1="20" x2="350" y2="60" stroke="#374151" strokeWidth="1.5" strokeDasharray="6 3" />
+                        <polygon points="346,55 354,55 350,65" fill="#374151" />
+                        {/* Heat exchanger */}
+                        <rect x="570" y="160" width="80" height="40" rx="4" fill="none" stroke="#7c3aed" strokeWidth="1.5" />
+                        <line x1="580" y1="180" x2="640" y2="180" stroke="#7c3aed" strokeWidth="0.5" strokeDasharray="3 2" />
+                        <text x="610" y="215" textAnchor="middle" fontSize="9" fill="#6b7280">E-2001</text>
+                        {/* Pump */}
+                        <circle cx="150" cy="320" r="20" fill="none" stroke="#ea580c" strokeWidth="1.5" />
+                        <line x1="140" y1="310" x2="160" y2="330" stroke="#ea580c" strokeWidth="1" />
+                        <text x="150" y="355" textAnchor="middle" fontSize="9" fill="#6b7280">P-2001</text>
+                        <line x1="150" y1="300" x2="150" y2="120" stroke="#374151" strokeWidth="1.5" />
+                        {/* Separator */}
+                        <rect x="550" y="280" width="70" height="50" rx="20" fill="none" stroke="#059669" strokeWidth="1.5" />
+                        <text x="585" y="310" textAnchor="middle" fontSize="9" fill="#6b7280">D-2001</text>
+                        <line x1="585" y1="200" x2="585" y2="280" stroke="#374151" strokeWidth="1.5" />
+                        {/* Highlighted alarm tag */}
+                        {selectedAlert?.data?.tagId && (
+                          <g>
+                            <circle cx="250" cy="110" r="18" fill="#fef2f2" stroke="#ef4444" strokeWidth="2" className="animate-pulse" />
+                            <text x="250" y="114" textAnchor="middle" fontSize="8" fontWeight="bold" fill="#dc2626" fontFamily="monospace">{selectedAlert.data.tagId}</text>
+                            <line x1="268" y1="110" x2="295" y2="120" stroke="#ef4444" strokeWidth="1" strokeDasharray="3 2" />
+                          </g>
+                        )}
+                        {/* Other tag points */}
+                        {[
+                          { x: 330, y: 85, label: "PI-2001" },
+                          { x: 370, y: 145, label: "TI-2003" },
+                          { x: 130, y: 120, label: "FI-2001" },
+                          { x: 320, y: 35, label: "FI-2010" },
+                          { x: 465, y: 195, label: "AI-2001" },
+                        ].filter(t => t.label !== selectedAlert?.data?.tagId).map(t => (
+                          <g key={t.label}>
+                            <circle cx={t.x} cy={t.y} r="14" fill="white" stroke="#6b7280" strokeWidth="1" />
+                            <text x={t.x} y={t.y + 3} textAnchor="middle" fontSize="7" fill="#374151" fontFamily="monospace">{t.label}</text>
+                          </g>
+                        ))}
+                      </svg>
+                    </div>
+                  </Card>
+                  <div className="grid grid-cols-3 gap-3 text-xs">
+                    <div className="p-2.5 bg-muted/30 rounded-lg">
+                      <span className="text-muted-foreground">도면번호</span>
+                      <p className="font-mono font-medium mt-0.5">{'PID-'}{eq?.process || 'HCR'}{'-'}{eq?.zone?.split(' ')[0] || '001'}{'-001'}</p>
+                    </div>
+                    <div className="p-2.5 bg-muted/30 rounded-lg">
+                      <span className="text-muted-foreground">최종 개정</span>
+                      <p className="font-medium mt-0.5">Rev.5 (2024-06-15)</p>
+                    </div>
+                    <div className="p-2.5 bg-muted/30 rounded-lg">
+                      <span className="text-muted-foreground">태그 위치</span>
+                      <p className="font-mono font-medium mt-0.5 text-red-600">{selectedAlert?.data?.tagId || '-'} (표시됨)</p>
+                    </div>
+                  </div>
+                </div>
+              )
+            })()}
+          </DialogContent>
+        </Dialog>
+
+        {/* 데이터시트 다이얼로그 */}
+        <Dialog open={showDatasheetDialog} onOpenChange={setShowDatasheetDialog}>
+          <DialogContent className="max-w-2xl max-h-[85vh] overflow-y-auto">
+            <DialogHeader>
+              <DialogTitle className="flex items-center gap-2">
+                <FileText className="h-5 w-5 text-teal-600" />
+                장치 데이터시트
+                {selectedAlert?.data?.tagId && <Badge variant="secondary" className="font-mono text-xs">{selectedAlert.data.tagId}</Badge>}
+              </DialogTitle>
+            </DialogHeader>
+            {(() => {
+              const eq = getTagEq(selectedAlert?.data?.tagId)
+              return (
+                <div className="space-y-4">
+                  <Card className="border-l-4 border-l-teal-500">
+                    <CardContent className="py-3">
+                      <div className="flex items-center gap-3">
+                        <div className="h-10 w-10 rounded-lg bg-teal-50 flex items-center justify-center">
+                          <Wrench className="h-5 w-5 text-teal-600" />
+                        </div>
+                        <div>
+                          <p className="font-semibold">{eq?.equipment || 'Equipment'}</p>
+                          <p className="text-xs text-muted-foreground">{eq?.eqId || '-'} | {eq?.eqType || '-'}</p>
+                        </div>
+                      </div>
+                    </CardContent>
+                  </Card>
+                  <div>
+                    <h4 className="text-sm font-medium mb-2">General Specifications</h4>
+                    <div className="border rounded-lg overflow-hidden">
+                      <table className="w-full text-xs">
+                        <tbody className="divide-y">
+                          {[
+                            ["Equipment ID", eq?.eqId || "-"],
+                            ["Equipment Name", eq?.equipment || "-"],
+                            ["Type", eq?.eqType || "-"],
+                            ["Service", `${eq?.process || '-'} / ${eq?.zone || '-'}`],
+                            ["Design Pressure", "42.0 kg/cm\u00b2g"],
+                            ["Design Temperature", "450\u00b0C"],
+                            ["Operating Pressure", "35.0 kg/cm\u00b2g"],
+                            ["Operating Temperature", "380~400\u00b0C"],
+                            ["Material (Shell)", "2.25Cr-1Mo Steel (SA-387 Gr.22)"],
+                            ["Material (Internals)", "SS 321"],
+                            ["Corrosion Allowance", "3.0 mm"],
+                            ["Weight (Empty)", "285 ton"],
+                            ["Installed Year", eq?.installed || "-"],
+                            ["Last T/A", eq?.lastTA || "-"],
+                          ].map(([label, value], i) => (
+                            <tr key={i} className="hover:bg-muted/20">
+                              <td className="px-3 py-2 bg-muted/30 font-medium w-40">{label}</td>
+                              <td className="px-3 py-2">{value}</td>
+                            </tr>
+                          ))}
+                        </tbody>
+                      </table>
+                    </div>
+                  </div>
+                  <div>
+                    <h4 className="text-sm font-medium mb-2">Instrument Data ({selectedAlert?.data?.tagId || '-'})</h4>
+                    <div className="border rounded-lg overflow-hidden">
+                      <table className="w-full text-xs">
+                        <tbody className="divide-y">
+                          {[
+                            ["Tag Number", selectedAlert?.data?.tagId || "-"],
+                            ["Service Description", selectedAlert?.title || "-"],
+                            ["Instrument Type", "Thermocouple (Type K)"],
+                            ["Range", "0 ~ 600\u00b0C"],
+                            ["Accuracy", "\u00b10.5\u00b0C"],
+                            ["Process Connection", '1/2" NPT'],
+                            ["Insertion Length", "300 mm"],
+                            ["DCS Input Type", "4-20 mA"],
+                            ["Alarm Setting (HH)", selectedAlert?.triggerSetpoint?.high || "-"],
+                            ["Alarm Setting (LL)", selectedAlert?.triggerSetpoint?.low || "-"],
+                            ["Last Calibration", "2024-12-20"],
+                            ["Calibration Cycle", "6 months"],
+                          ].map(([label, value], i) => (
+                            <tr key={i} className="hover:bg-muted/20">
+                              <td className="px-3 py-2 bg-muted/30 font-medium w-44">{label}</td>
+                              <td className="px-3 py-2 font-mono">{value}</td>
+                            </tr>
+                          ))}
+                        </tbody>
+                      </table>
+                    </div>
+                  </div>
+                  <div className="flex items-center justify-between text-[11px] text-muted-foreground pt-2 border-t">
+                    <span>Document: DS-{eq?.eqId || 'XXX'}-001 Rev.3</span>
+                    <span>Last Updated: 2024-06-15</span>
+                  </div>
+                </div>
+              )
+            })()}
+          </DialogContent>
+        </Dialog>
+
         {/* 이벤트 생성 다이얼로그 - 새 이벤트과 동일한 양식 */}
         <Dialog open={showTicketDialog} onOpenChange={setShowTicketDialog}>
           <DialogContent className="max-w-2xl max-h-[90vh] overflow-y-auto">
@@ -3586,7 +3872,7 @@ export default function AlertsPage() {
                   <div className="flex items-center justify-between p-2 bg-blue-50 rounded border border-blue-100">
                     <div className="flex items-center gap-2">
                       <Badge variant="outline" className="bg-blue-100 text-blue-700 border-blue-200 text-xs">적용</Badge>
-                      <span className="text-xs">DCS 반영 완료 - IT운영팀</span>
+                      <span className="text-xs">DCS 반영 완료 - IT��영팀</span>
                     </div>
                     <span className="text-xs text-muted-foreground">2025-02-02</span>
                   </div>
