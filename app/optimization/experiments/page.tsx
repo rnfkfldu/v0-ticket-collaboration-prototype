@@ -1,7 +1,7 @@
 "use client"
 
 import React, { useState, useMemo, useCallback, useEffect, useRef } from "react"
-import { useSearchParams, useRouter } from "next/navigation"
+import { useSearchParams } from "next/navigation"
 import { AppShell } from "@/components/app-shell"
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
 import { Button } from "@/components/ui/button"
@@ -16,8 +16,6 @@ import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from "
 import { ScrollArea } from "@/components/ui/scroll-area"
 import { Separator } from "@/components/ui/separator"
 import { AVAILABLE_TAGS, DCS_GRAPHICS } from "@/lib/process-data"
-import { saveTicket } from "@/lib/storage"
-import type { Ticket } from "@/lib/types"
 import { cn } from "@/lib/utils"
 import {
   Plus, Search, ChevronRight, ChevronLeft, Upload, X, Trash2,
@@ -299,7 +297,6 @@ function generateValidationData(model: ModelEntry) {
 // MAIN COMPONENT
 // ===================================================
 export default function ModelLabPage() {
-  const router = useRouter()
   const searchParams = useSearchParams()
   const [workspace, setWorkspace] = useState<"build" | "validate">(
     searchParams.get("tab") === "validate" ? "validate" : "build"
@@ -319,10 +316,6 @@ export default function ModelLabPage() {
   const [dropReason, setDropReason] = useState("")
   const [validationModelId, setValidationModelId] = useState<string>("")
   const [validationPeriod, setValidationPeriod] = useState("30d")
-  const [showPromotionDialog, setShowPromotionDialog] = useState(false)
-  const [promotionNote, setPromotionNote] = useState("")
-  const [validationSearch, setValidationSearch] = useState("")
-  const [validationStatusFilter, setValidationStatusFilter] = useState<string>("all")
 
   // New model form
   const [newModel, setNewModel] = useState({ name: "", purpose: "", unit: "HCR", equipment: "", description: "" })
@@ -386,89 +379,6 @@ export default function ModelLabPage() {
     setDropReason("")
   }, [validationModel, dropReason, advanceStep])
 
-  const handlePromotion = useCallback(() => {
-    if (!validationModel) return
-    // 1. Advance model to production
-    advanceStep(validationModel.id, "production")
-    // 2. Create a model improvement ticket
-    const ticketId = `TKT-${Date.now()}`
-    const newTicket: Ticket = {
-      id: ticketId,
-      title: `[모델 승격] ${validationModel.name} Production 등록`,
-      description: `모델 "${validationModel.name}" (${validationModel.id})이 운영 검증을 통과하여 Production으로 승격되었습니다.\n\n공정: ${validationModel.unit}\n설비: ${validationModel.equipment}\n목적: ${validationModel.purpose}\nR²: ${validationModel.accuracy?.r2 ?? "N/A"}\nMAPE: ${validationModel.accuracy?.mape ?? "N/A"}%\n\nEndpoint: ${validationModel.endpointUrl}\n\n${promotionNote ? `승격 메모: ${promotionNote}` : ""}`,
-      ticketType: "ModelImprovement",
-      priority: "P3",
-      impact: "Operations",
-      owner: validationModel.creator,
-      requester: "김지수",
-      status: "Open",
-      createdDate: new Date().toISOString().split("T")[0],
-      dueDate: new Date(Date.now() + 14 * 86400000).toISOString().split("T")[0],
-      unit: validationModel.unit,
-      equipment: validationModel.equipment,
-      tags: validationModel.selectedTags,
-      context: {
-        unit: validationModel.unit,
-        equipment: validationModel.equipment,
-        tags: validationModel.selectedTags,
-        notes: `모델 ID: ${validationModel.id}, Endpoint: ${validationModel.endpointUrl}`,
-      },
-      modelRequest: {
-        category: "model-rebuild",
-        targetModel: validationModel.name,
-        receivingTeam: "DX추진팀",
-      },
-      workPackages: [
-        {
-          id: `wp-${Date.now()}`,
-          ticketId,
-          wpType: "Execution",
-          title: "Production 환경 배포 및 모니터링 설정",
-          description: `${validationModel.name} 모델의 Production 환경 배포, 실시간 모니터링 대시보드 연동, 알림 설정`,
-          ownerTeam: "DX추진팀",
-          status: "Not Started",
-          dueDate: new Date(Date.now() + 7 * 86400000).toISOString().split("T")[0],
-          logs: [],
-          attachments: [],
-        },
-        {
-          id: `wp-${Date.now() + 1}`,
-          ticketId,
-          wpType: "Validation",
-          title: "Production 모델 정확도 1주차 검증",
-          description: `Production 배포 후 1주간 예측 정확도 모니터링 및 이상 시 Roll-back 준비`,
-          ownerTeam: "공정기술팀",
-          status: "Not Started",
-          dueDate: new Date(Date.now() + 14 * 86400000).toISOString().split("T")[0],
-          logs: [],
-          attachments: [],
-        },
-      ],
-      messages: [{
-        id: `msg-${Date.now()}`,
-        author: "System",
-        content: `모델 실험실에서 "${validationModel.name}" 모델이 Production으로 승격되어 자동 생성된 티켓입니다.`,
-        timestamp: new Date().toISOString(),
-        type: "system",
-      }],
-      accessLevel: "Team",
-    }
-    saveTicket(newTicket)
-    setShowPromotionDialog(false)
-    setPromotionNote("")
-    // Navigate to the tickets/actions tracking page
-    router.push(`/actions/tickets`)
-  }, [validationModel, promotionNote, advanceStep, router])
-
-  // Filtered validation models for table
-  const filteredValidateModels = useMemo(() => {
-    return validateModels.filter(m => {
-      const matchSearch = m.name.toLowerCase().includes(validationSearch.toLowerCase()) || m.unit.toLowerCase().includes(validationSearch.toLowerCase()) || m.id.toLowerCase().includes(validationSearch.toLowerCase())
-      const matchStatus = validationStatusFilter === "all" || m.status === validationStatusFilter
-      return matchSearch && matchStatus
-    })
-  }, [validateModels, validationSearch, validationStatusFilter])
-
   const openDetail = (model: ModelEntry) => {
     setSelectedModelId(model.id)
     // Reset data selection state for draft models
@@ -531,7 +441,7 @@ export default function ModelLabPage() {
               ]).map(tab => (
                 <button
                   key={tab.id}
-                  onClick={() => { setWorkspace(tab.id); setSelectedModelId(null); setValidationModelId("") }}
+                  onClick={() => { setWorkspace(tab.id); setSelectedModelId(null) }}
                   className={cn(
                     "flex items-center gap-2 px-4 py-2.5 text-sm font-medium border-b-2 transition-colors cursor-pointer",
                     workspace === tab.id ? "border-primary text-primary" : "border-transparent text-muted-foreground hover:text-foreground"
@@ -1187,123 +1097,52 @@ export default function ModelLabPage() {
           </main>
         )}
 
-        {/* ========== WORKSPACE 2: 운영 검증 - MODEL TABLE ========== */}
-        {workspace === "validate" && !validationModelId && (
+        {/* ========== WORKSPACE 2: 운영 검증 ========== */}
+        {workspace === "validate" && (
           <main className="p-6 space-y-6">
-            {/* Toolbar */}
             <div className="flex items-center gap-4 flex-wrap">
-              <div className="relative flex-1 max-w-md">
-                <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
-                <Input placeholder="모델명, ID, 공정으로 검색..." value={validationSearch} onChange={e => setValidationSearch(e.target.value)} className="pl-10" />
-              </div>
+              <Select value={validationModelId} onValueChange={setValidationModelId}>
+                <SelectTrigger className="w-80"><SelectValue placeholder="검증할 모델을 선택하세요" /></SelectTrigger>
+                <SelectContent>
+                  {validateModels.map(m => (
+                    <SelectItem key={m.id} value={m.id}>
+                      <div className="flex items-center gap-2">
+                        <Badge variant="outline" className={cn("text-[10px] px-1", STATUS_CONFIG[m.status].color)}>{STATUS_CONFIG[m.status].label}</Badge>
+                        {m.name}
+                      </div>
+                    </SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
               <div className="flex gap-1.5">
-                {[
-                  { id: "all", label: "전체" },
-                  { id: "configured", label: "구성 완료" },
-                  { id: "testing", label: "운영 테스트" },
-                  { id: "production", label: "Production" },
-                  { id: "dropped", label: "Drop" },
-                ].map(f => (
-                  <Button key={f.id} variant={validationStatusFilter === f.id ? "default" : "outline"} size="sm"
-                    onClick={() => setValidationStatusFilter(f.id)} className={cn("text-xs", validationStatusFilter !== f.id && "bg-transparent")}>
-                    {f.label}
-                    <Badge variant="secondary" className="ml-1 text-[10px]">
-                      {f.id === "all" ? validateModels.length : validateModels.filter(m => m.status === f.id).length}
-                    </Badge>
+                {[{ id: "7d", label: "7일" }, { id: "30d", label: "30일" }, { id: "90d", label: "90일" }].map(p => (
+                  <Button key={p.id} variant={validationPeriod === p.id ? "default" : "outline"} size="sm"
+                    onClick={() => setValidationPeriod(p.id)} className={validationPeriod !== p.id ? "bg-transparent" : ""}>
+                    {p.label}
                   </Button>
                 ))}
               </div>
+              {validationModel && validationModel.status !== "dropped" && validationModel.status !== "production" && (
+                <div className="ml-auto flex gap-2">
+                  <Button variant="outline" size="sm" className="gap-1.5 text-red-600 hover:text-red-700 border-red-200 hover:border-red-300 bg-transparent"
+                    onClick={() => setShowDropDialog(true)}>
+                    <X className="h-3.5 w-3.5" />Drop
+                  </Button>
+                  <Button size="sm" className="gap-1.5"
+                    onClick={() => { if (validationModel) advanceStep(validationModel.id, "production") }}>
+                    <ArrowUpRight className="h-3.5 w-3.5" />Production 승격
+                  </Button>
+                </div>
+              )}
             </div>
 
-            {/* Summary cards */}
-            <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
-              {[
-                { label: "구성 완료", count: validateModels.filter(m => m.status === "configured").length, color: "text-teal-600", bg: "bg-teal-50" },
-                { label: "운영 테스트", count: validateModels.filter(m => m.status === "testing").length, color: "text-cyan-600", bg: "bg-cyan-50" },
-                { label: "Production", count: validateModels.filter(m => m.status === "production").length, color: "text-green-600", bg: "bg-green-50" },
-                { label: "Drop", count: validateModels.filter(m => m.status === "dropped").length, color: "text-red-600", bg: "bg-red-50" },
-              ].map(s => (
-                <Card key={s.label}>
-                  <CardContent className="py-3 px-4 flex items-center gap-3">
-                    <div className={cn("w-10 h-10 rounded-lg flex items-center justify-center text-lg font-bold", s.bg, s.color)}>{s.count}</div>
-                    <span className="text-sm text-muted-foreground">{s.label}</span>
-                  </CardContent>
-                </Card>
-              ))}
-            </div>
-
-            {/* Model table */}
-            <Card>
-              <div className="overflow-x-auto">
-                <table className="w-full text-sm">
-                  <thead>
-                    <tr className="border-b border-border bg-muted/30">
-                      <th className="text-left px-4 py-3 font-medium text-muted-foreground">ID</th>
-                      <th className="text-left px-4 py-3 font-medium text-muted-foreground">모델명</th>
-                      <th className="text-left px-4 py-3 font-medium text-muted-foreground">공정</th>
-                      <th className="text-left px-4 py-3 font-medium text-muted-foreground">설비</th>
-                      <th className="text-left px-4 py-3 font-medium text-muted-foreground">목적</th>
-                      <th className="text-left px-4 py-3 font-medium text-muted-foreground">상태</th>
-                      <th className="text-center px-4 py-3 font-medium text-muted-foreground">R{'\u00B2'}</th>
-                      <th className="text-center px-4 py-3 font-medium text-muted-foreground">MAPE</th>
-                      <th className="text-left px-4 py-3 font-medium text-muted-foreground">담당자</th>
-                      <th className="text-left px-4 py-3 font-medium text-muted-foreground">생성일</th>
-                      <th className="text-center px-4 py-3 font-medium text-muted-foreground"></th>
-                    </tr>
-                  </thead>
-                  <tbody>
-                    {filteredValidateModels.length === 0 && (
-                      <tr><td colSpan={11} className="text-center py-12 text-muted-foreground">해당 조건의 모델이 없습니다</td></tr>
-                    )}
-                    {filteredValidateModels.map(model => {
-                      const cfg = STATUS_CONFIG[model.status]
-                      const Icon = cfg.icon
-                      return (
-                        <tr key={model.id}
-                          className={cn("border-b border-border last:border-0 hover:bg-muted/30 transition-colors cursor-pointer", model.status === "dropped" && "opacity-60")}
-                          onClick={() => setValidationModelId(model.id)}>
-                          <td className="px-4 py-3 font-mono text-xs">{model.id}</td>
-                          <td className="px-4 py-3 font-medium max-w-[220px] truncate">{model.name}</td>
-                          <td className="px-4 py-3"><Badge variant="secondary" className="text-xs">{model.unit}</Badge></td>
-                          <td className="px-4 py-3 text-muted-foreground text-xs">{model.equipment}</td>
-                          <td className="px-4 py-3 text-xs">{model.purpose}</td>
-                          <td className="px-4 py-3">
-                            <Badge variant="outline" className={cn("text-xs gap-1", cfg.color)}>
-                              <Icon className="h-3 w-3" />{cfg.label}
-                            </Badge>
-                          </td>
-                          <td className="px-4 py-3 text-center">
-                            {model.accuracy ? (
-                              <span className={cn("font-semibold text-xs", model.accuracy.r2 >= 0.9 ? "text-green-600" : model.accuracy.r2 >= 0.8 ? "text-orange-600" : "text-red-600")}>
-                                {model.accuracy.r2}
-                              </span>
-                            ) : <span className="text-muted-foreground text-xs">-</span>}
-                          </td>
-                          <td className="px-4 py-3 text-center">
-                            {model.accuracy ? (
-                              <span className={cn("font-semibold text-xs", model.accuracy.mape < 3 ? "text-green-600" : model.accuracy.mape < 5 ? "text-orange-600" : "text-red-600")}>
-                                {model.accuracy.mape}%
-                              </span>
-                            ) : <span className="text-muted-foreground text-xs">-</span>}
-                          </td>
-                          <td className="px-4 py-3 text-xs">{model.creator}</td>
-                          <td className="px-4 py-3 text-xs text-muted-foreground">{model.createdDate}</td>
-                          <td className="px-4 py-3 text-center">
-                            <ChevronRight className="h-4 w-4 text-muted-foreground inline-block" />
-                          </td>
-                        </tr>
-                      )
-                    })}
-                  </tbody>
-                </table>
-              </div>
-            </Card>
-          </main>
-        )}
-
-        {/* ========== WORKSPACE 2: 운영 검증 - DETAIL VIEW ========== */}
-        {workspace === "validate" && validationModelId && (() => {
-          if (!validationModel) return null
+            {!validationModel ? (
+              <Card className="py-16"><CardContent className="flex flex-col items-center gap-3 text-center">
+                <Eye className="h-10 w-10 text-muted-foreground/40" />
+                <p className="text-muted-foreground">검증할 모델을 선택하세요</p>
+                <p className="text-xs text-muted-foreground">구성 완료 이상 단계의 모델만 검증이 가능합니다</p>
+              </CardContent></Card>
+            ) : (() => {
               const data = generateValidationData(validationModel)
               const sliceLen = validationPeriod === "7d" ? 7 : 30
               const sliced = data.slice(0, sliceLen)
@@ -1323,85 +1162,19 @@ export default function ModelLabPage() {
               const predPath = makePath(sliced.map(d => d.predicted))
 
               return (
-          <main className="p-6 space-y-6">
-            {/* Back + header */}
-            <div className="flex items-center gap-3 flex-wrap">
-              <Button variant="ghost" size="sm" className="gap-1.5" onClick={() => setValidationModelId("")}>
-                <ArrowLeft className="h-4 w-4" /> 모델 목록
-              </Button>
-              <Separator orientation="vertical" className="h-6" />
-              <div className="flex-1 min-w-0">
-                <div className="flex items-center gap-2">
-                  <h2 className="font-semibold truncate">{validationModel.name}</h2>
-                  <Badge variant="outline" className={cn("shrink-0", STATUS_CONFIG[validationModel.status].color)}>
-                    {STATUS_CONFIG[validationModel.status].label}
-                  </Badge>
-                  <Badge variant="secondary" className="text-xs">{validationModel.unit}</Badge>
-                  <span className="text-xs text-muted-foreground">{validationModel.equipment}</span>
-                </div>
-                <p className="text-sm text-muted-foreground mt-0.5">{validationModel.purpose} | {validationModel.creator} | {validationModel.createdDate}</p>
-              </div>
-              {/* Period selector */}
-              <div className="flex gap-1.5">
-                {[{ id: "7d", label: "7일" }, { id: "30d", label: "30일" }, { id: "90d", label: "90일" }].map(p => (
-                  <Button key={p.id} variant={validationPeriod === p.id ? "default" : "outline"} size="sm"
-                    onClick={() => setValidationPeriod(p.id)} className={validationPeriod !== p.id ? "bg-transparent" : ""}>
-                    {p.label}
-                  </Button>
-                ))}
-              </div>
-              {/* Action buttons */}
-              {validationModel.status !== "dropped" && validationModel.status !== "production" && (
-                <div className="flex gap-2">
-                  <Button variant="outline" size="sm" className="gap-1.5 text-red-600 hover:text-red-700 border-red-200 hover:border-red-300 bg-transparent"
-                    onClick={() => setShowDropDialog(true)}>
-                    <X className="h-3.5 w-3.5" />Drop
-                  </Button>
-                  <Button size="sm" className="gap-1.5" onClick={() => setShowPromotionDialog(true)}>
-                    <ArrowUpRight className="h-3.5 w-3.5" />Production 승격
-                  </Button>
-                </div>
-              )}
-            </div>
-
-            {/* Drop info */}
-            {validationModel.status === "dropped" && (
-              <Card className="border-l-4 border-l-red-400">
-                <CardContent className="py-3 flex items-center gap-3">
-                  <AlertTriangle className="h-5 w-5 text-red-500 shrink-0" />
-                  <div>
-                    <p className="text-sm font-medium text-red-700">Drop 처리됨</p>
-                    <p className="text-xs text-muted-foreground mt-0.5">사유: {validationModel.dropReason}</p>
-                  </div>
-                </CardContent>
-              </Card>
-            )}
-
-            {/* Production info */}
-            {validationModel.status === "production" && (
-              <Card className="border-l-4 border-l-green-500">
-                <CardContent className="py-3 flex items-center gap-3">
-                  <Play className="h-5 w-5 text-green-600 shrink-0" />
-                  <div>
-                    <p className="text-sm font-medium text-green-700">Production 등록 완료</p>
-                    <p className="text-xs text-muted-foreground">모델 기반 최적화의 정규 모델로 운영 중입니다</p>
-                  </div>
-                </CardContent>
-              </Card>
-            )}
-
-            <div className="space-y-6">
-              {/* Model info card */}
-              <Card className="border-l-4 border-l-primary">
-                <CardContent className="py-3">
-                  <div className="grid grid-cols-2 md:grid-cols-4 gap-4 text-sm">
-                    <div><span className="text-muted-foreground block text-xs">모델 ID</span><span className="font-mono">{validationModel.id}</span></div>
-                    <div><span className="text-muted-foreground block text-xs">Endpoint</span><span className="font-mono text-xs truncate block max-w-[200px]">{validationModel.endpointUrl || "-"}</span></div>
-                    <div><span className="text-muted-foreground block text-xs">학습 기간</span><span>{validationModel.trainingPeriod.from || "-"} ~ {validationModel.trainingPeriod.to || "-"}</span></div>
-                    <div><span className="text-muted-foreground block text-xs">태그 수</span><span>{validationModel.selectedTags.length}개</span></div>
-                  </div>
-                </CardContent>
-              </Card>
+                <div className="space-y-6">
+                  <Card className="border-l-4 border-l-primary">
+                    <CardContent className="py-3 flex items-center gap-4 flex-wrap">
+                      <div className="flex-1 min-w-0">
+                        <h3 className="font-medium">{validationModel.name}</h3>
+                        <p className="text-sm text-muted-foreground">{validationModel.unit} / {validationModel.equipment} / {validationModel.purpose}</p>
+                      </div>
+                      <Badge variant="outline" className={cn("shrink-0", STATUS_CONFIG[validationModel.status].color)}>{STATUS_CONFIG[validationModel.status].label}</Badge>
+                      {validationModel.status === "dropped" && (
+                        <div className="w-full mt-2 p-2 bg-red-50 border border-red-200 rounded text-sm text-red-700">Drop 사유: {validationModel.dropReason}</div>
+                      )}
+                    </CardContent>
+                  </Card>
 
                   {acc && (
                     <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
@@ -1483,10 +1256,10 @@ export default function ModelLabPage() {
                     </CardContent>
                   </Card>
                 </div>
-              </div>
-            </main>
-          )
-        })()}
+              )
+            })()}
+          </main>
+        )}
 
         {/* ========== DIALOGS ========== */}
 
@@ -1563,47 +1336,6 @@ export default function ModelLabPage() {
                 setShowConfigRequest(false)
               }} className="gap-1.5">
                 <Send className="h-3.5 w-3.5" />요청 전송
-              </Button>
-            </DialogFooter>
-          </DialogContent>
-        </Dialog>
-
-        {/* Production 승격 확인 */}
-        <Dialog open={showPromotionDialog} onOpenChange={setShowPromotionDialog}>
-          <DialogContent className="max-w-lg">
-            <DialogHeader>
-              <DialogTitle className="flex items-center gap-2"><ArrowUpRight className="h-5 w-5 text-green-600" />Production 승격</DialogTitle>
-            </DialogHeader>
-            {validationModel && (
-              <div className="space-y-4 py-2">
-                <div className="p-3 bg-green-50 border border-green-200 rounded-lg space-y-2">
-                  <p className="text-sm text-green-800 font-medium">Production 승격 시 다음이 수행됩니다:</p>
-                  <ul className="text-sm text-green-700 space-y-1 ml-4 list-disc">
-                    <li>모델 상태가 Production으로 변경됩니다</li>
-                    <li>{"\"모델 개선\""}  유형의 티켓이 자동 발행됩니다</li>
-                    <li>발행된 티켓은 조치/활동에서 트래킹됩니다</li>
-                  </ul>
-                </div>
-                <div className="p-3 bg-muted/50 rounded-lg space-y-1 text-sm">
-                  <div className="flex justify-between"><span className="text-muted-foreground">모델명</span><span className="font-medium">{validationModel.name}</span></div>
-                  <div className="flex justify-between"><span className="text-muted-foreground">공정/설비</span><span className="font-medium">{validationModel.unit} / {validationModel.equipment}</span></div>
-                  {validationModel.accuracy && (
-                    <>
-                      <div className="flex justify-between"><span className="text-muted-foreground">R{'\u00B2'}</span><span className={cn("font-medium", validationModel.accuracy.r2 >= 0.9 ? "text-green-600" : "text-orange-600")}>{validationModel.accuracy.r2}</span></div>
-                      <div className="flex justify-between"><span className="text-muted-foreground">MAPE</span><span className={cn("font-medium", validationModel.accuracy.mape < 3 ? "text-green-600" : "text-orange-600")}>{validationModel.accuracy.mape}%</span></div>
-                    </>
-                  )}
-                </div>
-                <div className="space-y-2">
-                  <Label className="text-sm">승격 메모 (선택)</Label>
-                  <Textarea placeholder="Production 승격 관련 메모를 입력하세요..." value={promotionNote} onChange={e => setPromotionNote(e.target.value)} rows={2} />
-                </div>
-              </div>
-            )}
-            <DialogFooter>
-              <Button variant="outline" onClick={() => { setShowPromotionDialog(false); setPromotionNote("") }}>취소</Button>
-              <Button onClick={handlePromotion} className="gap-1.5 bg-green-600 hover:bg-green-700">
-                <ArrowUpRight className="h-3.5 w-3.5" />승격 및 티켓 발행
               </Button>
             </DialogFooter>
           </DialogContent>
