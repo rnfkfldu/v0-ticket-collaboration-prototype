@@ -1387,7 +1387,7 @@ export default function UnitDetailPage() {
               <Tabs defaultValue="overview" className="h-full">
                 <div className="border-b bg-card px-6">
                   <TabsList className="bg-transparent h-10 p-0 gap-0">
-                    <TabsTrigger value="overview" className="rounded-none border-b-2 border-transparent data-[state=active]:border-primary data-[state=active]:bg-transparent data-[state=active]:shadow-none px-4 text-xs">Daily Monitoring</TabsTrigger>
+                    <TabsTrigger value="overview" className="rounded-none border-b-2 border-transparent data-[state=active]:border-primary data-[state=active]:bg-transparent data-[state=active]:shadow-none px-4 text-xs">Unit Overview</TabsTrigger>
                     <TabsTrigger value="variables" className="rounded-none border-b-2 border-transparent data-[state=active]:border-primary data-[state=active]:bg-transparent data-[state=active]:shadow-none px-4 text-xs">Key Operating Variables</TabsTrigger>
                     <TabsTrigger value="anomaly" className="rounded-none border-b-2 border-transparent data-[state=active]:border-primary data-[state=active]:bg-transparent data-[state=active]:shadow-none px-4 text-xs">Anomaly Detection</TabsTrigger>
                   </TabsList>

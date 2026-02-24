@@ -40,7 +40,7 @@ import {
   ClipboardList,
   Pencil,
   Plus,
-  Link,
+  Link as LinkIcon,
   Save,
   X,
   ShieldCheck,
@@ -1177,7 +1177,7 @@ export default function AlertsPage() {
     for (const [key, group] of Object.entries(MONITORING_GROUPS)) {
       if (group.tags.some(t => t.id === tagId)) return { key, ...group }
     }
-    // 태그 prefix로 유닛 추론 후 가장 적합한 그룹 반환
+    // 태그 prefix로 유닛 추론 후 가��� 적합한 그룹 반환
     const prefix = tagId?.split("-")[0]
     const unitNum = tagId?.match(/-(\d)/)?.[1]
     if (unitNum === "3") return { key: "HCR-Reactor", ...MONITORING_GROUPS["HCR-Reactor"] }
@@ -2472,7 +2472,7 @@ export default function AlertsPage() {
                                       onClick={() => router.push(`/tickets/${issue.linkedTicketId}`)}
                                       className="flex items-center gap-1.5 text-xs text-primary hover:underline"
                                     >
-                                      <Link className="h-3 w-3" />
+                                      <LinkIcon className="h-3 w-3" />
                                       {issue.linkedTicketTitle || `Ticket #${issue.linkedTicketId}`}
                                     </button>
                                   )}
@@ -3972,7 +3972,7 @@ export default function AlertsPage() {
               <div className="space-y-1">
                 <span className="text-xs text-muted-foreground">목적 및 배경</span>
                 <div className="p-3 bg-muted/30 rounded-lg text-sm">
-                  HCR Unit의 Advanced Process Control(APC) 시스템 고도화를 통한 운전 안정성 향상 및 수율 최적화. Phase 2에서는 Reactor Temperature Control Loop의 PID 파라미터 최적화 및 Cascade Control 구현을 목표로 함.
+                  HCR Unit의 Advanced Process Control(APC) 시스템 고도화를 통한 운전 안정성 향상 및 수율 ��적화. Phase 2에서는 Reactor Temperature Control Loop의 PID 파라미터 최적화 및 Cascade Control 구현을 목표로 함.
                 </div>
               </div>
               <div className="space-y-1">
@@ -4214,7 +4214,7 @@ export default function AlertsPage() {
                 </Select>
                 {dailyReportLinkedTicketId && dailyReportLinkedTicketId !== "none" && (
                   <div className="flex items-center gap-2 p-2 bg-primary/5 border border-primary/20 rounded-lg">
-                    <Link className="h-3.5 w-3.5 text-primary" />
+                    <LinkIcon className="h-3.5 w-3.5 text-primary" />
                     <span className="text-xs text-primary">
                       #{dailyReportLinkedTicketId} - {getTickets().find(t => t.id === dailyReportLinkedTicketId)?.title}
                     </span>
