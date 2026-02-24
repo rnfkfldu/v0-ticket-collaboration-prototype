@@ -23,7 +23,7 @@ import {
   ArrowUpRight, FileSpreadsheet, Monitor,
   LayoutGrid, Database, Cpu, Beaker, Eye, TrendingUp,
   BarChart3, ExternalLink, FlaskConical, ArrowLeft, Grip, FileUp,
-  Check, CircleDot, Tag, Layers, RefreshCw
+  Check, CircleDot, Tag, Layers, RefreshCw, Bell, Users, Server, Rocket
 } from "lucide-react"
 
 // --- Types ---
@@ -317,6 +317,11 @@ export default function ModelLabPage() {
   const [validationModelId, setValidationModelId] = useState<string>("")
   const [validationPeriod, setValidationPeriod] = useState("30d")
   const [validationView, setValidationView] = useState<"list" | "detail">("list")
+  const [showProductionDialog, setShowProductionDialog] = useState(false)
+  const [productionNote, setProductionNote] = useState("")
+  const [productionConfirmed, setProductionConfirmed] = useState(false)
+  const [dxNotifyChecked, setDxNotifyChecked] = useState(true)
+  const [dropDxNotified, setDropDxNotified] = useState(false)
 
   // New model form
   const [newModel, setNewModel] = useState({ name: "", purpose: "", unit: "HCR", equipment: "", description: "" })
@@ -1263,8 +1268,8 @@ export default function ModelLabPage() {
                         <X className="h-3.5 w-3.5" />Drop
                       </Button>
                       <Button size="sm" className="gap-1.5"
-                        onClick={() => { if (validationModel) advanceStep(validationModel.id, "production") }}>
-                        <ArrowUpRight className="h-3.5 w-3.5" />Production 승격
+                        onClick={() => { setProductionNote(""); setProductionConfirmed(false); setDxNotifyChecked(true); setShowProductionDialog(true) }}>
+                        <Rocket className="h-3.5 w-3.5" />Production 승격
                       </Button>
                     </div>
                   )}
@@ -1477,28 +1482,169 @@ export default function ModelLabPage() {
           </DialogContent>
         </Dialog>
 
-        {/* Drop 사유 */}
-        <Dialog open={showDropDialog} onOpenChange={setShowDropDialog}>
-          <DialogContent className="max-w-md">
+        {/* Production 승격 - 이벤트 티켓 연동 다이얼로그 */}
+        <Dialog open={showProductionDialog} onOpenChange={setShowProductionDialog}>
+          <DialogContent className="max-w-lg">
+            <DialogHeader>
+              <DialogTitle className="flex items-center gap-2"><Rocket className="h-5 w-5 text-primary" />Production 승격 요청</DialogTitle>
+            </DialogHeader>
+            <div className="space-y-4 py-2">
+              {/* Model info card */}
+              {validationModel && (
+                <div className="p-3 bg-primary/5 border border-primary/20 rounded-lg">
+                  <div className="flex items-center gap-2 mb-1">
+                    <Cpu className="h-4 w-4 text-primary" />
+                    <span className="font-medium text-sm">{validationModel.name}</span>
+                  </div>
+                  <p className="text-xs text-muted-foreground">{validationModel.unit} / {validationModel.equipment} / {validationModel.purpose}</p>
+                  {validationModel.accuracy && (
+                    <div className="flex gap-3 mt-2 text-xs">
+                      <span>RMSE: <strong>{validationModel.accuracy.rmse}</strong></span>
+                      <span>R{'\u00B2'}: <strong>{validationModel.accuracy.r2}</strong></span>
+                      <span>MAPE: <strong>{validationModel.accuracy.mape}%</strong></span>
+                    </div>
+                  )}
+                </div>
+              )}
+
+              {/* Event ticket creation info */}
+              <div className="p-3 bg-blue-50 border border-blue-200 rounded-lg space-y-2">
+                <div className="flex items-center gap-2">
+                  <Bell className="h-4 w-4 text-blue-600" />
+                  <span className="text-sm font-medium text-blue-800">이벤트 티켓 자동 생성</span>
+                </div>
+                <p className="text-xs text-blue-700">Production 승격 시 아래 내용으로 이벤트 티켓이 자동 생성됩니다:</p>
+                <ul className="text-xs text-blue-700 space-y-1 ml-5 list-disc">
+                  <li>이벤트 유형: <strong>모델 개선 요청</strong></li>
+                  <li>담당: CANVAS-MLOps 운영팀, DX 관련팀</li>
+                  <li>내용: 모델 검증 완료 및 Production 배포 요청</li>
+                </ul>
+              </div>
+
+              {/* CANVAS-MLOps deployment info */}
+              <div className="p-3 bg-muted/50 border rounded-lg space-y-2">
+                <div className="flex items-center gap-2">
+                  <Server className="h-4 w-4 text-muted-foreground" />
+                  <span className="text-sm font-medium">CANVAS-MLOps 배포 정보</span>
+                </div>
+                <div className="grid grid-cols-2 gap-2 text-xs">
+                  <div className="p-2 bg-background rounded">
+                    <span className="text-muted-foreground">Endpoint</span>
+                    <p className="font-mono mt-0.5">{validationModel?.endpointUrl || "auto-generated"}</p>
+                  </div>
+                  <div className="p-2 bg-background rounded">
+                    <span className="text-muted-foreground">배포 환경</span>
+                    <p className="font-mono mt-0.5">Production (MLOps)</p>
+                  </div>
+                </div>
+              </div>
+
+              {/* Note */}
+              <div className="space-y-2">
+                <Label>승격 비고 (선택)</Label>
+                <Textarea placeholder="예: 검증 기간 30일, MAPE 2.1% 달성. 실시간 운영 적용 요청." value={productionNote} onChange={e => setProductionNote(e.target.value)} rows={2} />
+              </div>
+
+              {/* DX notification */}
+              <div className="flex items-center gap-2">
+                <Checkbox id="dx-notify-prod" checked={dxNotifyChecked} onCheckedChange={v => setDxNotifyChecked(!!v)} />
+                <Label htmlFor="dx-notify-prod" className="text-xs">DX 관련팀(MLOps 운영, 데이터 엔지니어링)에게 알림 전송</Label>
+              </div>
+
+              {/* Confirmation checkbox */}
+              <div className="flex items-center gap-2 p-2 bg-amber-50 border border-amber-200 rounded">
+                <Checkbox id="prod-confirm" checked={productionConfirmed} onCheckedChange={v => setProductionConfirmed(!!v)} />
+                <Label htmlFor="prod-confirm" className="text-xs text-amber-800">상기 모델의 검증 결과를 확인했으며, Production 승격에 동의합니다.</Label>
+              </div>
+            </div>
+            <DialogFooter>
+              <Button variant="outline" onClick={() => setShowProductionDialog(false)}>취소</Button>
+              <Button disabled={!productionConfirmed} className="gap-1.5" onClick={() => {
+                if (validationModel) {
+                  advanceStep(validationModel.id, "production")
+                  setShowProductionDialog(false)
+                }
+              }}>
+                <Rocket className="h-3.5 w-3.5" />승격 및 이벤트 생성
+              </Button>
+            </DialogFooter>
+          </DialogContent>
+        </Dialog>
+
+        {/* Drop 사유 - enhanced with CANVAS-MLOps info & DX notification */}
+        <Dialog open={showDropDialog} onOpenChange={(v) => { setShowDropDialog(v); if (!v) { setDropReason(""); setDropDxNotified(false) } }}>
+          <DialogContent className="max-w-lg">
             <DialogHeader>
               <DialogTitle className="flex items-center gap-2 text-red-600"><AlertTriangle className="h-5 w-5" />모델 Drop</DialogTitle>
             </DialogHeader>
             <div className="space-y-4 py-2">
-              <div className="p-3 bg-red-50 border border-red-200 rounded-lg">
-                <p className="text-sm text-red-800">Drop된 모델은 더 이상 운영되지 않지만, 이력은 보존됩니다.</p>
+              {/* CANVAS-MLOps deactivation warning */}
+              <div className="p-4 bg-red-50 border border-red-200 rounded-lg space-y-3">
+                <div className="flex items-center gap-2">
+                  <Server className="h-4 w-4 text-red-600" />
+                  <span className="text-sm font-semibold text-red-800">CANVAS-MLOps 가동 중지 안내</span>
+                </div>
+                <div className="text-xs text-red-700 space-y-1.5">
+                  <p>Drop 처리 시 아래 사항이 자동으로 실행됩니다:</p>
+                  <ul className="ml-4 space-y-1 list-disc">
+                    <li>CANVAS-MLOps 플랫폼에서 해당 모델 <strong>가동 즉시 중지</strong></li>
+                    <li>모델 Endpoint 비활성화 (예측 API 호출 차단)</li>
+                    <li>실시간 모니터링 대시보드에서 제거</li>
+                    <li>관련 스케줄링 Job 자동 비활성화</li>
+                  </ul>
+                </div>
+                <div className="p-2 bg-white/60 rounded border border-red-200 text-xs">
+                  <span className="text-red-600 font-medium">{'*'} 모델 이력 및 학습 데이터는 보존됩니다. 필요 시 재구축할 수 있습니다.</span>
+                </div>
               </div>
+
               {validationModel && (
-                <p className="text-sm"><span className="text-muted-foreground">대상 모델: </span><span className="font-medium">{validationModel.name}</span></p>
+                <div className="p-3 border rounded-lg">
+                  <div className="flex items-center gap-2 mb-1">
+                    <Cpu className="h-4 w-4 text-muted-foreground" />
+                    <span className="font-medium text-sm">{validationModel.name}</span>
+                  </div>
+                  <p className="text-xs text-muted-foreground">{validationModel.unit} / {validationModel.equipment}</p>
+                  {validationModel.endpointUrl && (
+                    <p className="text-xs font-mono text-muted-foreground mt-1">Endpoint: {validationModel.endpointUrl}</p>
+                  )}
+                </div>
               )}
+
               <div className="space-y-2">
                 <Label className="flex items-center gap-1"><span className="text-destructive">*</span>Drop 사유</Label>
                 <Textarea placeholder="예: MAPE 8.5%로 목표 정확도 미달, Feed 조건 변동이 커 모델 재설계 필요" value={dropReason} onChange={e => setDropReason(e.target.value)} rows={3} />
               </div>
+
+              {/* DX team notification */}
+              <div className="p-3 bg-blue-50 border border-blue-200 rounded-lg space-y-2">
+                <div className="flex items-center gap-2">
+                  <Users className="h-4 w-4 text-blue-600" />
+                  <span className="text-sm font-medium text-blue-800">DX 관련팀 알림</span>
+                </div>
+                <p className="text-xs text-blue-700">Drop 처리 시 아래 팀에게 자동 알림이 전송됩니다:</p>
+                <div className="grid grid-cols-2 gap-2 text-xs">
+                  <div className="flex items-center gap-2 p-2 bg-white/60 rounded border border-blue-100">
+                    <div className="h-6 w-6 rounded bg-blue-100 flex items-center justify-center"><Server className="h-3 w-3 text-blue-600" /></div>
+                    <div>
+                      <p className="font-medium">MLOps 운영팀</p>
+                      <p className="text-blue-600">모델 가동 중지 처리</p>
+                    </div>
+                  </div>
+                  <div className="flex items-center gap-2 p-2 bg-white/60 rounded border border-blue-100">
+                    <div className="h-6 w-6 rounded bg-blue-100 flex items-center justify-center"><Cpu className="h-3 w-3 text-blue-600" /></div>
+                    <div>
+                      <p className="font-medium">데이터 엔지니어링팀</p>
+                      <p className="text-blue-600">파이프라인 정리 검토</p>
+                    </div>
+                  </div>
+                </div>
+              </div>
             </div>
             <DialogFooter>
-              <Button variant="outline" onClick={() => { setShowDropDialog(false); setDropReason("") }}>취소</Button>
-              <Button variant="destructive" onClick={handleDrop} disabled={!dropReason.trim()} className="gap-1.5">
-                <X className="h-3.5 w-3.5" />Drop 처리
+              <Button variant="outline" onClick={() => { setShowDropDialog(false); setDropReason(""); setDropDxNotified(false) }}>취소</Button>
+              <Button variant="destructive" onClick={() => { handleDrop(); setDropDxNotified(true) }} disabled={!dropReason.trim()} className="gap-1.5">
+                <X className="h-3.5 w-3.5" />Drop 처리 및 알림 전송
               </Button>
             </DialogFooter>
           </DialogContent>

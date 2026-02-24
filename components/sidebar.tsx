@@ -123,7 +123,6 @@ export function Sidebar({ unreadAlerts = 3 }: SidebarProps) {
       items: [
         { label: "유틸리티 연계", href: "/operations/cross-unit/utility", icon: Zap },
         { label: "공정간 연계", href: "/operations/cross-unit/process", icon: Network },
-        { label: "유사 공정 비교", href: "/operations/cross-unit/similar", icon: BarChart3 },
       ]
     },
     {
@@ -199,6 +198,7 @@ export function Sidebar({ unreadAlerts = 3 }: SidebarProps) {
       icon: Eye,
       items: [
         { label: "제약조건 분석", href: "/optimization/insight/binding", icon: AlertTriangle },
+        { label: "유사 공정 비교", href: "/operations/cross-unit/similar", icon: BarChart3 },
         { label: "한계가치 분석", href: "/optimization/insight/marginal", icon: TrendingUp },
         { label: "LP 벡터 분석", href: "/optimization/insight/lp-vector", icon: LineChart },
         { label: "품질 Giveaway 분석", href: "/optimization/insight/quality-giveaway", icon: Gauge },
