@@ -47,6 +47,7 @@ import {
   MessageSquare,
   FileBarChart,
   Bell,
+  Calendar,
 } from "lucide-react"
 import { cn } from "@/lib/utils"
 import { ALL_PROCESSES } from "@/lib/user-context"
@@ -1392,9 +1393,249 @@ export default function UnitDetailPage() {
                   </TabsList>
                 </div>
 
-                {/* Unit Overview - Daily Monitoring Alert */}
+                {/* Unit Overview - Process Status + Analyze (Original) */}
                 <TabsContent value="overview" className="p-6 space-y-6 mt-0">
-                  <DailyMonitoringOverview unitName={unitName} feedData={feedData} variables={variables} warningCount={warningCount} />
+                  {/* Tabs: 주요 운전변수, 이상징후 탐색 */}
+                  <div className="flex items-center gap-2 text-sm">
+                    <button className="text-primary font-medium border-b-2 border-primary pb-1">주요 운전변수</button>
+                    <button className="text-muted-foreground pb-1 ml-4">이상징후 탐색</button>
+                  </div>
+
+                  {/* ===== Overview Section ===== */}
+                  <div>
+                    <div className="flex items-center justify-between mb-4">
+                      <h3 className="text-sm font-bold">Overview</h3>
+                      <div className="flex items-center gap-2">
+                        <div className="flex items-center gap-1.5 text-xs border rounded px-2.5 py-1.5">
+                          <Calendar className="h-3.5 w-3.5 text-muted-foreground" />
+                          <span>2026-02-25 06:03</span>
+                        </div>
+                        <span className="text-xs text-muted-foreground">~</span>
+                        <div className="flex items-center gap-1.5 text-xs border rounded px-2.5 py-1.5">
+                          <Calendar className="h-3.5 w-3.5 text-muted-foreground" />
+                          <span>2026-02-25 08:03</span>
+                        </div>
+                        <div className="flex border rounded overflow-hidden">
+                          {["2H", "D", "W", "M", "Y"].map((t, i) => (
+                            <button key={t} className={cn("px-2.5 py-1 text-xs font-medium", i === 0 ? "bg-primary text-primary-foreground" : "hover:bg-muted")}>
+                              {t}
+                            </button>
+                          ))}
+                        </div>
+                      </div>
+                    </div>
+
+                    <div className="grid grid-cols-[220px_1fr] gap-4 mb-6">
+                      {/* Left Summary mini-panel */}
+                      <div className="space-y-4">
+                        <Card>
+                          <CardContent className="py-3 space-y-3">
+                            <h4 className="text-xs font-semibold">Summary</h4>
+                            <div>
+                              <p className="text-[10px] text-muted-foreground mb-1">처리량 가이드 준수율</p>
+                              <div className="flex items-center gap-2 p-2 bg-muted/50 rounded text-xs">
+                                <Gauge className="h-3.5 w-3.5 text-muted-foreground" />
+                                <span className="font-medium">(-)</span>
+                              </div>
+                            </div>
+                            <div>
+                              <p className="text-[10px] text-muted-foreground mb-1">Product Spec Guide 준수율</p>
+                              <div className="flex items-center gap-2 p-2 bg-muted/50 rounded text-xs">
+                                <BarChart3 className="h-3.5 w-3.5 text-muted-foreground" />
+                                <span className="font-medium">- / 100%</span>
+                              </div>
+                            </div>
+                            <div>
+                              <p className="text-[10px] text-muted-foreground mb-1">Operation Guide 준수율</p>
+                              <div className="flex items-center gap-2 p-2 bg-muted/50 rounded text-xs">
+                                <AlertTriangle className="h-3.5 w-3.5 text-muted-foreground" />
+                                <span className="font-medium">- / 100%</span>
+                              </div>
+                            </div>
+                          </CardContent>
+                        </Card>
+                        <div>
+                          <h4 className="text-xs font-semibold mb-2">Quick Link</h4>
+                          <div className="grid grid-cols-2 gap-1.5">
+                            <Button variant="outline" size="sm" className="text-[10px] h-7 justify-center gap-1"><Monitor className="h-3 w-3" />생산포탈</Button>
+                            <Button variant="outline" size="sm" className="text-[10px] h-7 justify-center gap-1"><FileText className="h-3 w-3" />SFD</Button>
+                          </div>
+                        </div>
+                      </div>
+
+                      {/* Process Status flow diagram */}
+                      <Card className="overflow-hidden">
+                        <CardHeader className="pb-1 pt-3 px-4">
+                          <CardTitle className="text-xs font-bold">Process Status</CardTitle>
+                        </CardHeader>
+                        <CardContent className="px-4 pb-3">
+                          <div className="relative bg-card rounded-lg border p-3" style={{ minHeight: 280 }}>
+                            <svg className="w-full" viewBox="0 0 900 340" preserveAspectRatio="xMidYMid meet">
+                              {/* Connections */}
+                              {CDU_CONNECTIONS.map((conn, idx) => {
+                                const from = CDU_NODES.find(n => n.id === conn.from)
+                                const to = CDU_NODES.find(n => n.id === conn.to)
+                                if (!from || !to) return null
+                                const x1 = from.x + from.w
+                                const y1 = from.y + from.h / 2
+                                const x2 = to.x
+                                const y2 = to.y + to.h / 2
+                                return (
+                                  <g key={idx}>
+                                    <line x1={x1} y1={y1} x2={x2} y2={y2} stroke="#94a3b8" strokeWidth="1.5" />
+                                    {conn.label && (
+                                      <text x={(x1 + x2) / 2} y={(y1 + y2) / 2 - 6} fontSize="9" fill="#94a3b8" textAnchor="middle">{conn.label}</text>
+                                    )}
+                                  </g>
+                                )
+                              })}
+                              {/* Nodes */}
+                              {CDU_NODES.map(node => {
+                                const isColumn = node.type === "column"
+                                const isFeed = node.type === "feed"
+                                const isProduct = node.type === "product"
+                                const isDownstream = node.type === "downstream"
+                                return (
+                                  <g key={node.id}>
+                                    <rect
+                                      x={node.x} y={node.y} width={node.w} height={node.h}
+                                      rx={isColumn ? 4 : 6}
+                                      fill={isColumn ? "#1e40af" : isFeed ? "#f8fafc" : isProduct ? "#ecfdf5" : isDownstream ? "#f0f9ff" : "#f1f5f9"}
+                                      stroke={isColumn ? "#1e40af" : isFeed ? "#cbd5e1" : isProduct ? "#6ee7b7" : isDownstream ? "#93c5fd" : "#94a3b8"}
+                                      strokeWidth="1.5"
+                                    />
+                                    <text
+                                      x={node.x + node.w / 2} y={node.y + node.h / 2 + (isColumn ? -8 : 0)}
+                                      fontSize={isColumn ? "11" : "9"} fontWeight={isColumn ? "bold" : "500"}
+                                      fill={isColumn ? "white" : "#334155"}
+                                      textAnchor="middle" dominantBaseline="middle"
+                                    >{node.label}</text>
+                                    {isColumn && (
+                                      <>
+                                        {feedData.products.slice(0, 5).map((p, i) => (
+                                          <g key={i}>
+                                            <circle cx={node.x + 14} cy={node.y + 30 + i * 22} r={3} fill={p.color} />
+                                            <text x={node.x + 22} y={node.y + 33 + i * 22} fontSize="7.5" fill="white">{p.label}</text>
+                                          </g>
+                                        ))}
+                                      </>
+                                    )}
+                                  </g>
+                                )
+                              })}
+                              {/* Product flow values */}
+                              {feedData.products.map((p, i) => {
+                                const y = 57 + i * 50
+                                return (
+                                  <g key={p.label}>
+                                    <text x={740} y={y} fontSize="9" fill="#64748b" textAnchor="start">{p.bd.toLocaleString()} BD</text>
+                                  </g>
+                                )
+                              })}
+                            </svg>
+                          </div>
+                        </CardContent>
+                      </Card>
+                    </div>
+                  </div>
+
+                  {/* ===== Analyze Section ===== */}
+                  <div>
+                    <h3 className="text-sm font-bold mb-4">Analyze</h3>
+                    <div className="grid grid-cols-2 gap-4">
+                      {/* Feed 처리량 */}
+                      <Card>
+                        <CardHeader className="pb-2 flex-row items-center justify-between">
+                          <CardTitle className="text-xs font-bold">Feed 처리량</CardTitle>
+                          <div className="flex border rounded overflow-hidden">
+                            {["2 Hours"].map(t => (
+                              <button key={t} className="px-2 py-0.5 text-[10px] bg-card hover:bg-muted">{t}</button>
+                            ))}
+                          </div>
+                        </CardHeader>
+                        <CardContent>
+                          <div className="grid grid-cols-3 gap-4">
+                            {[
+                              { name: `${unitName}`, sub: "CDU Feed", pct: feedData.feeds[0].percentage, actual: feedData.feeds[0].actual, capacity: feedData.feeds[0].capacity, mode: "HS" },
+                              { name: "Stabilizer", sub: "Unstabilized WSR", pct: 18, actual: 17866, guide: 100000, capacity: undefined, mode: undefined },
+                              { name: "Rerun", sub: "", pct: 0, actual: undefined, guide: 100000, capacity: 80000, mode: undefined },
+                            ].map((item, idx) => (
+                              <div key={idx} className="text-center">
+                                <div className="flex items-center gap-1 mb-2">
+                                  <p className="text-xs font-bold">{item.name}</p>
+                                  {item.sub && <p className="text-[10px] text-muted-foreground">{item.sub}</p>}
+                                </div>
+                                <div className="relative mx-auto w-20 h-20 mb-2">
+                                  <svg viewBox="0 0 100 100" className="w-full h-full -rotate-90">
+                                    <circle cx="50" cy="50" r="40" fill="none" stroke="#e2e8f0" strokeWidth="8" />
+                                    <circle cx="50" cy="50" r="40" fill="none" stroke="#0d9488" strokeWidth="8" strokeDasharray={`${item.pct * 2.51} 251`} strokeLinecap="round" />
+                                  </svg>
+                                  <div className="absolute inset-0 flex items-center justify-center">
+                                    <span className="text-sm font-bold">{item.pct}%</span>
+                                  </div>
+                                </div>
+                                <div className="text-[10px] space-y-0.5">
+                                  {item.actual !== undefined && <div className="flex justify-between px-2"><span className="text-muted-foreground">Actual</span><span className="font-mono">{item.actual.toLocaleString()} BD</span></div>}
+                                  {item.capacity !== undefined && <div className="flex justify-between px-2"><span className="text-muted-foreground">Capacity</span><span className="font-mono">{item.capacity.toLocaleString()} BD</span></div>}
+                                  {item.guide !== undefined && <div className="flex justify-between px-2"><span className="text-muted-foreground">Guide</span><span className="font-mono">{item.guide.toLocaleString()} BD</span></div>}
+                                  {item.mode && <div className="flex justify-between px-2"><span className="text-muted-foreground">Mode</span><span className="font-mono">{item.mode}</span></div>}
+                                </div>
+                              </div>
+                            ))}
+                          </div>
+                        </CardContent>
+                      </Card>
+
+                      {/* Product Yield */}
+                      <Card>
+                        <CardHeader className="pb-2 flex-row items-center justify-between">
+                          <CardTitle className="text-xs font-bold">Product Yield</CardTitle>
+                          <div className="flex items-center gap-1">
+                            <div className="flex border rounded overflow-hidden text-[10px]">
+                              <button className="px-1.5 py-0.5 hover:bg-muted">2 Hours</button>
+                            </div>
+                            <div className="flex border rounded overflow-hidden text-[10px]">
+                              {["NO.4 CDU", "STABILIZER", "RERUN"].map((t, i) => (
+                                <button key={t} className={cn("px-1.5 py-0.5", i === 0 ? "bg-primary text-primary-foreground" : "hover:bg-muted")}>{t}</button>
+                              ))}
+                            </div>
+                          </div>
+                        </CardHeader>
+                        <CardContent>
+                          <div className="grid grid-cols-[1fr_1fr] gap-3">
+                            <table className="w-full text-[10px]">
+                              <thead><tr className="border-b">
+                                <th className="text-left py-1 font-medium text-muted-foreground">Label</th>
+                                <th className="text-right py-1 font-medium text-muted-foreground">BD</th>
+                                <th className="text-right py-1 font-medium text-muted-foreground">%</th>
+                              </tr></thead>
+                              <tbody>
+                                {feedData.products.map(p => (
+                                  <tr key={p.label} className="border-b last:border-0">
+                                    <td className="py-1 flex items-center gap-1"><span className="w-2 h-2 rounded-full" style={{ backgroundColor: p.color }} />{p.label}</td>
+                                    <td className="text-right py-1 font-mono">{p.bd.toLocaleString()}</td>
+                                    <td className="text-right py-1 font-mono">{p.pct}</td>
+                                  </tr>
+                                ))}
+                                <tr className="border-t font-semibold">
+                                  <td className="py-1">SUM</td>
+                                  <td className="text-right py-1 font-mono">{feedData.products.reduce((s, p) => s + p.bd, 0).toLocaleString()}</td>
+                                  <td className="text-right py-1 font-mono">100.0</td>
+                                </tr>
+                              </tbody>
+                            </table>
+                            {/* Mini yield chart placeholder */}
+                            <div className="bg-muted/30 rounded-lg flex items-center justify-center">
+                              <div className="text-center">
+                                <BarChart3 className="h-8 w-8 text-muted-foreground/30 mx-auto mb-1" />
+                                <span className="text-[10px] text-muted-foreground">Yield Trend</span>
+                              </div>
+                            </div>
+                          </div>
+                        </CardContent>
+                      </Card>
+                    </div>
+                  </div>
                 </TabsContent>
 
                 {/* Key Operating Variables */}

@@ -51,10 +51,19 @@ import {
   Maximize2,
   FileImage,
   ChevronUp,
-  Wrench
+  Wrench,
+  Sparkles,
+  Target,
+  Flame,
+  Droplets,
+  Thermometer,
+  Settings,
+  FileBarChart,
+  Wind,
 } from "lucide-react"
 import { cn } from "@/lib/utils"
 import { HEALTH_CATEGORIES, PROCESSES, getEquipmentData, type HealthCategory } from "@/lib/health-data"
+import Link from "next/link"
 
 // Alert 타입 정의
 type AlertType = "alert" | "notice" | "event"
@@ -404,7 +413,7 @@ const SAMPLE_ALERTS: AlertItem[] = [
       {
         id: "cat-2",
         name: "갑작스런 Peak / Oscillation 감지",
-        description: "계기 이상 탐지 목적 - 급격한 스파이크 또는 진동 패턴을 감지하여 계기 이상 여부 판단",
+        description: "계기 이상 탐지 목적 - 급격한 스파이크 또는 진동 패턴을 감지하��� 계기 이상 여부 판단",
         top3: [
           { tagId: "FV-2001", description: "HCR Feed Control Valve", severity: "high", deviation: "Opening 92% (정상: 60-80%)", detail: "Control Valve Opening이 지속적으로 높은 상태. Sticking 또는 Positioner 이상 의심. Oscillation 패턴도 감지됨." },
           { tagId: "TI-4501", description: "VDU Column Bottom Temp", severity: "medium", deviation: "30분 주기 ±2C 진동", detail: "온도 제어루프에서 주기적 진동 패턴 감지. PID Tuning 검토 권장." },
@@ -2168,94 +2177,245 @@ export default function AlertsPage() {
                     </Card>
                   )}
 
-                  {/* Daily Monitoring AI 요약 상세 */}
+                  {/* Daily Monitoring AI 요약 상세 - Enhanced with DailyMonitoringOverview */}
                   {selectedAlert.subType === "daily-monitoring" && selectedAlert.dailyMonitoringDetail && (
                     <>
-                      {/* AI 요약 리포트 */}
-                      <Card className="border-primary/20">
-                        <CardHeader className="pb-2">
-                          <CardTitle className="text-sm flex items-center gap-2">
-                            <Zap className="h-4 w-4 text-primary" />
-                            GenAI Daily Monitoring Report
-                          </CardTitle>
-                        </CardHeader>
-                        <CardContent>
-                          <div className="p-4 bg-muted/30 rounded-lg text-sm leading-relaxed whitespace-pre-line">
-                            {selectedAlert.dailyMonitoringDetail.aiSummary}
+                      {/* ===== 1. AI Summary ===== */}
+                      <Card className="border-l-4 border-l-teal-500">
+                        <CardContent className="py-4">
+                          <div className="flex items-start gap-3">
+                            <div className="h-8 w-8 rounded-lg bg-teal-50 flex items-center justify-center shrink-0 mt-0.5">
+                              <Sparkles className="h-4 w-4 text-teal-600" />
+                            </div>
+                            <div className="flex-1 min-w-0">
+                              <div className="flex items-center gap-2 mb-2">
+                                <h3 className="text-sm font-semibold">AI Daily Summary</h3>
+                                <Badge variant="secondary" className="text-[10px]">GenAI</Badge>
+                                <span className="text-[10px] text-muted-foreground ml-auto">2026-02-25 07:00 생성</span>
+                              </div>
+                              <div className="p-3 bg-muted/40 rounded-lg mb-3">
+                                <p className="text-xs font-medium text-muted-foreground mb-1.5">생산팀 TOB 요약</p>
+                                <p className="text-xs leading-relaxed">{selectedAlert.dailyMonitoringDetail.aiSummary}</p>
+                              </div>
+                              <div className="p-3 bg-muted/40 rounded-lg">
+                                <p className="text-xs font-medium text-muted-foreground mb-1.5">주요 운전변수 변화 요약</p>
+                                <div className="space-y-1.5">
+                                  {selectedAlert.dailyMonitoringDetail.keyVariables.map((v, i) => (
+                                    <div key={i} className="flex items-center gap-2 text-xs">
+                                      <span className={cn("w-1.5 h-1.5 rounded-full shrink-0", v.status === "warning" ? "bg-amber-500" : v.status === "critical" ? "bg-red-500" : "bg-green-500")} />
+                                      <span className="font-medium w-36 shrink-0">{v.name}</span>
+                                      <span className="text-muted-foreground">{v.change}</span>
+                                      <span className="font-mono">{v.value}</span>
+                                    </div>
+                                  ))}
+                                </div>
+                              </div>
+                            </div>
                           </div>
                         </CardContent>
                       </Card>
 
-                      {/* 주요 변수 현황 */}
+                      {/* ===== 2. Quick Link Buttons ===== */}
+                      <div className="flex gap-2">
+                        <Button variant="outline" size="sm" className="text-xs gap-1.5 bg-card"><Monitor className="h-3.5 w-3.5" />DCS</Button>
+                        <Button variant="outline" size="sm" className="text-xs gap-1.5 bg-card"><FileBarChart className="h-3.5 w-3.5" />SFD</Button>
+                        <Button variant="outline" size="sm" className="text-xs gap-1.5 bg-card"><BookOpen className="h-3.5 w-3.5" />TOB</Button>
+                        <Button variant="outline" size="sm" className="text-xs gap-1.5 bg-card"><ClipboardList className="h-3.5 w-3.5" />운영계획서</Button>
+                      </div>
+
+                      {/* ===== 3. 주요 운영 현황 ===== */}
                       <Card>
                         <CardHeader className="pb-2">
                           <CardTitle className="text-sm flex items-center gap-2">
-                            <Gauge className="h-4 w-4" />
-                            주요 변수 현황
+                            <Gauge className="h-4 w-4" />주요 운영 현황
                           </CardTitle>
                         </CardHeader>
                         <CardContent>
-                          <div className="space-y-2">
-                            {selectedAlert.dailyMonitoringDetail.keyVariables.map((v, i) => (
-                              <div key={i} className="flex items-center justify-between p-3 bg-muted/30 rounded-lg">
-                                <span className="text-sm font-medium">{v.name}</span>
-                                <div className="flex items-center gap-4">
-                                  <span className="font-mono text-sm">{v.value}</span>
-                                  <span className={cn("text-xs font-medium px-2 py-0.5 rounded", v.status === "warning" ? "bg-amber-100 text-amber-700" : v.status === "critical" ? "bg-red-100 text-red-700" : "bg-green-100 text-green-700")}>
-                                    {v.change}
-                                  </span>
+                          <div className="space-y-3">
+                            {/* Operating Mode */}
+                            <div className="flex items-center gap-3 p-2 bg-muted/30 rounded-lg">
+                              <Activity className="h-4 w-4 text-primary shrink-0" />
+                              <span className="text-xs font-medium text-muted-foreground">운전 모드</span>
+                              <Badge className="text-xs bg-primary/10 text-primary hover:bg-primary/10">{selectedAlert.unit?.includes("HCR") ? "W150N / Full Rate" : "HS Mode"}</Badge>
+                            </div>
+
+                            {/* Product Spec Target vs Actual */}
+                            <div>
+                              <p className="text-xs font-medium mb-2 flex items-center gap-1.5"><Target className="h-3.5 w-3.5 text-teal-500" />Product Spec (Target vs Actual)</p>
+                              <table className="w-full text-xs">
+                                <thead><tr className="border-b bg-muted/30">
+                                  <th className="text-left px-2 py-1 font-medium text-muted-foreground">Product</th>
+                                  <th className="text-left px-2 py-1 font-medium text-muted-foreground">Spec</th>
+                                  <th className="text-right px-2 py-1 font-medium text-muted-foreground">Target</th>
+                                  <th className="text-right px-2 py-1 font-medium text-muted-foreground">Actual</th>
+                                  <th className="text-center px-2 py-1 font-medium text-muted-foreground w-10">OK</th>
+                                </tr></thead>
+                                <tbody>
+                                  {[
+                                    { prod: "LPG", spec: "C5+ Content", tgt: "2.0 vol%", act: "1.8 vol%", ok: true },
+                                    { prod: "Naphtha", spec: "EP", tgt: "180\u00b0C", act: "178\u00b0C", ok: true },
+                                    { prod: "Kero", spec: "Flash Point", tgt: "38\u00b0C", act: "39\u00b0C", ok: true },
+                                    { prod: "LGO", spec: "Sulfur", tgt: "10 ppm", act: "9 ppm", ok: true },
+                                    { prod: "HGO", spec: "Pour Point", tgt: "-9\u00b0C", act: "-10\u00b0C", ok: true },
+                                    { prod: "AR", spec: "CCR", tgt: "8.0 wt%", act: "7.8 wt%", ok: true },
+                                  ].map(s => (
+                                    <tr key={s.prod} className="border-b last:border-0">
+                                      <td className="px-2 py-1 font-medium">{s.prod}</td>
+                                      <td className="px-2 py-1 text-muted-foreground">{s.spec}</td>
+                                      <td className="px-2 py-1 text-right font-mono">{s.tgt}</td>
+                                      <td className="px-2 py-1 text-right font-mono">{s.act}</td>
+                                      <td className="px-2 py-1 text-center"><span className={cn("w-2 h-2 rounded-full inline-block", s.ok ? "bg-green-500" : "bg-amber-500")} /></td>
+                                    </tr>
+                                  ))}
+                                </tbody>
+                              </table>
+                            </div>
+
+                            {/* Product Yield */}
+                            {selectedAlert.data?.items && (
+                              <div>
+                                <p className="text-xs font-medium mb-2 flex items-center gap-1.5"><BarChart3 className="h-3.5 w-3.5 text-indigo-500" />Product 유량 및 수율</p>
+                                <div className="space-y-1.5">
+                                  {selectedAlert.data.items.map((item, i) => (
+                                    <div key={i} className="flex items-center justify-between p-2 bg-muted/30 rounded">
+                                      <span className="text-xs font-medium">{item.name}</span>
+                                      <div className="flex items-center gap-2">
+                                        <span className="text-xs font-mono">{item.value}</span>
+                                        <Badge variant={item.status === "warning" ? "destructive" : "secondary"} className="text-[10px]">
+                                          {item.status === "warning" ? "주의" : "정상"}
+                                        </Badge>
+                                      </div>
+                                    </div>
+                                  ))}
                                 </div>
                               </div>
-                            ))}
+                            )}
+
+                            {/* Custom KPIs */}
+                            <div>
+                              <p className="text-xs font-medium mb-2 flex items-center gap-1.5"><TrendingUp className="h-3.5 w-3.5 text-emerald-500" />주요 퍼포먼스 지표</p>
+                              {[
+                                { name: "COT (Coil Outlet Temp)", value: 366.2, target: 370, unit: "\u00b0C" },
+                                { name: "Energy Intensity", value: 12.7, target: 12.0, unit: "Gcal/kBD" },
+                              ].map(kpi => {
+                                const pct = Math.min((kpi.value / kpi.target) * 100, 120)
+                                const isGood = kpi.value >= kpi.target * 0.95
+                                return (
+                                  <div key={kpi.name} className="space-y-1 mb-2">
+                                    <div className="flex items-center justify-between text-xs">
+                                      <span className="font-medium">{kpi.name}</span>
+                                      <span className={cn("font-mono font-semibold", isGood ? "text-green-600" : "text-amber-600")}>
+                                        {kpi.value} {kpi.unit} <span className="text-muted-foreground font-normal">/ {kpi.target}</span>
+                                      </span>
+                                    </div>
+                                    <div className="w-full bg-muted rounded-full h-1.5">
+                                      <div className={cn("h-1.5 rounded-full", isGood ? "bg-green-500" : "bg-amber-500")} style={{ width: `${Math.min(pct, 100)}%` }} />
+                                    </div>
+                                  </div>
+                                )
+                              })}
+                            </div>
                           </div>
                         </CardContent>
                       </Card>
 
-                      {/* 운전 항목 요약 */}
-                      {selectedAlert.data?.items && (
-                        <Card>
-                          <CardHeader className="pb-2">
-                            <CardTitle className="text-sm flex items-center gap-2">
-                              <FileText className="h-4 w-4" />
-                              운전 현황 요약
-                            </CardTitle>
-                          </CardHeader>
-                          <CardContent>
-                            <div className="space-y-2">
-                              {selectedAlert.data.items.map((item, i) => (
-                                <div key={i} className="flex items-center justify-between p-3 bg-muted/30 rounded-lg">
-                                  <span className="text-sm font-medium">{item.name}</span>
-                                  <div className="flex items-center gap-3">
-                                    <span className="text-sm text-muted-foreground">{item.value}</span>
-                                    <Badge variant={item.status === "warning" ? "destructive" : "secondary"}>
-                                      {item.status === "warning" ? "주의" : "정상"}
-                                    </Badge>
-                                  </div>
+                      {/* ===== 4. 주요 운전변수 현황 ===== */}
+                      <Card>
+                        <CardHeader className="pb-2">
+                          <CardTitle className="text-sm flex items-center gap-2">
+                            <Thermometer className="h-4 w-4" />주요 운전변수 현황
+                            <Badge variant="secondary" className="text-[10px]">Operation Guide vs Actual</Badge>
+                          </CardTitle>
+                        </CardHeader>
+                        <CardContent>
+                          <div className="overflow-x-auto">
+                            <table className="w-full text-xs">
+                              <thead><tr className="border-b bg-muted/30">
+                                <th className="text-left px-2 py-1.5 font-medium text-muted-foreground w-6">ST</th>
+                                <th className="text-left px-2 py-1.5 font-medium text-muted-foreground">Tag</th>
+                                <th className="text-left px-2 py-1.5 font-medium text-muted-foreground">Description</th>
+                                <th className="text-right px-2 py-1.5 font-medium text-muted-foreground">Actual</th>
+                                <th className="text-right px-2 py-1.5 font-medium text-muted-foreground">Guide</th>
+                                <th className="text-center px-2 py-1.5 font-medium text-muted-foreground">Range</th>
+                              </tr></thead>
+                              <tbody>
+                                {[
+                                  { tag: "TI-1052", name: "Column Top Temp", val: "122.3", guide: "125", range: "120~130", st: "normal" },
+                                  { tag: "PI-1102", name: "Column Top Press", val: "1.35", guide: "1.5", range: "1.2~1.8", st: "normal" },
+                                  { tag: "TI-1352", name: "Furnace Outlet Temp", val: "363.2", guide: "365", range: "360~370", st: "normal" },
+                                  { tag: "FI-1252", name: "Feed Flow Rate", val: "342", guide: "350", range: "300~370", st: "normal" },
+                                  { tag: "FI-1452", name: "Reflux Flow Rate", val: "88.5", guide: "90", range: "80~100", st: "normal" },
+                                  { tag: "TI-1552", name: "OVHD Temp", val: "108.1", guide: "110", range: "105~115", st: "normal" },
+                                  { tag: "LI-1652", name: "Column Level", val: "51.2", guide: "50", range: "40~60", st: "normal" },
+                                  { tag: "AI-1752", name: "AR Flash Point", val: "69.5", guide: "65", range: ">65", st: "normal" },
+                                  { tag: "TI-2025", name: "Desalter Outlet", val: "134.8", guide: "135", range: "130~140", st: "normal" },
+                                  { tag: "PI-2125", name: "Column Bottom Press", val: "1.85", guide: "1.9", range: "1.7~2.1", st: "normal" },
+                                  { tag: "TI-2225", name: "Kero Draw Temp", val: "188.4", guide: "190", range: "180~195", st: "normal" },
+                                  { tag: "TI-2325", name: "LGO Draw Temp", val: "268.7", guide: "270", range: "260~280", st: "normal" },
+                                  { tag: "TI-2425", name: "HGO Draw Temp", val: "323.1", guide: "325", range: "315~335", st: "normal" },
+                                  { tag: "FI-2525", name: "Steam Flow", val: "4.5", guide: "4.5", range: "3.5~5.5", st: "normal" },
+                                  { tag: "TI-2625", name: "Condenser Outlet", val: "54.2", guide: "55", range: "48~60", st: "normal" },
+                                ].map(v => (
+                                  <tr key={v.tag} className={cn("border-b last:border-0", v.st === "warning" && "bg-amber-50/50")}>
+                                    <td className="px-2 py-1.5"><span className={cn("w-2 h-2 rounded-full inline-block", v.st === "warning" ? "bg-amber-500" : "bg-green-500")} /></td>
+                                    <td className="px-2 py-1.5 font-mono text-muted-foreground">{v.tag}</td>
+                                    <td className="px-2 py-1.5">{v.name}</td>
+                                    <td className="px-2 py-1.5 text-right font-mono font-medium">{v.val}</td>
+                                    <td className="px-2 py-1.5 text-right font-mono text-muted-foreground">{v.guide}</td>
+                                    <td className="px-2 py-1.5 text-center text-muted-foreground">{v.range}</td>
+                                  </tr>
+                                ))}
+                              </tbody>
+                            </table>
+                          </div>
+                        </CardContent>
+                      </Card>
+
+                      {/* ===== 5. 추가 모니터링 항목 ===== */}
+                      <Card>
+                        <CardHeader className="pb-2">
+                          <CardTitle className="text-sm flex items-center gap-2">
+                            <Eye className="h-4 w-4" />추가 모니터링 항목
+                          </CardTitle>
+                        </CardHeader>
+                        <CardContent>
+                          <div className="grid grid-cols-2 gap-3">
+                            {/* Custom Alarms */}
+                            <div>
+                              <p className="text-xs font-medium mb-2 flex items-center gap-1.5"><Bell className="h-3 w-3 text-amber-500" />Custom 알람</p>
+                              {[
+                                { tag: "AI-1752", name: "AR Flash Point < 65\u00b0C", current: "69.5\u00b0C", ok: true },
+                                { tag: "TI-1352", name: "Furnace Outlet > 370\u00b0C", current: "363.2\u00b0C", ok: true },
+                              ].map(item => (
+                                <div key={item.tag} className="flex items-center gap-2 p-2 border rounded mb-1.5 text-xs">
+                                  <span className={cn("w-2 h-2 rounded-full shrink-0", item.ok ? "bg-green-500" : "bg-red-500")} />
+                                  <div className="flex-1 min-w-0"><p className="truncate">{item.name}</p></div>
+                                  <span className="font-mono shrink-0">{item.current}</span>
                                 </div>
                               ))}
                             </div>
-                          </CardContent>
-                        </Card>
-                      )}
-
-                      {/* 관련 다이어그램 */}
-                      <Card>
-                        <CardHeader className="pb-2">
-                          <CardTitle className="text-sm flex items-center gap-2">
-                            <BarChart3 className="h-4 w-4" />
-                            관련 다이어그램
-                          </CardTitle>
-                        </CardHeader>
-                        <CardContent>
-                          <div className="grid grid-cols-3 gap-3">
-                            {selectedAlert.dailyMonitoringDetail.diagrams.map((name, i) => (
-                              <div key={i} className="aspect-video bg-slate-900 rounded-lg flex items-center justify-center cursor-pointer hover:opacity-80 transition-opacity">
-                                <div className="text-center">
-                                  <Monitor className="h-6 w-6 text-slate-400 mx-auto mb-1" />
-                                  <span className="text-xs text-slate-400">{name}</span>
-                                </div>
-                              </div>
-                            ))}
+                            {/* Health Focus */}
+                            <div>
+                              <p className="text-xs font-medium mb-2 flex items-center gap-1.5"><Flame className="h-3 w-3 text-red-500" />장기 건전성 집중 모니터링</p>
+                              {(() => {
+                                const allEquip = [...getEquipmentData("fouling"), ...getEquipmentData("coking")]
+                                const focusItems = allEquip.filter(eq => eq.trafficLight === "red").slice(0, 2)
+                                return focusItems.length > 0 ? focusItems.map(eq => (
+                                  <div key={eq.id} className="flex items-center gap-2 p-2 border border-red-100 bg-red-50/30 rounded mb-1.5 text-xs">
+                                    <span className="w-2 h-2 rounded-full bg-red-500 shrink-0" />
+                                    <div className="flex-1 min-w-0">
+                                      <p className="truncate font-medium">{eq.id} - {eq.name}</p>
+                                      <p className="text-muted-foreground">{eq.healthIndex.name}: {eq.healthIndex.currentValue} {eq.healthIndex.unit}</p>
+                                    </div>
+                                  </div>
+                                )) : (
+                                  <div className="text-center py-4 text-xs text-muted-foreground">
+                                    <CheckCircle className="h-5 w-5 text-green-400 mx-auto mb-1" />
+                                    집중 모니터링 항목 없음
+                                  </div>
+                                )
+                              })()}
+                            </div>
                           </div>
                         </CardContent>
                       </Card>
@@ -4168,7 +4328,7 @@ export default function AlertsPage() {
                   min={new Date().toISOString().split("T")[0]}
                 />
                 <p className="text-xs text-muted-foreground">
-                  이 날짜가 되면 알람이 자동으로 재활성화됩니다.
+                  이 날짜가 되면 ���람이 자동으로 재활성화됩니다.
                 </p>
               </div>
             </div>

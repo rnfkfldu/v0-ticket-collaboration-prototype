@@ -4,7 +4,7 @@ import { useState, useCallback, useMemo, useRef } from "react"
 import { useRouter } from "next/navigation"
 import {
   TrendingUp, LayoutGrid, LineChart, Plus, X, Search, Bookmark, Trash2,
-  ChevronRight, Tag, Save, Layers, FolderPlus, Check, Eye, Monitor
+  ChevronRight, Tag, Save, Layers, FolderPlus, Check, Eye, Monitor, Bell, Settings
 } from "lucide-react"
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
@@ -15,6 +15,7 @@ import { ScrollArea } from "@/components/ui/scroll-area"
 import { Label } from "@/components/ui/label"
 import { cn } from "@/lib/utils"
 import { AVAILABLE_TAGS, DCS_GRAPHICS } from "@/lib/process-data"
+import { savePersonalizedAlarm } from "@/lib/personalized-alarms"
 
 // --- Types ---
 interface TrendGroup {
@@ -265,7 +266,7 @@ function findTagUnit(tag: string): string | null {
 export function FloatingQuickAccess() {
   const router = useRouter()
   const [isOpen, setIsOpen] = useState(false)
-  const [activePanel, setActivePanel] = useState<"menu" | "trend" | "saved-trends" | "dashboards">("menu")
+  const [activePanel, setActivePanel] = useState<"menu" | "trend" | "saved-trends" | "dashboards" | "personalized-alarm">("menu")
 
   // --- 1) Trend Viewer State (always fresh) ---
   const [trendTab, setTrendTab] = useState<"basic" | "dcs">("basic")
@@ -302,6 +303,17 @@ export function FloatingQuickAccess() {
   // --- 3) Dashboard state ---
   const [dashboards] = useState<DashboardItem[]>(INITIAL_DASHBOARDS)
   const [selectedDashboard, setSelectedDashboard] = useState<DashboardItem | null>(null)
+
+  // --- 4) Personalized Alarm State ---
+  const [paTagInput, setPaTagInput] = useState("")
+  const [paSuggestions, setPaSuggestions] = useState<string[]>([])
+  const [paSelectedTag, setPaSelectedTag] = useState("")
+  const [paMin, setPaMin] = useState("")
+  const [paMax, setPaMax] = useState("")
+  const [paUnit, setPaUnit] = useState("")
+  const [paDescription, setPaDescription] = useState("")
+  const [paSavedMsg, setPaSavedMsg] = useState("")
+  const [paShowScreenTags, setPaShowScreenTags] = useState(false)
 
   // Context ref for saving back from trend
   const [fromGroupName, setFromGroupName] = useState<string | null>(null)
@@ -420,6 +432,63 @@ export function FloatingQuickAccess() {
     setActivePanel("trend")
   }
 
+  // --- Personalized Alarm Handlers ---
+  const handlePaTagInput = useCallback((value: string) => {
+    setPaTagInput(value)
+    if (value.length > 0) {
+      setPaSuggestions(allTags.filter(t => t.toLowerCase().includes(value.toLowerCase())).slice(0, 8))
+    } else {
+      setPaSuggestions([])
+    }
+  }, [allTags])
+
+  const handlePaTagSelect = useCallback((tag: string) => {
+    setPaSelectedTag(tag)
+    setPaTagInput(tag)
+    setPaSuggestions([])
+    // auto-detect unit from tag prefix
+    const prefix = tag.substring(0, 2)
+    if (prefix === "TI") setPaUnit("\u00b0C")
+    else if (prefix === "PI") setPaUnit("kg/cm\u00b2")
+    else if (prefix === "FI") setPaUnit("m\u00b3/h")
+    else if (prefix === "LI") setPaUnit("%")
+    else setPaUnit("")
+  }, [])
+
+  const handlePaSave = useCallback(() => {
+    if (!paSelectedTag) return
+    savePersonalizedAlarm({
+      tagId: paSelectedTag,
+      tagDescription: paDescription || undefined,
+      min: paMin ? parseFloat(paMin) : undefined,
+      max: paMax ? parseFloat(paMax) : undefined,
+      unit: paUnit || "",
+      source: "manual",
+    })
+    setPaSavedMsg(`"${paSelectedTag}" 개인화 알림이 등록되었습니다.`)
+    setPaSelectedTag("")
+    setPaTagInput("")
+    setPaMin("")
+    setPaMax("")
+    setPaUnit("")
+    setPaDescription("")
+    setPaShowScreenTags(false)
+    setTimeout(() => setPaSavedMsg(""), 3000)
+  }, [paSelectedTag, paMin, paMax, paUnit, paDescription])
+
+  const openPersonalizedAlarm = () => {
+    setPaTagInput("")
+    setPaSuggestions([])
+    setPaSelectedTag("")
+    setPaMin("")
+    setPaMax("")
+    setPaUnit("")
+    setPaDescription("")
+    setPaSavedMsg("")
+    setPaShowScreenTags(false)
+    setActivePanel("personalized-alarm")
+  }
+
   const handleClose = () => {
     setIsOpen(false)
     setActivePanel("menu")
@@ -532,6 +601,16 @@ export function FloatingQuickAccess() {
                 <div className="min-w-0">
                   <p className="text-sm font-medium">커스텀 대시보드</p>
                   <p className="text-xs text-muted-foreground">저장된 대시보드 바로 열기</p>
+                </div>
+              </button>
+              <div className="border-t my-1" />
+              <button onClick={openPersonalizedAlarm} className="w-full flex items-center gap-3 px-3 py-2.5 rounded-md hover:bg-muted transition-colors text-left cursor-pointer">
+                <div className="h-8 w-8 rounded-md bg-red-500/10 flex items-center justify-center shrink-0">
+                  <Bell className="h-4 w-4 text-red-600" />
+                </div>
+                <div className="min-w-0">
+                  <p className="text-sm font-medium">개인화 알림 설정</p>
+                  <p className="text-xs text-muted-foreground">변수 Min/Max 기반 알림 등록</p>
                 </div>
               </button>
             </CardContent>
@@ -1387,6 +1466,166 @@ export function FloatingQuickAccess() {
           <ScrollArea className="flex-1 -mx-6 px-6 min-h-0">
             {selectedDashboard && <DashboardRenderer dashboard={selectedDashboard} />}
           </ScrollArea>
+        </DialogContent>
+      </Dialog>
+
+      {/* ===== Personalized Alarm Dialog ===== */}
+      <Dialog open={isOpen && activePanel === "personalized-alarm"} onOpenChange={(open) => { if (!open) handleClose() }}>
+        <DialogContent className="max-w-lg max-h-[85vh] flex flex-col">
+          <DialogHeader>
+            <div className="flex items-center justify-between">
+              <div className="flex items-center gap-2">
+                <Bell className="h-5 w-5 text-red-500" />
+                <DialogTitle>개인화 알림 설정</DialogTitle>
+              </div>
+              <Button variant="ghost" size="sm" className="cursor-pointer" onClick={handleClose}>
+                <X className="h-4 w-4" />
+              </Button>
+            </div>
+          </DialogHeader>
+          <ScrollArea className="flex-1 -mx-6 px-6 min-h-0">
+            <div className="space-y-4 pb-4">
+              {paSavedMsg && (
+                <div className="p-2.5 bg-green-50 border border-green-200 rounded-lg text-xs text-green-700 flex items-center gap-2">
+                  <Check className="h-3.5 w-3.5" />
+                  {paSavedMsg}
+                </div>
+              )}
+
+              {/* Tag Input */}
+              <div className="space-y-2">
+                <Label className="text-xs font-medium">변수 (Tag ID)</Label>
+                <div className="relative">
+                  <Input
+                    value={paTagInput}
+                    onChange={(e) => handlePaTagInput(e.target.value)}
+                    onKeyDown={(e) => {
+                      if (e.key === "Enter" && paSuggestions.length > 0) {
+                        handlePaTagSelect(paSuggestions[0])
+                      }
+                    }}
+                    placeholder="Tag ID를 입력하세요 (예: TI-1001)"
+                    className="text-sm"
+                  />
+                  {paSuggestions.length > 0 && (
+                    <div className="absolute z-50 top-full left-0 right-0 mt-1 bg-card border rounded-lg shadow-lg max-h-48 overflow-y-auto">
+                      {paSuggestions.map(tag => (
+                        <button
+                          key={tag}
+                          onClick={() => handlePaTagSelect(tag)}
+                          className="w-full text-left px-3 py-2 text-xs hover:bg-muted transition-colors flex items-center gap-2 cursor-pointer"
+                        >
+                          <Tag className="h-3 w-3 text-muted-foreground" />
+                          <span className="font-mono">{tag}</span>
+                        </button>
+                      ))}
+                    </div>
+                  )}
+                </div>
+
+                {/* Screen Tags - Quick Select */}
+                <button
+                  onClick={() => setPaShowScreenTags(!paShowScreenTags)}
+                  className="flex items-center gap-1.5 text-xs text-primary hover:underline cursor-pointer"
+                >
+                  <Eye className="h-3 w-3" />
+                  {paShowScreenTags ? "화면 태그 리스트 닫기" : "현재 화면 태그에서 선택하기"}
+                  <ChevronRight className={cn("h-3 w-3 transition-transform", paShowScreenTags && "rotate-90")} />
+                </button>
+
+                {paShowScreenTags && (
+                  <div className="border rounded-lg p-3 bg-muted/30 max-h-48 overflow-y-auto">
+                    <p className="text-[10px] text-muted-foreground mb-2">주요 공정 태그 목록에서 선택:</p>
+                    <div className="space-y-2">
+                      {Object.entries(AVAILABLE_TAGS).slice(0, 6).map(([unit, tags]) => (
+                        <div key={unit}>
+                          <p className="text-[10px] font-semibold text-muted-foreground mb-1">{unit}</p>
+                          <div className="flex flex-wrap gap-1">
+                            {tags.slice(0, 8).map(tag => (
+                              <button
+                                key={tag}
+                                onClick={() => handlePaTagSelect(tag)}
+                                className={cn(
+                                  "px-2 py-0.5 text-[10px] font-mono rounded border cursor-pointer transition-colors",
+                                  paSelectedTag === tag ? "bg-primary text-primary-foreground border-primary" : "hover:bg-muted"
+                                )}
+                              >
+                                {tag}
+                              </button>
+                            ))}
+                          </div>
+                        </div>
+                      ))}
+                    </div>
+                  </div>
+                )}
+              </div>
+
+              {/* Description */}
+              <div className="space-y-2">
+                <Label className="text-xs font-medium">설명 (선택)</Label>
+                <Input
+                  value={paDescription}
+                  onChange={(e) => setPaDescription(e.target.value)}
+                  placeholder="알림 설명 (예: Column Top Temp 상한 감시)"
+                  className="text-sm"
+                />
+              </div>
+
+              {/* Min/Max Row */}
+              <div className="grid grid-cols-3 gap-3">
+                <div className="space-y-2">
+                  <Label className="text-xs font-medium">Min (하한)</Label>
+                  <Input
+                    type="number"
+                    value={paMin}
+                    onChange={(e) => setPaMin(e.target.value)}
+                    placeholder="Min"
+                    className="text-sm font-mono"
+                  />
+                </div>
+                <div className="space-y-2">
+                  <Label className="text-xs font-medium">Max (상한)</Label>
+                  <Input
+                    type="number"
+                    value={paMax}
+                    onChange={(e) => setPaMax(e.target.value)}
+                    placeholder="Max"
+                    className="text-sm font-mono"
+                  />
+                </div>
+                <div className="space-y-2">
+                  <Label className="text-xs font-medium">단위</Label>
+                  <Input
+                    value={paUnit}
+                    onChange={(e) => setPaUnit(e.target.value)}
+                    placeholder="단위"
+                    className="text-sm"
+                  />
+                </div>
+              </div>
+
+              {/* Selected Summary */}
+              {paSelectedTag && (
+                <div className="p-3 border rounded-lg bg-muted/30">
+                  <p className="text-xs font-medium mb-2">등록 요약</p>
+                  <div className="grid grid-cols-2 gap-2 text-xs">
+                    <div><span className="text-muted-foreground">Tag:</span> <span className="font-mono font-medium">{paSelectedTag}</span></div>
+                    {paDescription && <div><span className="text-muted-foreground">설명:</span> {paDescription}</div>}
+                    {paMin && <div><span className="text-muted-foreground">Min:</span> <span className="font-mono">{paMin} {paUnit}</span></div>}
+                    {paMax && <div><span className="text-muted-foreground">Max:</span> <span className="font-mono">{paMax} {paUnit}</span></div>}
+                  </div>
+                </div>
+              )}
+            </div>
+          </ScrollArea>
+          <DialogFooter>
+            <Button variant="outline" onClick={handleClose} className="cursor-pointer">취소</Button>
+            <Button disabled={!paSelectedTag || (!paMin && !paMax)} onClick={handlePaSave} className="cursor-pointer gap-1.5">
+              <Bell className="h-3.5 w-3.5" />
+              알림 등록
+            </Button>
+          </DialogFooter>
         </DialogContent>
       </Dialog>
     </>
