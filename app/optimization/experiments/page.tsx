@@ -23,7 +23,7 @@ import {
   ArrowUpRight, FileSpreadsheet, Monitor,
   LayoutGrid, Database, Cpu, Beaker, Eye, TrendingUp,
   BarChart3, ExternalLink, FlaskConical, ArrowLeft, Grip, FileUp,
-  Check, CircleDot, Tag, Layers
+  Check, CircleDot, Tag, Layers, RefreshCw
 } from "lucide-react"
 
 // --- Types ---
@@ -316,6 +316,7 @@ export default function ModelLabPage() {
   const [dropReason, setDropReason] = useState("")
   const [validationModelId, setValidationModelId] = useState<string>("")
   const [validationPeriod, setValidationPeriod] = useState("30d")
+  const [validationView, setValidationView] = useState<"list" | "detail">("list")
 
   // New model form
   const [newModel, setNewModel] = useState({ name: "", purpose: "", unit: "HCR", equipment: "", description: "" })
@@ -1099,165 +1100,300 @@ export default function ModelLabPage() {
 
         {/* ========== WORKSPACE 2: 운영 검증 ========== */}
         {workspace === "validate" && (
-          <main className="p-6 space-y-6">
-            <div className="flex items-center gap-4 flex-wrap">
-              <Select value={validationModelId} onValueChange={setValidationModelId}>
-                <SelectTrigger className="w-80"><SelectValue placeholder="검증할 모델을 선택하세요" /></SelectTrigger>
-                <SelectContent>
-                  {validateModels.map(m => (
-                    <SelectItem key={m.id} value={m.id}>
-                      <div className="flex items-center gap-2">
-                        <Badge variant="outline" className={cn("text-[10px] px-1", STATUS_CONFIG[m.status].color)}>{STATUS_CONFIG[m.status].label}</Badge>
-                        {m.name}
-                      </div>
-                    </SelectItem>
-                  ))}
-                </SelectContent>
-              </Select>
-              <div className="flex gap-1.5">
-                {[{ id: "7d", label: "7일" }, { id: "30d", label: "30일" }, { id: "90d", label: "90일" }].map(p => (
-                  <Button key={p.id} variant={validationPeriod === p.id ? "default" : "outline"} size="sm"
-                    onClick={() => setValidationPeriod(p.id)} className={validationPeriod !== p.id ? "bg-transparent" : ""}>
-                    {p.label}
-                  </Button>
-                ))}
-              </div>
-              {validationModel && validationModel.status !== "dropped" && validationModel.status !== "production" && (
-                <div className="ml-auto flex gap-2">
-                  <Button variant="outline" size="sm" className="gap-1.5 text-red-600 hover:text-red-700 border-red-200 hover:border-red-300 bg-transparent"
-                    onClick={() => setShowDropDialog(true)}>
-                    <X className="h-3.5 w-3.5" />Drop
-                  </Button>
-                  <Button size="sm" className="gap-1.5"
-                    onClick={() => { if (validationModel) advanceStep(validationModel.id, "production") }}>
-                    <ArrowUpRight className="h-3.5 w-3.5" />Production 승격
-                  </Button>
+          <main className="p-6 space-y-5">
+            {validationView === "list" ? (
+              <>
+                {/* Landing page header */}
+                <div className="flex items-center gap-3">
+                  <h2 className="text-xl font-bold">운영 검증 모델</h2>
+                  <Eye className="h-4 w-4 text-muted-foreground" />
                 </div>
-              )}
-            </div>
 
-            {!validationModel ? (
-              <Card className="py-16"><CardContent className="flex flex-col items-center gap-3 text-center">
-                <Eye className="h-10 w-10 text-muted-foreground/40" />
-                <p className="text-muted-foreground">검증할 모델을 선택하세요</p>
-                <p className="text-xs text-muted-foreground">구성 완료 이상 단계의 모델만 검증이 가능합니다</p>
-              </CardContent></Card>
-            ) : (() => {
-              const data = generateValidationData(validationModel)
-              const sliceLen = validationPeriod === "7d" ? 7 : 30
-              const sliced = data.slice(0, sliceLen)
-              const acc = validationModel.accuracy
-              const W = 700, H = 220, pad = { t: 20, b: 30, l: 50, r: 20 }
-              const cw = W - pad.l - pad.r, ch = H - pad.t - pad.b
-              const allVals = sliced.flatMap(d => [d.actual, d.predicted])
-              const maxV = Math.max(...allVals) * 1.02, minV = Math.min(...allVals) * 0.98
-              const range = maxV - minV || 1
-              const toX = (i: number) => pad.l + (i / (sliced.length - 1)) * cw
-              const toY = (v: number) => pad.t + (1 - (v - minV) / range) * ch
-              const makePath = (vals: number[]) => vals.reduce((acc, v, i) => {
-                const x = toX(i), y = toY(v)
-                return i === 0 ? `M ${x} ${y}` : `${acc} L ${x} ${y}`
-              }, "")
-              const actualPath = makePath(sliced.map(d => d.actual))
-              const predPath = makePath(sliced.map(d => d.predicted))
-
-              return (
-                <div className="space-y-6">
-                  <Card className="border-l-4 border-l-primary">
-                    <CardContent className="py-3 flex items-center gap-4 flex-wrap">
-                      <div className="flex-1 min-w-0">
-                        <h3 className="font-medium">{validationModel.name}</h3>
-                        <p className="text-sm text-muted-foreground">{validationModel.unit} / {validationModel.equipment} / {validationModel.purpose}</p>
+                {/* Filters */}
+                <Card>
+                  <CardContent className="py-3">
+                    <div className="flex items-center gap-3 flex-wrap">
+                      <div className="flex items-center gap-1.5 border rounded-md overflow-hidden text-sm">
+                        {["D","W","M","Y"].map((p,i) => (
+                          <button key={p} className={cn("px-3 py-1.5 text-xs font-medium transition-colors", i === 1 ? "bg-foreground text-background" : "hover:bg-muted")}>{p}</button>
+                        ))}
                       </div>
-                      <Badge variant="outline" className={cn("shrink-0", STATUS_CONFIG[validationModel.status].color)}>{STATUS_CONFIG[validationModel.status].label}</Badge>
-                      {validationModel.status === "dropped" && (
-                        <div className="w-full mt-2 p-2 bg-red-50 border border-red-200 rounded text-sm text-red-700">Drop 사유: {validationModel.dropReason}</div>
-                      )}
+                      <input type="date" defaultValue="2026-02-18" className="h-8 w-36 text-xs border rounded px-2" />
+                      <span className="text-muted-foreground text-xs">-</span>
+                      <input type="date" defaultValue="2026-02-25" className="h-8 w-36 text-xs border rounded px-2" />
+                      <Separator orientation="vertical" className="h-6" />
+                      <span className="text-xs text-muted-foreground">상태</span>
+                      <Select defaultValue="all">
+                        <SelectTrigger className="h-8 w-28 text-xs"><SelectValue /></SelectTrigger>
+                        <SelectContent>
+                          <SelectItem value="all" className="text-xs">전체</SelectItem>
+                          <SelectItem value="configured" className="text-xs">구성 완료</SelectItem>
+                          <SelectItem value="testing" className="text-xs">운영 테스트</SelectItem>
+                          <SelectItem value="production" className="text-xs">Production</SelectItem>
+                        </SelectContent>
+                      </Select>
+                      <div className="ml-auto flex gap-2">
+                        <Button variant="outline" size="sm" className="h-8"><RefreshCw className="h-3 w-3" /></Button>
+                        <Button size="sm" className="h-8 bg-teal-600 hover:bg-teal-700 text-white">조회</Button>
+                      </div>
+                    </div>
+                  </CardContent>
+                </Card>
+
+                {/* KPI Summary */}
+                <div className="grid grid-cols-4 gap-4">
+                  <Card className="bg-teal-600 text-white">
+                    <CardContent className="py-4 flex items-center gap-4">
+                      <div className="h-10 w-10 rounded-lg bg-white/20 flex items-center justify-center"><Eye className="h-5 w-5" /></div>
+                      <div>
+                        <p className="text-sm opacity-80">검증 대상 모델 수</p>
+                        <p className="text-xl font-bold">{validateModels.length} <span className="text-sm font-normal opacity-70">/ {models.length}</span></p>
+                      </div>
                     </CardContent>
                   </Card>
+                  <Card>
+                    <CardContent className="py-4 flex items-center gap-4">
+                      <div className="h-10 w-10 rounded-lg bg-green-50 flex items-center justify-center"><CheckCircle className="h-5 w-5 text-green-600" /></div>
+                      <div>
+                        <p className="text-sm text-muted-foreground">Production 모델</p>
+                        <p className="text-xl font-bold">{validateModels.filter(m=>m.status==="production").length}</p>
+                      </div>
+                    </CardContent>
+                  </Card>
+                  <Card>
+                    <CardContent className="py-4 flex items-center gap-4">
+                      <div className="h-10 w-10 rounded-lg bg-cyan-50 flex items-center justify-center"><Beaker className="h-5 w-5 text-cyan-600" /></div>
+                      <div>
+                        <p className="text-sm text-muted-foreground">테스트 중</p>
+                        <p className="text-xl font-bold">{validateModels.filter(m=>m.status==="testing").length}</p>
+                      </div>
+                    </CardContent>
+                  </Card>
+                  <Card>
+                    <CardContent className="py-4 flex items-center gap-4">
+                      <div className="h-10 w-10 rounded-lg bg-red-50 flex items-center justify-center"><AlertTriangle className="h-5 w-5 text-red-500" /></div>
+                      <div>
+                        <p className="text-sm text-muted-foreground">Drop 모델</p>
+                        <p className="text-xl font-bold">{validateModels.filter(m=>m.status==="dropped").length}</p>
+                      </div>
+                    </CardContent>
+                  </Card>
+                </div>
 
-                  {acc && (
-                    <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
-                      {[
-                        { label: "RMSE", value: acc.rmse, unit: "", good: acc.rmse < 3, desc: "Root Mean Square Error" },
-                        { label: "MAE", value: acc.mae, unit: "", good: acc.mae < 2, desc: "Mean Absolute Error" },
-                        { label: "R\u00B2", value: acc.r2, unit: "", good: acc.r2 >= 0.9, desc: "Coefficient of Determination" },
-                        { label: "MAPE", value: acc.mape, unit: "%", good: acc.mape < 3, desc: "Mean Absolute % Error" },
-                      ].map(kpi => (
-                        <Card key={kpi.label}>
-                          <CardContent className="py-4">
-                            <div className="flex items-center justify-between">
-                              <span className="text-sm text-muted-foreground">{kpi.label}</span>
-                              {kpi.good ? <Badge className="text-[10px] bg-green-100 text-green-700 hover:bg-green-100">양호</Badge>
-                                : <Badge className="text-[10px] bg-orange-100 text-orange-700 hover:bg-orange-100">주의</Badge>}
-                            </div>
-                            <div className="text-2xl font-bold mt-1">{kpi.value}{kpi.unit}</div>
-                            <p className="text-xs text-muted-foreground mt-0.5">{kpi.desc}</p>
-                          </CardContent>
-                        </Card>
+                {/* Model list table */}
+                <div>
+                  <div className="flex items-center gap-2 mb-3">
+                    <h3 className="text-base font-semibold">모델 리스트</h3>
+                  </div>
+                  <Card>
+                    <div className="overflow-x-auto">
+                      <table className="w-full text-sm">
+                        <thead>
+                          <tr className="border-b bg-muted/30">
+                            <th className="text-left px-4 py-2.5 font-medium text-muted-foreground text-xs">공정</th>
+                            <th className="text-left px-4 py-2.5 font-medium text-muted-foreground text-xs">장치</th>
+                            <th className="text-left px-4 py-2.5 font-medium text-muted-foreground text-xs">Model Description</th>
+                            <th className="text-center px-4 py-2.5 font-medium text-muted-foreground text-xs">상태</th>
+                            <th className="text-center px-4 py-2.5 font-medium text-muted-foreground text-xs">RMSE</th>
+                            <th className="text-center px-4 py-2.5 font-medium text-muted-foreground text-xs">R{'\u00B2'}</th>
+                            <th className="text-center px-4 py-2.5 font-medium text-muted-foreground text-xs">MAPE (%)</th>
+                            <th className="text-center px-4 py-2.5 font-medium text-muted-foreground text-xs">생성일</th>
+                          </tr>
+                        </thead>
+                        <tbody>
+                          {validateModels.map(model => (
+                            <tr key={model.id} className="border-b last:border-0 hover:bg-muted/20 transition-colors cursor-pointer"
+                              onClick={() => { setValidationModelId(model.id); setValidationView("detail") }}>
+                              <td className="px-4 py-2.5 text-xs">{model.unit}</td>
+                              <td className="px-4 py-2.5 text-xs">{model.equipment}</td>
+                              <td className="px-4 py-2.5 text-xs text-teal-700 hover:underline font-medium">{model.name}</td>
+                              <td className="px-4 py-2.5 text-center">
+                                <Badge variant="outline" className={cn("text-[10px]", STATUS_CONFIG[model.status].color)}>
+                                  {STATUS_CONFIG[model.status].label}
+                                </Badge>
+                              </td>
+                              <td className="px-4 py-2.5 text-center text-xs">{model.accuracy ? model.accuracy.rmse : "N/A"}</td>
+                              <td className="px-4 py-2.5 text-center text-xs">{model.accuracy ? model.accuracy.r2 : "N/A"}</td>
+                              <td className="px-4 py-2.5 text-center text-xs">{model.accuracy ? `${model.accuracy.mape}%` : "N/A"}</td>
+                              <td className="px-4 py-2.5 text-center text-xs text-muted-foreground">{model.createdDate}</td>
+                            </tr>
+                          ))}
+                        </tbody>
+                      </table>
+                    </div>
+                    <div className="flex items-center justify-center gap-3 py-3 border-t text-xs text-muted-foreground">
+                      <span>총 {validateModels.length}건</span>
+                    </div>
+                  </Card>
+                </div>
+              </>
+            ) : (
+              /* ============ Validation Detail View ============ */
+              <>
+                <Button variant="ghost" size="sm" className="gap-1.5 -ml-2" onClick={() => setValidationView("list")}>
+                  <ArrowLeft className="h-4 w-4" /> 운영 검증 목록
+                </Button>
+
+                <div className="flex items-center gap-4 flex-wrap">
+                  <Select value={validationModelId} onValueChange={setValidationModelId}>
+                    <SelectTrigger className="w-80"><SelectValue placeholder="검증할 모델을 선택하세요" /></SelectTrigger>
+                    <SelectContent>
+                      {validateModels.map(m => (
+                        <SelectItem key={m.id} value={m.id}>
+                          <div className="flex items-center gap-2">
+                            <Badge variant="outline" className={cn("text-[10px] px-1", STATUS_CONFIG[m.status].color)}>{STATUS_CONFIG[m.status].label}</Badge>
+                            {m.name}
+                          </div>
+                        </SelectItem>
                       ))}
+                    </SelectContent>
+                  </Select>
+                  <div className="flex gap-1.5">
+                    {[{ id: "7d", label: "7일" }, { id: "30d", label: "30일" }, { id: "90d", label: "90일" }].map(p => (
+                      <Button key={p.id} variant={validationPeriod === p.id ? "default" : "outline"} size="sm"
+                        onClick={() => setValidationPeriod(p.id)} className={validationPeriod !== p.id ? "bg-transparent" : ""}>
+                        {p.label}
+                      </Button>
+                    ))}
+                  </div>
+                  {validationModel && validationModel.status !== "dropped" && validationModel.status !== "production" && (
+                    <div className="ml-auto flex gap-2">
+                      <Button variant="outline" size="sm" className="gap-1.5 text-red-600 hover:text-red-700 border-red-200 hover:border-red-300 bg-transparent"
+                        onClick={() => setShowDropDialog(true)}>
+                        <X className="h-3.5 w-3.5" />Drop
+                      </Button>
+                      <Button size="sm" className="gap-1.5"
+                        onClick={() => { if (validationModel) advanceStep(validationModel.id, "production") }}>
+                        <ArrowUpRight className="h-3.5 w-3.5" />Production 승격
+                      </Button>
                     </div>
                   )}
-
-                  <Card>
-                    <CardHeader className="pb-2">
-                      <CardTitle className="text-sm flex items-center justify-between">
-                        <div className="flex items-center gap-2"><TrendingUp className="h-4 w-4" />예측값 vs 실측값 비교</div>
-                        <div className="flex items-center gap-4 text-xs font-normal text-muted-foreground">
-                          <span className="flex items-center gap-1.5"><span className="w-3 h-0.5 bg-emerald-500 inline-block rounded" />실측값</span>
-                          <span className="flex items-center gap-1.5"><span className="w-3 h-0.5 bg-blue-500 inline-block rounded" />예측값</span>
-                        </div>
-                      </CardTitle>
-                    </CardHeader>
-                    <CardContent>
-                      <svg viewBox={`0 0 ${W} ${H}`} className="w-full h-56" preserveAspectRatio="xMidYMid meet">
-                        {[0, 0.25, 0.5, 0.75, 1].map(frac => {
-                          const y = pad.t + frac * ch; const val = maxV - frac * range
-                          return (<g key={frac}><line x1={pad.l} y1={y} x2={W - pad.r} y2={y} stroke="currentColor" strokeOpacity={0.06} /><text x={pad.l - 6} y={y + 3} fontSize="9" fill="currentColor" fillOpacity={0.4} textAnchor="end">{val.toFixed(1)}</text></g>)
-                        })}
-                        {sliced.filter((_, i) => i % Math.max(1, Math.floor(sliced.length / 6)) === 0).map(d => {
-                          const idx = sliced.indexOf(d)
-                          return <text key={d.day} x={toX(idx)} y={H - 5} fontSize="8" fill="currentColor" fillOpacity={0.4} textAnchor="middle">{d.day}</text>
-                        })}
-                        <path d={`${actualPath} ${makePath(sliced.map(d => d.predicted).reverse()).replace("M", "L")} Z`} fill="currentColor" opacity="0.03" />
-                        <path d={actualPath} fill="none" stroke="#10b981" strokeWidth="2" strokeLinecap="round" />
-                        <path d={predPath} fill="none" stroke="#3b82f6" strokeWidth="2" strokeDasharray="6 3" strokeLinecap="round" />
-                        {sliced.map((d, i) => (<g key={i}><circle cx={toX(i)} cy={toY(d.actual)} r={2} fill="#10b981" /><circle cx={toX(i)} cy={toY(d.predicted)} r={2} fill="#3b82f6" /></g>))}
-                      </svg>
-                    </CardContent>
-                  </Card>
-
-                  <Card>
-                    <CardHeader className="pb-2">
-                      <CardTitle className="text-sm flex items-center gap-2"><BarChart3 className="h-4 w-4" />예측 편차 분포</CardTitle>
-                    </CardHeader>
-                    <CardContent>
-                      <div className="flex items-end gap-1 h-32 justify-center">
-                        {(() => {
-                          const devs = sliced.map(d => d.deviation)
-                          const absMax = Math.max(...devs.map(Math.abs), 1)
-                          const bins = 10; const binW = (absMax * 2) / bins
-                          const binCounts = Array(bins).fill(0)
-                          devs.forEach(d => { const idx = Math.min(bins - 1, Math.max(0, Math.floor((d + absMax) / binW))); binCounts[idx]++ })
-                          const maxCount = Math.max(...binCounts, 1)
-                          return binCounts.map((c, i) => {
-                            const center = -absMax + (i + 0.5) * binW; const isCenter = Math.abs(center) < binW
-                            return (
-                              <div key={i} className="flex flex-col items-center gap-1" style={{ width: `${100 / bins}%` }}>
-                                <div className={cn("w-full rounded-t transition-all", isCenter ? "bg-green-400" : Math.abs(center) > absMax * 0.6 ? "bg-red-300" : "bg-blue-300")}
-                                  style={{ height: `${(c / maxCount) * 100}%`, minHeight: c > 0 ? 4 : 0 }} />
-                                <span className="text-[8px] text-muted-foreground">{center.toFixed(1)}</span>
-                              </div>
-                            )
-                          })
-                        })()}
-                      </div>
-                      <p className="text-xs text-muted-foreground text-center mt-2">편차 = 예측값 - 실측값 (0에 가까울수록 정확)</p>
-                    </CardContent>
-                  </Card>
                 </div>
-              )
-            })()}
+
+                {!validationModel ? (
+                  <Card className="py-16"><CardContent className="flex flex-col items-center gap-3 text-center">
+                    <Eye className="h-10 w-10 text-muted-foreground/40" />
+                    <p className="text-muted-foreground">검증할 모델을 선택하세요</p>
+                    <p className="text-xs text-muted-foreground">구성 완료 이상 단계의 모델만 검증이 가능합니다</p>
+                  </CardContent></Card>
+                ) : (() => {
+                  const data = generateValidationData(validationModel)
+                  const sliceLen = validationPeriod === "7d" ? 7 : 30
+                  const sliced = data.slice(0, sliceLen)
+                  const acc = validationModel.accuracy
+                  const W = 700, H = 220, pad = { t: 20, b: 30, l: 50, r: 20 }
+                  const cw = W - pad.l - pad.r, ch = H - pad.t - pad.b
+                  const allVals = sliced.flatMap(d => [d.actual, d.predicted])
+                  const maxV = Math.max(...allVals) * 1.02, minV = Math.min(...allVals) * 0.98
+                  const range = maxV - minV || 1
+                  const toX = (i: number) => pad.l + (i / (sliced.length - 1)) * cw
+                  const toY = (v: number) => pad.t + (1 - (v - minV) / range) * ch
+                  const makePath = (vals: number[]) => vals.reduce((acc, v, i) => {
+                    const x = toX(i), y = toY(v)
+                    return i === 0 ? `M ${x} ${y}` : `${acc} L ${x} ${y}`
+                  }, "")
+                  const actualPath = makePath(sliced.map(d => d.actual))
+                  const predPath = makePath(sliced.map(d => d.predicted))
+
+                  return (
+                    <div className="space-y-6">
+                      <Card className="border-l-4 border-l-primary">
+                        <CardContent className="py-3 flex items-center gap-4 flex-wrap">
+                          <div className="flex-1 min-w-0">
+                            <h3 className="font-medium">{validationModel.name}</h3>
+                            <p className="text-sm text-muted-foreground">{validationModel.unit} / {validationModel.equipment} / {validationModel.purpose}</p>
+                          </div>
+                          <Badge variant="outline" className={cn("shrink-0", STATUS_CONFIG[validationModel.status].color)}>{STATUS_CONFIG[validationModel.status].label}</Badge>
+                          {validationModel.status === "dropped" && (
+                            <div className="w-full mt-2 p-2 bg-red-50 border border-red-200 rounded text-sm text-red-700">Drop 사유: {validationModel.dropReason}</div>
+                          )}
+                        </CardContent>
+                      </Card>
+
+                      {acc && (
+                        <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
+                          {[
+                            { label: "RMSE", value: acc.rmse, unit: "", good: acc.rmse < 3, desc: "Root Mean Square Error" },
+                            { label: "MAE", value: acc.mae, unit: "", good: acc.mae < 2, desc: "Mean Absolute Error" },
+                            { label: "R\u00B2", value: acc.r2, unit: "", good: acc.r2 >= 0.9, desc: "Coefficient of Determination" },
+                            { label: "MAPE", value: acc.mape, unit: "%", good: acc.mape < 3, desc: "Mean Absolute % Error" },
+                          ].map(kpi => (
+                            <Card key={kpi.label}>
+                              <CardContent className="py-4">
+                                <div className="flex items-center justify-between">
+                                  <span className="text-sm text-muted-foreground">{kpi.label}</span>
+                                  {kpi.good ? <Badge className="text-[10px] bg-green-100 text-green-700 hover:bg-green-100">양호</Badge>
+                                    : <Badge className="text-[10px] bg-orange-100 text-orange-700 hover:bg-orange-100">주의</Badge>}
+                                </div>
+                                <div className="text-2xl font-bold mt-1">{kpi.value}{kpi.unit}</div>
+                                <p className="text-xs text-muted-foreground mt-0.5">{kpi.desc}</p>
+                              </CardContent>
+                            </Card>
+                          ))}
+                        </div>
+                      )}
+
+                      <Card>
+                        <CardHeader className="pb-2">
+                          <CardTitle className="text-sm flex items-center justify-between">
+                            <div className="flex items-center gap-2"><TrendingUp className="h-4 w-4" />예측값 vs 실측값 비교</div>
+                            <div className="flex items-center gap-4 text-xs font-normal text-muted-foreground">
+                              <span className="flex items-center gap-1.5"><span className="w-3 h-0.5 bg-emerald-500 inline-block rounded" />실측값</span>
+                              <span className="flex items-center gap-1.5"><span className="w-3 h-0.5 bg-blue-500 inline-block rounded" />예측값</span>
+                            </div>
+                          </CardTitle>
+                        </CardHeader>
+                        <CardContent>
+                          <svg viewBox={`0 0 ${W} ${H}`} className="w-full h-56" preserveAspectRatio="xMidYMid meet">
+                            {[0, 0.25, 0.5, 0.75, 1].map(frac => {
+                              const y = pad.t + frac * ch; const val = maxV - frac * range
+                              return (<g key={frac}><line x1={pad.l} y1={y} x2={W - pad.r} y2={y} stroke="currentColor" strokeOpacity={0.06} /><text x={pad.l - 6} y={y + 3} fontSize="9" fill="currentColor" fillOpacity={0.4} textAnchor="end">{val.toFixed(1)}</text></g>)
+                            })}
+                            {sliced.filter((_, i) => i % Math.max(1, Math.floor(sliced.length / 6)) === 0).map(d => {
+                              const idx = sliced.indexOf(d)
+                              return <text key={d.day} x={toX(idx)} y={H - 5} fontSize="8" fill="currentColor" fillOpacity={0.4} textAnchor="middle">{d.day}</text>
+                            })}
+                            <path d={`${actualPath} ${makePath(sliced.map(d => d.predicted).reverse()).replace("M", "L")} Z`} fill="currentColor" opacity="0.03" />
+                            <path d={actualPath} fill="none" stroke="#10b981" strokeWidth="2" strokeLinecap="round" />
+                            <path d={predPath} fill="none" stroke="#3b82f6" strokeWidth="2" strokeDasharray="6 3" strokeLinecap="round" />
+                            {sliced.map((d, i) => (<g key={i}><circle cx={toX(i)} cy={toY(d.actual)} r={2} fill="#10b981" /><circle cx={toX(i)} cy={toY(d.predicted)} r={2} fill="#3b82f6" /></g>))}
+                          </svg>
+                        </CardContent>
+                      </Card>
+
+                      <Card>
+                        <CardHeader className="pb-2">
+                          <CardTitle className="text-sm flex items-center gap-2"><BarChart3 className="h-4 w-4" />예측 편차 분포</CardTitle>
+                        </CardHeader>
+                        <CardContent>
+                          <div className="flex items-end gap-1 h-32 justify-center">
+                            {(() => {
+                              const devs = sliced.map(d => d.deviation)
+                              const absMax = Math.max(...devs.map(Math.abs), 1)
+                              const bins = 10; const binW = (absMax * 2) / bins
+                              const binCounts = Array(bins).fill(0)
+                              devs.forEach(d => { const idx = Math.min(bins - 1, Math.max(0, Math.floor((d + absMax) / binW))); binCounts[idx]++ })
+                              const maxCount = Math.max(...binCounts, 1)
+                              return binCounts.map((c, i) => {
+                                const center = -absMax + (i + 0.5) * binW; const isCenter = Math.abs(center) < binW
+                                return (
+                                  <div key={i} className="flex flex-col items-center gap-1" style={{ width: `${100 / bins}%` }}>
+                                    <div className={cn("w-full rounded-t transition-all", isCenter ? "bg-green-400" : Math.abs(center) > absMax * 0.6 ? "bg-red-300" : "bg-blue-300")}
+                                      style={{ height: `${(c / maxCount) * 100}%`, minHeight: c > 0 ? 4 : 0 }} />
+                                    <span className="text-[8px] text-muted-foreground">{center.toFixed(1)}</span>
+                                  </div>
+                                )
+                              })
+                            })()}
+                          </div>
+                          <p className="text-xs text-muted-foreground text-center mt-2">편차 = 예측값 - 실측값 (0에 가까울수록 정확)</p>
+                        </CardContent>
+                      </Card>
+                    </div>
+                  )
+                })()}
+              </>
+            )}
           </main>
         )}
 
