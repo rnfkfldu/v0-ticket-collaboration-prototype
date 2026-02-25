@@ -39,6 +39,41 @@ interface TicketDetailProps {
 
 const CURRENT_USER = "김지수"
 
+const COLORS = ["#10b981","#3b82f6","#f59e0b","#ef4444","#8b5cf6","#ec4899","#06b6d4","#f97316"]
+
+function generateTagTrend(tagId: string, points = 48) {
+  const seed = tagId.split("").reduce((a, c) => a + c.charCodeAt(0), 0)
+  const rand = (s: number) => ((Math.sin(s) * 10000) % 1 + 1) % 1
+  const prefix = tagId.substring(0, 2)
+  let base = 100, unit = "", high: number | null = null, low: number | null = null
+  if (prefix === "TI") { base = 200 + seed % 200; unit = "deg.C"; high = base + 40; low = base - 30 }
+  else if (prefix === "PI") { base = 5 + seed % 20; unit = "kg/cm2"; high = base + 7; low = base - 3 }
+  else if (prefix === "FI") { base = 50 + seed % 100; unit = "BPD"; high = base + 30; low = null }
+  else if (prefix === "LI") { base = 40 + seed % 30; unit = "%"; high = 80; low = 20 }
+  else { base = 50 + seed % 50; unit = "unit"; high = null; low = null }
+  const values: number[] = []
+  for (let i = 0; i < points; i++) values.push(base + (rand(seed + i * 7) - 0.5) * base * 0.15)
+  const current = values[values.length - 1]
+  return { values, unit, high, low, current: Math.round(current * 10) / 10 }
+}
+
+function MiniTrendChart({ values, high, low, color, isAlert }: { values: number[]; high: number | null; low: number | null; color: string; isAlert?: boolean }) {
+  const min = Math.min(...values), max = Math.max(...values)
+  const allMin = Math.min(min, low ?? min), allMax = Math.max(max, high ?? max)
+  const range = allMax - allMin || 1
+  const h = 80, w = 200, pad = 2
+  const pts = values.map((v, i) => `${pad + (i / (values.length - 1)) * (w - pad * 2)},${h - pad - ((v - allMin) / range) * (h - pad * 2)}`).join(" ")
+  const highY = high !== null ? h - pad - ((high - allMin) / range) * (h - pad * 2) : null
+  const lowY = low !== null ? h - pad - ((low - allMin) / range) * (h - pad * 2) : null
+  return (
+    <svg viewBox={`0 0 ${w} ${h}`} className="w-full h-20" preserveAspectRatio="none">
+      {highY !== null && <line x1={pad} y1={highY} x2={w - pad} y2={highY} stroke="#ef4444" strokeWidth="0.5" strokeDasharray="3,3" opacity={0.6} />}
+      {lowY !== null && <line x1={pad} y1={lowY} x2={w - pad} y2={lowY} stroke="#3b82f6" strokeWidth="0.5" strokeDasharray="3,3" opacity={0.6} />}
+      <polyline points={pts} fill="none" stroke={isAlert ? "#ef4444" : color} strokeWidth="1.5" />
+    </svg>
+  )
+}
+
 // --- Process Flow Component ---
 function ProcessFlowBar({ steps, processStatus }: { steps?: EventProcessStep[]; processStatus?: string }) {
   if (!steps || steps.length === 0) return null
@@ -222,37 +257,243 @@ function ContextDataPanel({ ticket }: { ticket: Ticket }) {
         </div>
       </div>
 
-      {ticket.tags && ticket.tags.length > 0 && (
-        <div className="mb-4">
-          <p className="text-xs font-medium text-muted-foreground mb-2">관련 태그 트렌드</p>
-          <div className="p-4 bg-muted/20 rounded-lg border border-dashed border-border">
-            <div className="flex items-center gap-2 mb-2">
-              {ticket.tags.map(tag => (
-                <Badge key={tag} variant="outline" className="text-[10px]">{tag}</Badge>
-              ))}
-            </div>
-            <div className="h-24 flex items-center justify-center">
-              <p className="text-xs text-muted-foreground">태그 트렌드 차트 (시스템 연동 시 표시)</p>
+      {ticket.tags && ticket.tags.length > 0 && (() => {
+        const tagTrends = ticket.tags.map(tag => ({ tag, ...generateTagTrend(tag) }))
+        return (
+          <div className="mb-4">
+            <p className="text-xs font-medium text-muted-foreground mb-2">관련 태그 트렌드</p>
+            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-3">
+              {tagTrends.map(({ tag, values, unit, high, low, current }, i) => {
+                const isViolation = (high !== null && current > high) || (low !== null && current < low)
+                return (
+                  <div key={tag} className="p-3 bg-muted/20 rounded-lg border border-border/50">
+                    <div className="flex items-center justify-between mb-1">
+                      <div className="flex items-center gap-1.5">
+                        <div className="w-2 h-2 rounded-full shrink-0" style={{ backgroundColor: COLORS[i % COLORS.length] }} />
+                        <span className="font-mono text-xs font-semibold">{tag}</span>
+                        {isViolation && <Badge variant="destructive" className="text-[9px] px-1 py-0 h-4">Limit 초과</Badge>}
+                      </div>
+                      <span className="text-[10px] text-muted-foreground">[{unit}]</span>
+                    </div>
+                    <MiniTrendChart values={values} high={high} low={low} color={COLORS[i % COLORS.length]} isAlert={isViolation} />
+                    <div className="flex items-center justify-between text-[10px] mt-1 pt-1 border-t border-border/30">
+                      <span><span className="text-muted-foreground">현재 </span><span className={isViolation ? "text-red-600 font-semibold" : "font-semibold"}>{current} {unit}</span></span>
+                      {high !== null && <span><span className="text-muted-foreground">H </span><span className="text-red-500 font-medium">{high}</span></span>}
+                      {low !== null && <span><span className="text-muted-foreground">L </span><span className="text-blue-500 font-medium">{low}</span></span>}
+                    </div>
+                  </div>
+                )
+              })}
             </div>
           </div>
-        </div>
-      )}
+        )
+      })()}
 
       <Separator className="my-4" />
       <p className="text-xs font-medium text-muted-foreground mb-2">연계 정보</p>
       <div className="flex flex-wrap gap-2">
-        <Button variant="outline" size="sm" className="text-xs gap-1.5 h-8 bg-transparent">
-          <Info className="h-3.5 w-3.5" />
-          장치 데이터시트
-        </Button>
-        <Button variant="outline" size="sm" className="text-xs gap-1.5 h-8 bg-transparent">
-          <FileBarChart className="h-3.5 w-3.5" />
-          {"P&ID 도면"}
-        </Button>
-        <Button variant="outline" size="sm" className="text-xs gap-1.5 h-8 bg-transparent">
-          <ExternalLink className="h-3.5 w-3.5" />
-          DCS 화면
-        </Button>
+        {/* 장치 데이터시트 */}
+        <Dialog>
+          <DialogTrigger asChild>
+            <Button variant="outline" size="sm" className="text-xs gap-1.5 h-8 bg-transparent cursor-pointer">
+              <Info className="h-3.5 w-3.5" />
+              장치 데이터시트
+            </Button>
+          </DialogTrigger>
+          <DialogContent className="!max-w-2xl">
+            <DialogHeader>
+              <DialogTitle className="flex items-center gap-2">
+                <Info className="h-4 w-4 text-primary" />
+                장치 데이터시트
+              </DialogTitle>
+              <DialogDescription>{ticket.equipment || ticket.unit || "장치"} 사양 정보</DialogDescription>
+            </DialogHeader>
+            <div className="space-y-4 max-h-[60vh] overflow-y-auto">
+              <div className="grid grid-cols-2 gap-3">
+                {[
+                  { label: "장치 번호", value: ticket.equipment || "C-201" },
+                  { label: "장치명", value: ticket.unit === "HCR" ? "Hydrocracking Reactor" : ticket.unit === "VDU" ? "Vacuum Tower" : "Atmospheric Tower" },
+                  { label: "설치 공정", value: ticket.unit || "CDU" },
+                  { label: "설계 압력", value: ticket.unit === "HCR" ? "180 kg/cm2" : "2.5 kg/cm2" },
+                  { label: "설계 온도", value: ticket.unit === "HCR" ? "450 deg.C" : "400 deg.C" },
+                  { label: "운전 압력", value: ticket.unit === "HCR" ? "155 kg/cm2" : "1.2 kg/cm2" },
+                  { label: "운전 온도", value: ticket.unit === "HCR" ? "412 deg.C" : "360 deg.C" },
+                  { label: "재질", value: "SS321 / SS347" },
+                  { label: "제조사", value: "Hyundai Heavy Industries" },
+                  { label: "설치 연도", value: "2015" },
+                  { label: "최근 검사일", value: "2024-08-15" },
+                  { label: "다음 검사 예정", value: "2026-08-15" },
+                ].map(item => (
+                  <div key={item.label} className="p-2.5 bg-muted/30 rounded-md">
+                    <p className="text-[10px] text-muted-foreground">{item.label}</p>
+                    <p className="text-sm font-medium text-foreground">{item.value}</p>
+                  </div>
+                ))}
+              </div>
+              <Separator />
+              <div>
+                <p className="text-xs font-medium mb-2">Nozzle Schedule</p>
+                <table className="w-full text-xs">
+                  <thead><tr className="border-b text-muted-foreground"><th className="text-left py-1.5 px-2">Nozzle</th><th className="text-left py-1.5 px-2">Size</th><th className="text-left py-1.5 px-2">Service</th><th className="text-left py-1.5 px-2">Rating</th></tr></thead>
+                  <tbody>
+                    {[
+                      { nozzle: "N1", size: "24\"", service: "Feed Inlet", rating: "900#" },
+                      { nozzle: "N2", size: "18\"", service: "Vapor Outlet", rating: "900#" },
+                      { nozzle: "N3", size: "12\"", service: "Liquid Outlet", rating: "900#" },
+                      { nozzle: "N4", size: "2\"", service: "Thermowell", rating: "900#" },
+                      { nozzle: "N5", size: "2\"", service: "Pressure Gauge", rating: "900#" },
+                    ].map(row => (
+                      <tr key={row.nozzle} className="border-b border-border/30">
+                        <td className="py-1.5 px-2 font-mono font-medium">{row.nozzle}</td>
+                        <td className="py-1.5 px-2">{row.size}</td>
+                        <td className="py-1.5 px-2">{row.service}</td>
+                        <td className="py-1.5 px-2">{row.rating}</td>
+                      </tr>
+                    ))}
+                  </tbody>
+                </table>
+              </div>
+            </div>
+          </DialogContent>
+        </Dialog>
+
+        {/* P&ID 도면 */}
+        <Dialog>
+          <DialogTrigger asChild>
+            <Button variant="outline" size="sm" className="text-xs gap-1.5 h-8 bg-transparent cursor-pointer">
+              <FileBarChart className="h-3.5 w-3.5" />
+              {"P&ID 도면"}
+            </Button>
+          </DialogTrigger>
+          <DialogContent className="!max-w-4xl">
+            <DialogHeader>
+              <DialogTitle className="flex items-center gap-2">
+                <FileBarChart className="h-4 w-4 text-primary" />
+                {"P&ID 도면"}
+              </DialogTitle>
+              <DialogDescription>{ticket.unit || "CDU"} 공정 배관 계장도</DialogDescription>
+            </DialogHeader>
+            <div className="space-y-4 max-h-[65vh] overflow-y-auto">
+              <div className="grid grid-cols-3 gap-2 mb-3">
+                {[
+                  { label: "도면 번호", value: `${ticket.unit || "CDU"}-PID-001` },
+                  { label: "Revision", value: "Rev.5 (2024-06-01)" },
+                  { label: "승인 상태", value: "Approved" },
+                ].map(item => (
+                  <div key={item.label} className="p-2 bg-muted/30 rounded-md">
+                    <p className="text-[10px] text-muted-foreground">{item.label}</p>
+                    <p className="text-xs font-medium text-foreground">{item.value}</p>
+                  </div>
+                ))}
+              </div>
+              {/* P&ID schematic visualization */}
+              <div className="border border-border rounded-lg bg-muted/10 p-4 relative" style={{ minHeight: 360 }}>
+                <svg viewBox="0 0 800 350" className="w-full h-auto">
+                  {/* Equipment boxes */}
+                  <rect x="50" y="80" width="120" height="180" rx="4" fill="none" stroke="#10b981" strokeWidth="2" />
+                  <text x="110" y="170" textAnchor="middle" className="text-[11px]" fill="#10b981" fontWeight="600">{ticket.equipment || "C-201"}</text>
+                  <text x="110" y="186" textAnchor="middle" className="text-[9px]" fill="#6b7280">Main Column</text>
+                  <rect x="300" y="120" width="100" height="100" rx="4" fill="none" stroke="#3b82f6" strokeWidth="2" />
+                  <text x="350" y="170" textAnchor="middle" className="text-[11px]" fill="#3b82f6" fontWeight="600">E-{ticket.unit === "HCR" ? "301" : "201"}</text>
+                  <text x="350" y="186" textAnchor="middle" className="text-[9px]" fill="#6b7280">Exchanger</text>
+                  <rect x="540" y="100" width="100" height="80" rx="4" fill="none" stroke="#f59e0b" strokeWidth="2" />
+                  <text x="590" y="140" textAnchor="middle" className="text-[11px]" fill="#f59e0b" fontWeight="600">D-{ticket.unit === "HCR" ? "301" : "201"}</text>
+                  <text x="590" y="156" textAnchor="middle" className="text-[9px]" fill="#6b7280">Separator</text>
+                  <circle cx="590" cy="280" r="30" fill="none" stroke="#8b5cf6" strokeWidth="2" />
+                  <text x="590" y="283" textAnchor="middle" className="text-[11px]" fill="#8b5cf6" fontWeight="600">P-{ticket.unit === "HCR" ? "301" : "201"}</text>
+                  {/* Piping lines */}
+                  <line x1="170" y1="170" x2="300" y2="170" stroke="#94a3b8" strokeWidth="2" />
+                  <line x1="400" y1="170" x2="540" y2="140" stroke="#94a3b8" strokeWidth="2" />
+                  <line x1="590" y1="180" x2="590" y2="250" stroke="#94a3b8" strokeWidth="2" />
+                  <polygon points="296,166 304,170 296,174" fill="#94a3b8" />
+                  <polygon points="536,137 544,140 536,143" fill="#94a3b8" />
+                  {/* Tag annotations */}
+                  {(ticket.tags || []).slice(0, 4).map((tag, idx) => {
+                    const positions = [{ x: 110, y: 70 }, { x: 240, y: 145 }, { x: 460, y: 125 }, { x: 680, y: 140 }]
+                    const pos = positions[idx] || positions[0]
+                    return (
+                      <g key={tag}>
+                        <rect x={pos.x - 28} y={pos.y - 8} width={56} height={16} rx={3} fill="#f0fdf4" stroke="#10b981" strokeWidth="0.5" />
+                        <text x={pos.x} y={pos.y + 4} textAnchor="middle" fill="#059669" fontSize="9" fontFamily="monospace" fontWeight="600">{tag}</text>
+                      </g>
+                    )
+                  })}
+                  {/* Flow arrows label */}
+                  <text x="235" y="158" textAnchor="middle" fill="#94a3b8" fontSize="8">Feed</text>
+                  <text x="470" y="118" textAnchor="middle" fill="#94a3b8" fontSize="8">Effluent</text>
+                </svg>
+              </div>
+              <p className="text-[10px] text-muted-foreground text-center">{"도면 클릭 시 전체화면 P&ID Viewer가 실행됩니다. (시스템 연동 후 활성화)"}</p>
+            </div>
+          </DialogContent>
+        </Dialog>
+
+        {/* DCS 화면 */}
+        <Dialog>
+          <DialogTrigger asChild>
+            <Button variant="outline" size="sm" className="text-xs gap-1.5 h-8 bg-transparent cursor-pointer">
+              <ExternalLink className="h-3.5 w-3.5" />
+              DCS 화면
+            </Button>
+          </DialogTrigger>
+          <DialogContent className="!max-w-5xl">
+            <DialogHeader>
+              <DialogTitle className="flex items-center gap-2">
+                <ExternalLink className="h-4 w-4 text-primary" />
+                DCS 화면
+              </DialogTitle>
+              <DialogDescription>{ticket.unit || "CDU"} DCS Operator Station 화면</DialogDescription>
+            </DialogHeader>
+            <div className="space-y-4 max-h-[70vh] overflow-y-auto">
+              {/* DCS Overview schematic */}
+              <div className="relative border border-border rounded-lg bg-[#1a1a2e] overflow-hidden" style={{ minHeight: 400 }}>
+                <svg viewBox="0 0 900 400" className="w-full h-auto">
+                  {/* Background grid */}
+                  {Array.from({ length: 18 }).map((_, i) => (
+                    <line key={`vg${i}`} x1={i * 50} y1="0" x2={i * 50} y2="400" stroke="#ffffff08" strokeWidth="1" />
+                  ))}
+                  {Array.from({ length: 8 }).map((_, i) => (
+                    <line key={`hg${i}`} x1="0" y1={i * 50} x2="900" y2={i * 50} stroke="#ffffff08" strokeWidth="1" />
+                  ))}
+                  {/* DCS Equipment */}
+                  <rect x="60" y="60" width="140" height="220" rx="6" fill="#1e293b" stroke="#22d3ee" strokeWidth="1.5" />
+                  <text x="130" y="170" textAnchor="middle" fill="#22d3ee" fontSize="14" fontWeight="700">{ticket.equipment || "C-201"}</text>
+                  <text x="130" y="190" textAnchor="middle" fill="#94a3b8" fontSize="10">Main Column</text>
+                  <rect x="340" y="120" width="120" height="120" rx="6" fill="#1e293b" stroke="#34d399" strokeWidth="1.5" />
+                  <text x="400" y="180" textAnchor="middle" fill="#34d399" fontSize="14" fontWeight="700">E-{ticket.unit === "HCR" ? "301" : "201"}</text>
+                  <rect x="600" y="100" width="120" height="100" rx="6" fill="#1e293b" stroke="#fbbf24" strokeWidth="1.5" />
+                  <text x="660" y="150" textAnchor="middle" fill="#fbbf24" fontSize="14" fontWeight="700">D-{ticket.unit === "HCR" ? "301" : "201"}</text>
+                  {/* Pipes */}
+                  <line x1="200" y1="170" x2="340" y2="180" stroke="#475569" strokeWidth="3" />
+                  <line x1="460" y1="180" x2="600" y2="150" stroke="#475569" strokeWidth="3" />
+                  {/* Tag readouts */}
+                  {(ticket.tags || []).map((tag, idx) => {
+                    const trend = generateTagTrend(tag)
+                    const isAlert = (trend.high !== null && trend.current > trend.high) || (trend.low !== null && trend.current < trend.low)
+                    const positions = [{ x: 90, y: 310 }, { x: 260, y: 310 }, { x: 430, y: 310 }, { x: 600, y: 310 }, { x: 770, y: 310 }]
+                    const pos = positions[idx % positions.length]
+                    return (
+                      <g key={tag}>
+                        <rect x={pos.x} y={pos.y} width={130} height={56} rx={4} fill="#0f172a" stroke={isAlert ? "#ef4444" : "#334155"} strokeWidth="1" />
+                        <text x={pos.x + 8} y={pos.y + 16} fill="#94a3b8" fontSize="10" fontFamily="monospace">{tag}</text>
+                        <text x={pos.x + 8} y={pos.y + 36} fill={isAlert ? "#ef4444" : "#22d3ee"} fontSize="16" fontWeight="700" fontFamily="monospace">{trend.current}</text>
+                        <text x={pos.x + 90} y={pos.y + 36} fill="#64748b" fontSize="10">{trend.unit}</text>
+                        {isAlert && <circle cx={pos.x + 120} cy={pos.y + 14} r={4} fill="#ef4444"><animate attributeName="opacity" values="1;0.3;1" dur="1s" repeatCount="indefinite" /></circle>}
+                        {trend.high !== null && <text x={pos.x + 8} y={pos.y + 50} fill="#ef4444" fontSize="8">H: {trend.high}</text>}
+                        {trend.low !== null && <text x={pos.x + 60} y={pos.y + 50} fill="#3b82f6" fontSize="8">L: {trend.low}</text>}
+                      </g>
+                    )
+                  })}
+                  {/* Title bar */}
+                  <rect x="0" y="0" width="900" height="30" fill="#0f172a" />
+                  <text x="15" y="20" fill="#94a3b8" fontSize="12" fontWeight="600">{ticket.unit || "CDU"} - DCS Overview</text>
+                  <text x="780" y="20" fill="#64748b" fontSize="10">{new Date().toLocaleString("ko-KR")}</text>
+                </svg>
+              </div>
+              <p className="text-[10px] text-muted-foreground text-center">실제 DCS 연동 시 실시간 운전 화면이 표시됩니다.</p>
+            </div>
+          </DialogContent>
+        </Dialog>
       </div>
     </Card>
   )
