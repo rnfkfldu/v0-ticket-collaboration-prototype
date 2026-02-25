@@ -57,6 +57,7 @@ import {
   Flame,
   Thermometer,
   FileBarChart,
+  RefreshCw,
 } from "lucide-react"
 import { cn } from "@/lib/utils"
 import { HEALTH_CATEGORIES, PROCESSES, getEquipmentData, type HealthCategory } from "@/lib/health-data"
@@ -89,6 +90,8 @@ interface AlertItem {
   alarmBackground?: string
   shelvedReason?: string
   shelvedUntil?: string
+  // 현재 알람 발생 이력 (지속/재발생)
+  occurrenceHistory?: { timestamp: string; type: "sustained" | "recurred"; value: number; duration?: string }[]
   data?: {
     tagId?: string
     value?: number
@@ -259,6 +262,16 @@ const SAMPLE_ALERTS: AlertItem[] = [
       { timestamp: "2024-12-20 11:30", value: 408, action: "Shelved (계획정비)" }
     ],
     alarmBackground: "HCR Reactor 안전운전을 위해 설정. 온도 초과 시 촉매 비활성화 및 코킹 가능성 증가. Safety Study(2023) 결과 반영.",
+    occurrenceHistory: [
+      { timestamp: "2025-02-02 14:32", type: "recurred", value: 412, duration: "진행 중" },
+      { timestamp: "2025-02-02 10:15", type: "sustained", value: 408, duration: "2시간 17분" },
+      { timestamp: "2025-02-02 06:00", type: "sustained", value: 405, duration: "1시간 42분" },
+      { timestamp: "2025-02-02 02:00", type: "sustained", value: 406, duration: "1시간 05분" },
+      { timestamp: "2025-02-01 22:00", type: "recurred", value: 403, duration: "52분" },
+      { timestamp: "2025-02-01 18:00", type: "sustained", value: 402, duration: "1시간 31분" },
+      { timestamp: "2025-02-01 14:00", type: "recurred", value: 401, duration: "38분" },
+      { timestamp: "2025-02-01 10:30", type: "recurred", value: 404, duration: "25분" },
+    ],
     data: {
       tagId: "TI-2001",
       value: 412,
@@ -340,6 +353,13 @@ const SAMPLE_ALERTS: AlertItem[] = [
       { timestamp: "2025-01-05 09:30", value: 545, action: "모니터링 시작" },
     ],
     alarmBackground: "HCR Feed/Effluent 열교환기 Fouling 장기 모니터링 항목. W600N 모드 전환 후 Fouling Rate 가속화 확인. Action Window 내 Online Cleaning 또는 운전 조건 변경이 필요한 상황.",
+    occurrenceHistory: [
+      { timestamp: "2025-02-02 10:15", type: "sustained", value: 480, duration: "진행 중" },
+      { timestamp: "2025-02-02 06:00", type: "sustained", value: 485, duration: "4시간 15분" },
+      { timestamp: "2025-02-02 02:00", type: "sustained", value: 492, duration: "4시간 00분" },
+      { timestamp: "2025-02-01 22:00", type: "sustained", value: 498, duration: "4시간 00분" },
+      { timestamp: "2025-02-01 18:00", type: "recurred", value: 502, duration: "3시간 28분" },
+    ],
     data: {
       tagId: "TI-2931",
       value: 480,
@@ -552,7 +572,7 @@ const SAMPLE_ALERTS: AlertItem[] = [
       ]
     },
     dailyMonitoringDetail: {
-      aiSummary: "금일 전체 공정은 ���정적인 Full Rate 운전을 유지하고 있습니다. 다만, 02/01부터 진행된 Arabian Light → Arabian Medium 원유 전환으로 인해 HCR Unit의 WABT가 1.5°C 상승하였으며, 이는 피드 황함량 증가(+0.3%p)에 대한 정상적인 대응입니다. VDU Heater Outlet 온도는 안정적이며, CDU Overhead 시스템 부식 지표도 정상 범위입니다.\n\n현장 특이사항으로 P-201B Seal Oil Leak이 발견되었으나 경미한 수준으로, 정비팀에서 모니터�� ���입니다. 환경 배출 지표(SO2, NOx, 폐수 COD)는 모두 허용 범위 내에 있습니다.\n\n종합 판정: 정상 운전 유지, P-201B 상태 지속 관찰 권장",
+      aiSummary: "금일 전체 공정은 ����정적인 Full Rate 운전을 유지하고 있습니다. 다만, 02/01부터 진행된 Arabian Light → Arabian Medium 원유 전환으로 인해 HCR Unit의 WABT가 1.5°C 상승하였으며, 이는 피드 황함량 증가(+0.3%p)에 대한 정상적인 대응입니다. VDU Heater Outlet 온도는 안정적이며, CDU Overhead 시스템 부식 지표도 정상 범위입니다.\n\n현장 특이사항으로 P-201B Seal Oil Leak이 발견되었으나 경미한 수준으로, 정비팀에서 모니터�� ���입니다. 환경 배출 지표(SO2, NOx, 폐수 COD)는 모두 허용 범위 내에 있습니다.\n\n종합 판정: 정상 운전 유지, P-201B 상태 지속 관찰 권장",
       keyVariables: [
         { name: "CDU Feed Rate", value: "1,180 m3/hr", change: "+0.5%", status: "normal" },
         { name: "HCR WABT", value: "396.5°C", change: "+1.5°C", status: "warning" },
@@ -1029,7 +1049,15 @@ export default function AlertsPage() {
   }
 
   const handleAcknowledge = (alertId: string) => {
-    setAlerts(alerts.map(a => a.id === alertId ? { ...a, status: "acknowledged", alertState: "standing" as AlertState } : a))
+    const now = new Date().toISOString().slice(0, 16).replace("T", " ")
+    setAlerts(alerts.map(a => {
+      if (a.id !== alertId) return a
+      const updatedHistory = a.alarmHistory ? [
+        { timestamp: now, value: a.data?.value ?? 0, action: `인지 처리 (Standing Alert 전환) - 발생 ${a.occurrenceHistory?.length ?? 0}회` },
+        ...a.alarmHistory
+      ] : a.alarmHistory
+      return { ...a, status: "acknowledged" as AlertStatus, alertState: "standing" as AlertState, occurrenceHistory: [], alarmHistory: updatedHistory }
+    }))
   }
 
   const handleShelveAlert = (alertId: string) => {
@@ -1444,6 +1472,11 @@ export default function AlertsPage() {
                             <Badge className={cn("text-xs px-1.5 py-0", gradeInfo.color)}>{gradeInfo.label}</Badge>
                             <Badge variant="outline" className={cn("text-xs px-1.5 py-0", stateInfo.color)}>{stateInfo.label}</Badge>
                             <span className="text-xs text-muted-foreground ml-auto">{item.unit}</span>
+                            {item.alertState === "new" && item.occurrenceHistory && item.occurrenceHistory.length > 1 && (
+                              <span className="flex items-center justify-center h-5 min-w-5 px-1 rounded-full bg-red-500 text-white text-[10px] font-bold">
+                                {item.occurrenceHistory.length}
+                              </span>
+                            )}
                           </div>
                           <p className={cn("text-sm truncate mt-1", item.alertState === "new" ? "font-bold" : "font-medium")}>{item.title}</p>
                           <p className="text-xs text-muted-foreground">{item.timestamp}</p>
@@ -2183,6 +2216,90 @@ export default function AlertsPage() {
                     )
                   })()}
 
+                  {/* Alert 타입: 현재 알람 발생 이력 (지속/재발생 타임라인) */}
+                  {selectedAlert.type === "alert" && selectedAlert.occurrenceHistory && selectedAlert.occurrenceHistory.length > 0 && (
+                    <Card className="border-red-200/50">
+                      <CardHeader className="pb-2">
+                        <div className="flex items-center justify-between">
+                          <CardTitle className="text-sm flex items-center gap-2">
+                            <Bell className="h-4 w-4 text-red-500" />
+                            현재 알람 발생 이력
+                          </CardTitle>
+                          <Badge variant="destructive" className="text-xs">
+                            {selectedAlert.occurrenceHistory.length}회 발생
+                          </Badge>
+                        </div>
+                        <p className="text-xs text-muted-foreground mt-1">
+                          최초 발생: {selectedAlert.occurrenceHistory[selectedAlert.occurrenceHistory.length - 1]?.timestamp}
+                          {" | "}
+                          {selectedAlert.occurrenceHistory.filter(o => o.type === "sustained").length > 0 && `지속 ${selectedAlert.occurrenceHistory.filter(o => o.type === "sustained").length}회`}
+                          {selectedAlert.occurrenceHistory.filter(o => o.type === "sustained").length > 0 && selectedAlert.occurrenceHistory.filter(o => o.type === "recurred").length > 0 && " / "}
+                          {selectedAlert.occurrenceHistory.filter(o => o.type === "recurred").length > 0 && `재발생 ${selectedAlert.occurrenceHistory.filter(o => o.type === "recurred").length}회`}
+                        </p>
+                      </CardHeader>
+                      <CardContent>
+                        <div className="relative">
+                          {/* Vertical timeline line */}
+                          <div className="absolute left-[15px] top-2 bottom-2 w-px bg-border" />
+                          <div className="space-y-0">
+                            {selectedAlert.occurrenceHistory.map((occ, idx) => {
+                              const isSustained = occ.type === "sustained"
+                              const isFirst = idx === 0
+                              return (
+                                <div key={idx} className={cn("relative flex items-start gap-3 py-2 pl-1", isFirst && "font-medium")}>
+                                  {/* Timeline dot */}
+                                  <div className={cn(
+                                    "relative z-10 flex items-center justify-center h-[30px] w-[30px] rounded-full shrink-0",
+                                    isFirst ? "bg-red-500" : isSustained ? "bg-amber-100 border-2 border-amber-400" : "bg-red-100 border-2 border-red-400"
+                                  )}>
+                                    {isFirst ? (
+                                      <Bell className="h-3.5 w-3.5 text-white" />
+                                    ) : isSustained ? (
+                                      <Clock className="h-3.5 w-3.5 text-amber-600" />
+                                    ) : (
+                                      <RefreshCw className="h-3.5 w-3.5 text-red-600" />
+                                    )}
+                                  </div>
+                                  {/* Content */}
+                                  <div className={cn(
+                                    "flex-1 min-w-0 p-2 rounded-lg border",
+                                    isFirst ? "bg-red-50/50 border-red-200" : "bg-card border-border"
+                                  )}>
+                                    <div className="flex items-center gap-2 flex-wrap">
+                                      <span className="text-xs font-medium">{occ.timestamp}</span>
+                                      <Badge variant="outline" className={cn(
+                                        "text-[10px] h-4",
+                                        isSustained ? "border-amber-300 text-amber-700 bg-amber-50" : "border-red-300 text-red-700 bg-red-50"
+                                      )}>
+                                        {isSustained ? "지속" : "재발생"}
+                                      </Badge>
+                                      {isFirst && (
+                                        <Badge className="text-[10px] h-4 bg-red-500 text-white hover:bg-red-500">현재</Badge>
+                                      )}
+                                      <span className="text-xs text-muted-foreground ml-auto">{occ.duration}</span>
+                                    </div>
+                                    <div className="flex items-center gap-3 mt-1 text-xs">
+                                      <span className="text-muted-foreground">발생값:</span>
+                                      <span className={cn("font-mono font-medium", isFirst ? "text-red-600" : "text-foreground")}>
+                                        {occ.value}{selectedAlert.data?.tagId?.startsWith("TI") ? "\u00b0C" : selectedAlert.data?.tagId?.startsWith("PI") ? " bar" : selectedAlert.data?.tagId?.startsWith("FI") ? " m3/h" : " W/m2K"}
+                                      </span>
+                                      {selectedAlert.data?.limit && (
+                                        <>
+                                          <span className="text-muted-foreground">|</span>
+                                          <span className="text-muted-foreground">Limit: {selectedAlert.data.limit}{selectedAlert.data?.tagId?.startsWith("TI") ? "\u00b0C" : ""}</span>
+                                        </>
+                                      )}
+                                    </div>
+                                  </div>
+                                </div>
+                              )
+                            })}
+                          </div>
+                        </div>
+                      </CardContent>
+                    </Card>
+                  )}
+
                   {/* Alert 타입: 과거 알람 발생 이력 및 해결 방법 */}
                   {selectedAlert.type === "alert" && (
                     <Card>
@@ -2744,7 +2861,7 @@ export default function AlertsPage() {
                                   )
                                 })}
                                 {personalizedAlarms.filter(a => a.active).length === 0 && (
-                                  <p className="text-[10px] text-muted-foreground py-1">우측 하단 플로팅 버튼에서 개인화 알림을 등록하세요.</p>
+                                  <p className="text-[10px] text-muted-foreground py-1">��측 하단 플로팅 버튼에서 개인화 알림을 등록하세요.</p>
                                 )}
                               </div>
                             </div>
@@ -4175,7 +4292,7 @@ export default function AlertsPage() {
               {/* ���션 버튼 영역 */}
               <div className="p-4 border-t border-border bg-card">
                 <div className="flex justify-end gap-2">
-                  {/* Alert 타입: New Alert인 경우 - 인지 버튼 (Bold 강조) (health-monitoring 제외) */}
+                  {/* Alert 타입: New Alert인 ��우 - 인지 버튼 (Bold 강조) (health-monitoring 제외) */}
                   {selectedAlert.type === "alert" && selectedAlert.alertState === "new" && selectedAlert.subType !== "health-monitoring" && (
                     <Button 
                       onClick={() => handleAcknowledge(selectedAlert.id)}
