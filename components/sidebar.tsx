@@ -303,7 +303,9 @@ export function Sidebar({ unreadAlerts = 3 }: SidebarProps) {
       label: "Alert 관리",
       icon: Bell,
       items: [
-        { label: "Alert 관리", href: "/admin/alert-management", icon: Bell },
+        { label: "Alert 전체 리스트", href: "/admin/alert-management", icon: Bell },
+        { label: "개인화 Alert", href: "/admin/alert-management/personal", icon: Users },
+        { label: "Alert 현황", href: "/admin/alert-management/status", icon: BarChart3 },
       ]
     },
     {

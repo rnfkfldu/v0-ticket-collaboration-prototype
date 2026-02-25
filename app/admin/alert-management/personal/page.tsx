@@ -14,7 +14,6 @@ import {
   DialogFooter,
 } from "@/components/ui/dialog"
 import { Label } from "@/components/ui/label"
-import { Textarea } from "@/components/ui/textarea"
 import {
   Select,
   SelectContent,
@@ -27,36 +26,28 @@ import {
   Bell,
   Plus,
   Search,
-  AlertTriangle,
-  Clock,
   Download,
   Edit as EditIcon,
   Trash2,
   User,
+  Mail,
+  Smartphone,
 } from "lucide-react"
-import { ALERT_MASTER_DATA, PERSONAL_ALERT_DATA, ALERT_STATUS_DATA, getGradeColor } from "./alert-data"
+import { PERSONAL_ALERT_DATA, ALERT_MASTER_DATA } from "../alert-data"
 
-export default function AlertListPage() {
+export default function PersonalAlertPage() {
   const [searchQuery, setSearchQuery] = useState("")
-  const [filterUnit, setFilterUnit] = useState("all")
-  const [filterGrade, setFilterGrade] = useState("all")
   const [showRegisterDialog, setShowRegisterDialog] = useState(false)
 
-  const filteredMasterAlerts = ALERT_MASTER_DATA.filter(a => {
-    const matchSearch = searchQuery === "" ||
+  const filteredAlerts = PERSONAL_ALERT_DATA.filter(a => {
+    return searchQuery === "" ||
       a.tagId.toLowerCase().includes(searchQuery.toLowerCase()) ||
       a.name.toLowerCase().includes(searchQuery.toLowerCase())
-    const matchUnit = filterUnit === "all" || a.unit === filterUnit
-    const matchGrade = filterGrade === "all" || a.grade === filterGrade
-    return matchSearch && matchUnit && matchGrade
   })
 
   const units = [...new Set(ALERT_MASTER_DATA.map(a => a.unit))]
-
-  const totalAlerts = ALERT_MASTER_DATA.length
-  const enabledAlerts = ALERT_MASTER_DATA.filter(a => a.enabled).length
-  const newAlertCount = ALERT_STATUS_DATA.filter(a => a.state === "new").length
-  const standingAlertCount = ALERT_STATUS_DATA.filter(a => a.state === "standing").length
+  const enabledCount = PERSONAL_ALERT_DATA.filter(a => a.enabled).length
+  const disabledCount = PERSONAL_ALERT_DATA.length - enabledCount
 
   return (
     <AppShell>
@@ -64,8 +55,8 @@ export default function AlertListPage() {
         <header className="border-b bg-background/95 backdrop-blur px-6 py-4">
           <div className="flex items-center justify-between">
             <div>
-              <h1 className="text-2xl font-bold text-balance">Alert 전체 리스트</h1>
-              <p className="text-sm text-muted-foreground">시스템에 등록된 전체 Alert 목록 관리 및 신규 Alert 등록</p>
+              <h1 className="text-2xl font-bold text-balance">개인화 Alert</h1>
+              <p className="text-sm text-muted-foreground">개인 맞춤 Alert 설정 및 관리</p>
             </div>
             <div className="flex items-center gap-2">
               <Button variant="outline" size="sm" className="gap-1.5">
@@ -78,53 +69,41 @@ export default function AlertListPage() {
 
         <main className="flex-1 overflow-auto p-6">
           {/* Summary Cards */}
-          <div className="grid grid-cols-4 gap-4 mb-6">
+          <div className="grid grid-cols-3 gap-4 mb-6">
             <Card>
               <CardContent className="pt-4">
                 <div className="flex items-center justify-between">
                   <div>
-                    <p className="text-sm text-muted-foreground">전체 Alert</p>
-                    <p className="text-2xl font-bold">{totalAlerts}</p>
-                  </div>
-                  <Bell className="h-8 w-8 text-muted-foreground/40" />
-                </div>
-                <p className="text-xs text-muted-foreground mt-1">활성 {enabledAlerts} / 비활성 {totalAlerts - enabledAlerts}</p>
-              </CardContent>
-            </Card>
-            <Card>
-              <CardContent className="pt-4">
-                <div className="flex items-center justify-between">
-                  <div>
-                    <p className="text-sm text-muted-foreground">New Alert</p>
-                    <p className="text-2xl font-bold text-red-600">{newAlertCount}</p>
-                  </div>
-                  <AlertTriangle className="h-8 w-8 text-red-500/40" />
-                </div>
-                <p className="text-xs text-muted-foreground mt-1">즉시 확인 필요</p>
-              </CardContent>
-            </Card>
-            <Card>
-              <CardContent className="pt-4">
-                <div className="flex items-center justify-between">
-                  <div>
-                    <p className="text-sm text-muted-foreground">Standing Alert</p>
-                    <p className="text-2xl font-bold text-amber-600">{standingAlertCount}</p>
-                  </div>
-                  <Clock className="h-8 w-8 text-amber-500/40" />
-                </div>
-                <p className="text-xs text-muted-foreground mt-1">지속 관찰 중</p>
-              </CardContent>
-            </Card>
-            <Card>
-              <CardContent className="pt-4">
-                <div className="flex items-center justify-between">
-                  <div>
-                    <p className="text-sm text-muted-foreground">개인화 Alert</p>
-                    <p className="text-2xl font-bold text-primary">{PERSONAL_ALERT_DATA.filter(a => a.enabled).length}</p>
+                    <p className="text-sm text-muted-foreground">전체 개인화 Alert</p>
+                    <p className="text-2xl font-bold">{PERSONAL_ALERT_DATA.length}</p>
                   </div>
                   <User className="h-8 w-8 text-primary/40" />
                 </div>
-                <p className="text-xs text-muted-foreground mt-1">내가 설정한 Alert</p>
+                <p className="text-xs text-muted-foreground mt-1">활성 {enabledCount} / 비활성 {disabledCount}</p>
+              </CardContent>
+            </Card>
+            <Card>
+              <CardContent className="pt-4">
+                <div className="flex items-center justify-between">
+                  <div>
+                    <p className="text-sm text-muted-foreground">앱+이메일 알림</p>
+                    <p className="text-2xl font-bold text-primary">{PERSONAL_ALERT_DATA.filter(a => a.notification === "앱+이메일").length}</p>
+                  </div>
+                  <Mail className="h-8 w-8 text-primary/40" />
+                </div>
+                <p className="text-xs text-muted-foreground mt-1">이중 알림 설정</p>
+              </CardContent>
+            </Card>
+            <Card>
+              <CardContent className="pt-4">
+                <div className="flex items-center justify-between">
+                  <div>
+                    <p className="text-sm text-muted-foreground">앱 전용 알림</p>
+                    <p className="text-2xl font-bold">{PERSONAL_ALERT_DATA.filter(a => a.notification === "앱").length}</p>
+                  </div>
+                  <Smartphone className="h-8 w-8 text-muted-foreground/40" />
+                </div>
+                <p className="text-xs text-muted-foreground mt-1">앱 알림만 설정</p>
               </CardContent>
             </Card>
           </div>
@@ -140,33 +119,13 @@ export default function AlertListPage() {
                 className="pl-9"
               />
             </div>
-            <Select value={filterUnit} onValueChange={setFilterUnit}>
-              <SelectTrigger className="w-32">
-                <SelectValue placeholder="Unit" />
-              </SelectTrigger>
-              <SelectContent>
-                <SelectItem value="all">전체 Unit</SelectItem>
-                {units.map(u => <SelectItem key={u} value={u}>{u}</SelectItem>)}
-              </SelectContent>
-            </Select>
-            <Select value={filterGrade} onValueChange={setFilterGrade}>
-              <SelectTrigger className="w-28">
-                <SelectValue placeholder="등급" />
-              </SelectTrigger>
-              <SelectContent>
-                <SelectItem value="all">전체 등급</SelectItem>
-                <SelectItem value="상">상</SelectItem>
-                <SelectItem value="중">중</SelectItem>
-                <SelectItem value="하">하</SelectItem>
-              </SelectContent>
-            </Select>
             <Button onClick={() => setShowRegisterDialog(true)} className="gap-1.5 ml-auto">
               <Plus className="h-4 w-4" />
-              Alert 등록
+              개인화 Alert 등록
             </Button>
           </div>
 
-          {/* Alert Table */}
+          {/* Table */}
           <Card>
             <CardContent className="p-0">
               <div className="overflow-x-auto">
@@ -177,30 +136,28 @@ export default function AlertListPage() {
                       <th className="text-left px-4 py-3 font-medium text-muted-foreground">Tag ID</th>
                       <th className="text-left px-4 py-3 font-medium text-muted-foreground">Alert 명칭</th>
                       <th className="text-left px-4 py-3 font-medium text-muted-foreground">Unit</th>
-                      <th className="text-left px-4 py-3 font-medium text-muted-foreground">타입</th>
-                      <th className="text-center px-4 py-3 font-medium text-muted-foreground">등급</th>
-                      <th className="text-right px-4 py-3 font-medium text-muted-foreground">Limit</th>
+                      <th className="text-right px-4 py-3 font-medium text-muted-foreground">Threshold</th>
                       <th className="text-center px-4 py-3 font-medium text-muted-foreground">방향</th>
+                      <th className="text-center px-4 py-3 font-medium text-muted-foreground">알림 방식</th>
                       <th className="text-center px-4 py-3 font-medium text-muted-foreground">상태</th>
-                      <th className="text-center px-4 py-3 font-medium text-muted-foreground">생성자</th>
+                      <th className="text-center px-4 py-3 font-medium text-muted-foreground">생성일</th>
                       <th className="text-center px-4 py-3 font-medium text-muted-foreground">액션</th>
                     </tr>
                   </thead>
                   <tbody>
-                    {filteredMasterAlerts.map(alert => (
+                    {filteredAlerts.map(alert => (
                       <tr key={alert.id} className="border-b hover:bg-muted/30 transition-colors">
                         <td className="px-4 py-3 font-mono text-xs text-muted-foreground">{alert.id}</td>
                         <td className="px-4 py-3 font-mono font-medium">{alert.tagId}</td>
                         <td className="px-4 py-3">{alert.name}</td>
                         <td className="px-4 py-3"><Badge variant="outline" className="text-xs">{alert.unit}</Badge></td>
-                        <td className="px-4 py-3"><Badge variant="secondary" className="text-xs">{alert.type}</Badge></td>
-                        <td className="px-4 py-3 text-center"><Badge className={cn("text-xs", getGradeColor(alert.grade))}>{alert.grade}</Badge></td>
-                        <td className="px-4 py-3 text-right font-mono">{alert.limit} {alert.uom}</td>
+                        <td className="px-4 py-3 text-right font-mono">{alert.threshold} {alert.uom}</td>
                         <td className="px-4 py-3 text-center">
                           <Badge variant="outline" className={cn("text-xs", alert.direction === "High" ? "border-red-200 text-red-600" : "border-blue-200 text-blue-600")}>
                             {alert.direction === "High" ? "\u25B2 High" : "\u25BC Low"}
                           </Badge>
                         </td>
+                        <td className="px-4 py-3 text-center text-xs">{alert.notification}</td>
                         <td className="px-4 py-3 text-center">
                           {alert.enabled ? (
                             <Badge className="text-xs bg-emerald-100 text-emerald-700 border-emerald-200">활성</Badge>
@@ -208,7 +165,7 @@ export default function AlertListPage() {
                             <Badge variant="secondary" className="text-xs">비활성</Badge>
                           )}
                         </td>
-                        <td className="px-4 py-3 text-center text-xs text-muted-foreground">{alert.createdBy}</td>
+                        <td className="px-4 py-3 text-center text-xs text-muted-foreground">{alert.createdAt}</td>
                         <td className="px-4 py-3 text-center">
                           <div className="flex items-center justify-center gap-1">
                             <Button variant="ghost" size="icon" className="h-7 w-7"><EditIcon className="h-3.5 w-3.5" /></Button>
@@ -221,20 +178,20 @@ export default function AlertListPage() {
                 </table>
               </div>
               <div className="px-4 py-3 border-t bg-muted/20 text-xs text-muted-foreground">
-                전체 {filteredMasterAlerts.length}건 표시 (총 {ALERT_MASTER_DATA.length}건)
+                전체 {filteredAlerts.length}건 표시
               </div>
             </CardContent>
           </Card>
         </main>
       </div>
 
-      {/* ===== Alert 등록 Dialog ===== */}
+      {/* ===== 개인화 Alert 등록 Dialog ===== */}
       <Dialog open={showRegisterDialog} onOpenChange={setShowRegisterDialog}>
         <DialogContent className="max-w-lg">
           <DialogHeader>
             <DialogTitle className="flex items-center gap-2">
-              <Bell className="h-5 w-5" />
-              Alert 등록
+              <User className="h-5 w-5" />
+              개인화 Alert 등록
             </DialogTitle>
           </DialogHeader>
           <div className="space-y-4 py-2">
@@ -255,32 +212,16 @@ export default function AlertListPage() {
             </div>
             <div className="space-y-2">
               <Label>Alert 명칭</Label>
-              <Input placeholder="Alert 명칭 입력" />
+              <Input placeholder="예: 내 관심 HCR Reactor Temp" />
             </div>
             <div className="grid grid-cols-3 gap-4">
               <div className="space-y-2">
-                <Label>타입</Label>
-                <Select>
-                  <SelectTrigger><SelectValue placeholder="타입" /></SelectTrigger>
-                  <SelectContent>
-                    <SelectItem value="Process">Process</SelectItem>
-                    <SelectItem value="Health">Health</SelectItem>
-                    <SelectItem value="Quality">Quality</SelectItem>
-                    <SelectItem value="Safety">Safety</SelectItem>
-                    <SelectItem value="Mechanical">Mechanical</SelectItem>
-                  </SelectContent>
-                </Select>
+                <Label>Threshold</Label>
+                <Input type="number" placeholder="예: 395" />
               </div>
               <div className="space-y-2">
-                <Label>등급</Label>
-                <Select>
-                  <SelectTrigger><SelectValue placeholder="등급" /></SelectTrigger>
-                  <SelectContent>
-                    <SelectItem value="상">상</SelectItem>
-                    <SelectItem value="중">중</SelectItem>
-                    <SelectItem value="하">하</SelectItem>
-                  </SelectContent>
-                </Select>
+                <Label>단위</Label>
+                <Input placeholder="예: \u00b0C" />
               </div>
               <div className="space-y-2">
                 <Label>방향</Label>
@@ -293,19 +234,16 @@ export default function AlertListPage() {
                 </Select>
               </div>
             </div>
-            <div className="grid grid-cols-2 gap-4">
-              <div className="space-y-2">
-                <Label>Limit 값</Label>
-                <Input type="number" placeholder="예: 400" />
-              </div>
-              <div className="space-y-2">
-                <Label>단위</Label>
-                <Input placeholder="예: \u00b0C, kg/cm2, m3/h" />
-              </div>
-            </div>
             <div className="space-y-2">
-              <Label>비고</Label>
-              <Textarea placeholder="Alert 배경 및 설명..." className="resize-none" rows={3} />
+              <Label>알림 방식</Label>
+              <Select>
+                <SelectTrigger><SelectValue placeholder="알림 방식 선택" /></SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="app">앱</SelectItem>
+                  <SelectItem value="app-email">앱+이메일</SelectItem>
+                  <SelectItem value="email">이메일</SelectItem>
+                </SelectContent>
+              </Select>
             </div>
           </div>
           <DialogFooter>
