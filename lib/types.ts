@@ -70,6 +70,8 @@ export interface Ticket {
   opinions?: EventOpinion[]
   // 댓글
   comments?: EventComment[]
+  // 임시 저장
+  draft?: string
 }
 
 export interface EventProcessStep {

@@ -801,6 +801,9 @@ export function TicketDetail({ ticket: initialTicket }: TicketDetailProps) {
 
   return (
     <div className="space-y-6">
+      {/* Process Flow - always at the very top */}
+      <ProcessFlowBar steps={ticket.processFlow} processStatus={ticket.processStatus} />
+
       {/* Pending acceptance banner */}
       {isPending && (
         <Card className="p-4 bg-blue-50 border-blue-200">
@@ -822,9 +825,6 @@ export function TicketDetail({ ticket: initialTicket }: TicketDetailProps) {
           </div>
         </Card>
       )}
-
-      {/* Process Flow */}
-      <ProcessFlowBar steps={ticket.processFlow} processStatus={ticket.processStatus} />
 
       {/* Basic Info + Context side by side */}
       <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">

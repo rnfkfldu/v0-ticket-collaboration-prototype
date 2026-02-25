@@ -2,9 +2,19 @@ import type { Ticket, WorkPackage, WorkPackageLog, WorkPackageAttachment, Ticket
 import { getMockTickets } from "./mock-data"
 
 const STORAGE_KEY = "tickets"
+const STORAGE_VERSION_KEY = "tickets_version"
+const CURRENT_VERSION = "v3-event-redesign"
 
 export function getTickets(): Ticket[] {
   if (typeof window === "undefined") return getMockTickets()
+
+  const storedVersion = localStorage.getItem(STORAGE_VERSION_KEY)
+  if (storedVersion !== CURRENT_VERSION) {
+    const mockTickets = getMockTickets()
+    localStorage.setItem(STORAGE_KEY, JSON.stringify(mockTickets))
+    localStorage.setItem(STORAGE_VERSION_KEY, CURRENT_VERSION)
+    return mockTickets
+  }
 
   const stored = localStorage.getItem(STORAGE_KEY)
   if (!stored) {
@@ -20,8 +30,10 @@ export function resetSystem(): void {
   if (typeof window === "undefined") return
 
   localStorage.removeItem(STORAGE_KEY)
+  localStorage.removeItem(STORAGE_VERSION_KEY)
   const mockTickets = getMockTickets()
   localStorage.setItem(STORAGE_KEY, JSON.stringify(mockTickets))
+  localStorage.setItem(STORAGE_VERSION_KEY, CURRENT_VERSION)
 }
 
 export function saveTicket(ticket: Ticket): void {
