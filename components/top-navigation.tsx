@@ -75,10 +75,10 @@ const mainMenus = [
   },
   { 
     id: "roadmap",
-    label: "과제관리", 
+    label: "전략 과제", 
     href: "/roadmap",
     icon: Target,
-    description: "TA Worklist 및 과제 관리"
+    description: "TA Worklist 및 전략 과제 관리"
   },
   { 
     id: "knowledge",

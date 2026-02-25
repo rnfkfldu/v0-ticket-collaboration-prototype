@@ -318,7 +318,7 @@ export function Sidebar({ unreadAlerts = 3 }: SidebarProps) {
     },
   ]
 
-  // 과제관리 메뉴 구조
+  // 전략 과제 메뉴 구조
   const roadmapMenu: MenuSection[] = [
     {
       id: "worklist",

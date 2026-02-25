@@ -134,7 +134,7 @@ const REPEATABLE_GUIDES = [
     description: "전 공정 IOW 항목 일일 점검. Critical/Standard Window 이탈 여부 확인.",
     background: "IOW(Integrity Operating Window)는 설비 건전성 유지를 위한 필수 운전 범위입니다. 일일 점검을 통해 이탈 항목을 조기에 발견하고 조치합니다.",
     steps: ["1. 건전성 대시보드에서 IOW 카테고리 확인", "2. Critical IOW 이탈 여부 최우선 확인", "3. Standard IOW 이탈 항목 리스트업", "4. 이탈 항목별 원인 분석", "5. 필요 조치 기록 및 실행", "6. 운영 로그에 점검 결과 기록"],
-    checklist: ["Critical IOW 이탈 여부 확인", "Standard IOW 이탈 항목 리스트", "이탈 항목 원인 분석 및 조치 기록", "건전성 대시보드 신호등 확인"],
+    checklist: ["Critical IOW 이탈 여부 확인", "Standard IOW 이탈 항목 리스트", "이탈 항목 원인 분석 ��� 조치 기록", "건전성 대시보드 신호등 확인"],
     relatedDocs: ["IOW-001~003"],
     relatedLinks: [{ label: "건전성 현황", href: "/operations/health/overview" }] },
   { id: "RG-007", title: "분기 Corrosion Coupon 점검", process: "CDU", triggerType: "periodic" as const, frequency: "분기 1회", lastIssued: "2025-01-05", nextDue: "2025-04-05", status: "upcoming", assignee: "Inspection팀",
@@ -149,7 +149,7 @@ const REPEATABLE_GUIDES = [
     background: "TA(Turnaround) Scope 확정은 가장 비용 영향이 큰 의사결정 중 하나입니다. 건전성 모니터링, 과제 관리, Worklist를 종합적으로 검토하여 최적의 Scope를 확정합니다.",
     steps: ["1. 건전성 Red/Yellow 항목 전수 검토", "2. 과제 Worklist 최종 확인", "3. 자재 발주 현황 점검", "4. Scope 변경 사항 이력 확인", "5. TA 일정 영향 분석", "6. 최종 Scope Freeze 의사결정 회의"],
     checklist: ["건전성 Red/Yellow 항목 전수 검토", "과제 Worklist 최종 확인", "자재 발주 현황 점검", "Scope 변경 사항 이력 확인", "TA 일정 영향 분석"],
-    relatedDocs: ["과제관리 > TA Worklist"],
+    relatedDocs: ["전략 과제 > TA Worklist"],
     relatedLinks: [{ label: "TA Worklist", href: "/roadmap" }, { label: "건전성 현황", href: "/operations/health/overview" }] },
 ]
 
