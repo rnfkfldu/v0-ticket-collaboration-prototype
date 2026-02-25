@@ -20,6 +20,12 @@ import { AVAILABLE_TAGS } from "@/lib/process-data"
 // =========================================================================
 // Types
 // =========================================================================
+interface EquipmentGroup {
+  equipmentId: string
+  equipmentName: string
+  tags: string[]
+}
+
 interface WidgetConfig {
   id: string
   type: "trend" | "kpi" | "gauge" | "table" | "oop-component"
@@ -31,6 +37,7 @@ interface WidgetConfig {
   process?: string
   zone?: string
   equipment?: string
+  equipmentGroups?: EquipmentGroup[] // multi-equipment support
   displayMode?: "individual" | "overlay"
   // Legacy single-tag (for pre-existing widgets)
   tag?: string
@@ -344,6 +351,7 @@ export default function CustomDashboardPage() {
   const [cfgProcess, setCfgProcess] = useState<string>("")
   const [cfgZone, setCfgZone] = useState<string>("")
   const [cfgEquipment, setCfgEquipment] = useState<string>("")
+  const [cfgEquipmentList, setCfgEquipmentList] = useState<string[]>([]) // multi-select
   const [cfgTags, setCfgTags] = useState<string[]>([])
   const [cfgDisplayMode, setCfgDisplayMode] = useState<"individual" | "overlay">("individual")
   const [cfgTitle, setCfgTitle] = useState("")
@@ -411,6 +419,7 @@ export default function CustomDashboardPage() {
     setCfgProcess(w.process || "")
     setCfgZone(w.zone || "")
     setCfgEquipment(w.equipment || "")
+    setCfgEquipmentList(w.equipmentGroups?.map(g => g.equipmentId) || (w.equipment ? [w.equipment] : []))
     setCfgTags(w.tags || (w.tag ? [w.tag] : []))
     setCfgDisplayMode(w.displayMode || "individual")
     setCfgTitle(w.title)
@@ -424,8 +433,19 @@ export default function CustomDashboardPage() {
 
   const handleSelectEquipment = (eqId: string) => {
     setCfgEquipment(eqId)
-    const eq = cfgZoneNode?.equipment.find(e => e.id === eqId)
-    if (eq) setCfgTags(eq.tags)
+    // Toggle multi-select
+    setCfgEquipmentList(prev => {
+      const next = prev.includes(eqId) ? prev.filter(id => id !== eqId) : [...prev, eqId]
+      // Aggregate all tags from selected equipment
+      if (cfgZoneNode) {
+        const allTags = next.flatMap(id => {
+          const eq = cfgZoneNode.equipment.find(e => e.id === id)
+          return eq ? eq.tags : []
+        })
+        setCfgTags([...new Set(allTags)])
+      }
+      return next
+    })
   }
 
   const handleSelectTableGroup = (groupId: string) => {
@@ -438,13 +458,20 @@ export default function CustomDashboardPage() {
     }
   }
 
+  // Build equipment groups from current selection
+  const cfgEquipmentGroups: EquipmentGroup[] = cfgEquipmentList.map(eqId => {
+    const eq = cfgZoneNode?.equipment.find(e => e.id === eqId)
+    return eq ? { equipmentId: eq.id, equipmentName: eq.name, tags: eq.tags } : null
+  }).filter(Boolean) as EquipmentGroup[]
+
   const saveConfig = () => {
     if (!configWidgetId) return
     updateDashboard(d => ({
       ...d,
       widgets: d.widgets.map(w => w.id === configWidgetId ? {
         ...w, configured: true, title: cfgTitle, colSpan: cfgColSpan,
-        process: cfgProcess, zone: cfgZone, equipment: cfgEquipment,
+        process: cfgProcess, zone: cfgZone, equipment: cfgEquipmentList[0] || cfgEquipment,
+        equipmentGroups: cfgEquipmentGroups.length > 0 ? cfgEquipmentGroups : undefined,
         tags: cfgTags, tag: cfgTags[0] || w.tag, displayMode: cfgDisplayMode,
       } : w),
       updatedAt: new Date().toISOString().slice(0, 10),
@@ -648,6 +675,8 @@ export default function CustomDashboardPage() {
               // Configured trend widget
               if (w.type === "trend" && w.tags && w.tags.length > 0) {
                 const tagTrends = w.tags.map(t => ({ tag: t, ...generateTagTrend(t) }))
+                const hasGroups = w.equipmentGroups && w.equipmentGroups.length > 1
+
                 return (
                   <Card key={w.id} className={cn("group relative overflow-hidden", span)}>
                     <div className="absolute top-2 right-2 flex items-center gap-1 opacity-0 group-hover:opacity-100 transition-opacity z-10">
@@ -663,6 +692,7 @@ export default function CustomDashboardPage() {
                         <GripVertical className="h-4 w-4 text-muted-foreground/40" />
                         <span className="text-xs font-medium">{w.title}</span>
                         {w.process && <Badge variant="outline" className="text-[10px] h-4">{w.process}</Badge>}
+                        {hasGroups && <Badge variant="secondary" className="text-[10px] h-4">{w.equipmentGroups!.length}개 그룹</Badge>}
                       </div>
                       <div className="flex items-center gap-1.5">
                         {w.displayMode === "overlay" && <Badge variant="secondary" className="text-[10px] h-4">겹쳐보기</Badge>}
@@ -670,7 +700,55 @@ export default function CustomDashboardPage() {
                       </div>
                     </div>
                     <div className="px-2 pb-1">
-                      {w.displayMode === "overlay" && tagTrends.length >= 2 ? (
+                      {hasGroups ? (
+                        /* Grouped display: separate section per equipment */
+                        <div className="space-y-2">
+                          {w.equipmentGroups!.map((group, gi) => {
+                            const groupTrends = group.tags.map(t => ({ tag: t, ...generateTagTrend(t) }))
+                            return (
+                              <div key={group.equipmentId}>
+                                <div className="flex items-center gap-1.5 px-2 pt-1.5">
+                                  <div className="h-4 w-1 rounded-full" style={{ backgroundColor: COLORS[gi % COLORS.length] }} />
+                                  <span className="text-[11px] font-semibold">{group.equipmentId}</span>
+                                  <span className="text-[10px] text-muted-foreground">{group.equipmentName}</span>
+                                </div>
+                                {w.displayMode === "overlay" && groupTrends.length >= 2 ? (
+                                  <div>
+                                    <div className="flex flex-wrap gap-2 px-2 py-0.5">
+                                      {groupTrends.map(({ tag, current, unit }, i) => (
+                                        <div key={tag} className="flex items-center gap-1 text-[10px]">
+                                          <div className="w-2 h-0.5 rounded" style={{ backgroundColor: COLORS[i % COLORS.length] }} />
+                                          <span className="font-mono">{tag}</span>
+                                          <span className="text-muted-foreground">{current}{unit}</span>
+                                        </div>
+                                      ))}
+                                    </div>
+                                    <OverlayTrendChart tags={groupTrends} colors={COLORS} />
+                                  </div>
+                                ) : (
+                                  groupTrends.map(({ tag, values, unit, high, low, current }, i) => {
+                                    const isAlert = high !== null && current > high
+                                    return (
+                                      <div key={tag}>
+                                        <div className="px-2 pt-0.5 flex items-center justify-between">
+                                          <div className="flex items-center gap-1.5">
+                                            <div className="w-2 h-2 rounded-full" style={{ backgroundColor: COLORS[i % COLORS.length] }} />
+                                            <span className="font-mono text-[11px]">{tag}</span>
+                                            {isAlert && <Badge variant="destructive" className="text-[9px] px-1 py-0 h-3.5">초과</Badge>}
+                                          </div>
+                                          <span className="text-[11px] font-semibold">{current} <span className="font-normal text-muted-foreground">{unit}</span></span>
+                                        </div>
+                                        <TrendChart values={values} high={high} low={low} color={COLORS[i % COLORS.length]} height="h-16" />
+                                      </div>
+                                    )
+                                  })
+                                )}
+                                {gi < w.equipmentGroups!.length - 1 && <div className="border-t border-border/30 mx-2" />}
+                              </div>
+                            )
+                          })}
+                        </div>
+                      ) : w.displayMode === "overlay" && tagTrends.length >= 2 ? (
                         <div>
                           <div className="flex flex-wrap gap-2 px-2 py-1">
                             {tagTrends.map(({ tag, current, unit }, i) => (
@@ -710,6 +788,27 @@ export default function CustomDashboardPage() {
               if (w.type === "table") {
                 const tableTags = w.tags && w.tags.length > 0 ? w.tags : (w.tag ? [w.tag] : [])
                 const tagData = tableTags.map(t => ({ tag: t, ...generateTagTrend(t) }))
+                const hasTableGroups = w.equipmentGroups && w.equipmentGroups.length > 1
+
+                const renderTableRows = (tags: { tag: string; current: number; unit: string; high: number | null; low: number | null }[]) => (
+                  tags.map(({ tag, current, unit, high, low }) => {
+                    const over = high !== null && current > high
+                    const under = low !== null && current < low
+                    return (
+                      <tr key={tag} className="border-b border-border/30">
+                        <td className="py-1.5 px-2 font-mono font-medium">{tag}</td>
+                        <td className={cn("py-1.5 px-2 text-right font-mono font-medium", (over || under) ? "text-red-600" : "")}>{current}</td>
+                        <td className="py-1.5 px-2 text-right text-muted-foreground">{unit}</td>
+                        <td className="py-1.5 px-2 text-right text-red-400 font-mono">{high ?? "-"}</td>
+                        <td className="py-1.5 px-2 text-right text-blue-400 font-mono">{low ?? "-"}</td>
+                        <td className="py-1.5 px-2 text-right">
+                          <span className={cn("inline-block w-2 h-2 rounded-full", (over || under) ? "bg-red-500" : "bg-green-500")} />
+                        </td>
+                      </tr>
+                    )
+                  })
+                )
+
                 return (
                   <Card key={w.id} className={cn("group relative overflow-hidden", span)}>
                     <div className="absolute top-2 right-2 flex items-center gap-1 opacity-0 group-hover:opacity-100 transition-opacity z-10">
@@ -723,7 +822,39 @@ export default function CustomDashboardPage() {
                         <GripVertical className="h-4 w-4 text-muted-foreground/40" />
                         <span className="text-xs font-medium">{w.title}</span>
                         {w.process && <Badge variant="outline" className="text-[10px] h-4">{w.process}</Badge>}
+                        {hasTableGroups && <Badge variant="secondary" className="text-[10px] h-4">{w.equipmentGroups!.length}개 그룹</Badge>}
                       </div>
+
+                      {hasTableGroups ? (
+                        /* Grouped table display */
+                        <div className="space-y-3">
+                          {w.equipmentGroups!.map((group, gi) => {
+                            const groupTagData = group.tags.map(t => ({ tag: t, ...generateTagTrend(t) }))
+                            return (
+                              <div key={group.equipmentId}>
+                                <div className="flex items-center gap-1.5 mb-1.5">
+                                  <div className="h-3.5 w-1 rounded-full" style={{ backgroundColor: COLORS[gi % COLORS.length] }} />
+                                  <span className="text-[11px] font-semibold">{group.equipmentId}</span>
+                                  <span className="text-[10px] text-muted-foreground">{group.equipmentName}</span>
+                                </div>
+                                <table className="w-full text-xs">
+                                  <thead><tr className="border-b border-border text-muted-foreground">
+                                    <th className="text-left py-1.5 px-2">Tag</th>
+                                    <th className="text-right py-1.5 px-2">현재값</th>
+                                    <th className="text-right py-1.5 px-2">단위</th>
+                                    <th className="text-right py-1.5 px-2">High</th>
+                                    <th className="text-right py-1.5 px-2">Low</th>
+                                    <th className="text-right py-1.5 px-2">상태</th>
+                                  </tr></thead>
+                                  <tbody>
+                                    {renderTableRows(groupTagData)}
+                                  </tbody>
+                                </table>
+                              </div>
+                            )
+                          })}
+                        </div>
+                      ) : (
                       <table className="w-full text-xs">
                         <thead><tr className="border-b border-border text-muted-foreground">
                           <th className="text-left py-1.5 px-2">Tag</th>
@@ -752,6 +883,7 @@ export default function CustomDashboardPage() {
                           })}
                         </tbody>
                       </table>
+                      )}
                     </CardContent>
                   </Card>
                 )
@@ -995,7 +1127,7 @@ export default function CustomDashboardPage() {
                 <p className="text-xs text-muted-foreground mb-1.5">1. 공정 선택</p>
                 <div className="flex flex-wrap gap-1.5">
                   {EQUIPMENT_HIERARCHY.map(p => (
-                    <button key={p.id} onClick={() => { setCfgProcess(p.id); setCfgZone(""); setCfgEquipment(""); if (!cfgTableGroupId) setCfgTags([]) }}
+                    <button key={p.id} onClick={() => { setCfgProcess(p.id); setCfgZone(""); setCfgEquipment(""); setCfgEquipmentList([]); if (!cfgTableGroupId) setCfgTags([]) }}
                       className={cn("px-3 py-1.5 rounded-md border text-xs font-medium transition-colors cursor-pointer",
                         cfgProcess === p.id ? "border-primary bg-primary/10 text-primary" : "border-border text-muted-foreground hover:text-foreground hover:border-primary/30")}>
                       {p.id}
@@ -1010,7 +1142,7 @@ export default function CustomDashboardPage() {
                   <p className="text-xs text-muted-foreground mb-1.5">2. 구역 선택</p>
                   <div className="flex flex-wrap gap-1.5">
                     {cfgProcessNode.zones.map(z => (
-                      <button key={z.id} onClick={() => { setCfgZone(z.id); setCfgEquipment(""); if (!cfgTableGroupId) setCfgTags([]) }}
+                      <button key={z.id} onClick={() => { setCfgZone(z.id); setCfgEquipment(""); setCfgEquipmentList([]); if (!cfgTableGroupId) setCfgTags([]) }}
                         className={cn("px-3 py-1.5 rounded-md border text-xs font-medium transition-colors cursor-pointer",
                           cfgZone === z.id ? "border-primary bg-primary/10 text-primary" : "border-border text-muted-foreground hover:text-foreground hover:border-primary/30")}>
                         {z.name}
@@ -1020,28 +1152,38 @@ export default function CustomDashboardPage() {
                 </div>
               )}
 
-              {/* Equipment */}
+              {/* Equipment (multi-select) */}
               {cfgZoneNode && (
                 <div>
-                  <p className="text-xs text-muted-foreground mb-1.5">3. 설비 선택</p>
+                  <p className="text-xs text-muted-foreground mb-1.5">3. 설비 선택 <span className="text-primary font-medium">(다중 선택 가능)</span></p>
                   <div className="grid grid-cols-1 gap-2">
-                    {cfgZoneNode.equipment.map(eq => (
-                      <button key={eq.id} onClick={() => handleSelectEquipment(eq.id)}
-                        className={cn("text-left p-3 rounded-lg border transition-all cursor-pointer",
-                          cfgEquipment === eq.id ? "border-primary bg-primary/5 ring-1 ring-primary/20" : "border-border hover:border-primary/30 hover:bg-muted/50")}>
-                        <div className="flex items-center justify-between">
-                          <div>
-                            <span className="font-mono text-sm font-medium">{eq.id}</span>
-                            <span className="text-xs text-muted-foreground ml-2">{eq.name}</span>
+                    {cfgZoneNode.equipment.map(eq => {
+                      const isSelected = cfgEquipmentList.includes(eq.id)
+                      return (
+                        <button key={eq.id} onClick={() => handleSelectEquipment(eq.id)}
+                          className={cn("text-left p-3 rounded-lg border transition-all cursor-pointer",
+                            isSelected ? "border-primary bg-primary/5 ring-1 ring-primary/20" : "border-border hover:border-primary/30 hover:bg-muted/50")}>
+                          <div className="flex items-center justify-between">
+                            <div className="flex items-center gap-2">
+                              {isSelected ? (
+                                <div className="w-5 h-5 rounded bg-primary flex items-center justify-center shrink-0">
+                                  <Check className="h-3 w-3 text-primary-foreground" />
+                                </div>
+                              ) : (
+                                <div className="w-5 h-5 rounded border border-border shrink-0" />
+                              )}
+                              <span className="font-mono text-sm font-medium">{eq.id}</span>
+                              <span className="text-xs text-muted-foreground">{eq.name}</span>
+                            </div>
+                            <div className="flex items-center gap-1">
+                              {eq.tags.map(tag => (
+                                <span key={tag} className="font-mono text-[10px] px-1.5 py-0.5 rounded bg-muted text-muted-foreground">{tag}</span>
+                              ))}
+                            </div>
                           </div>
-                          <div className="flex items-center gap-1">
-                            {eq.tags.map(tag => (
-                              <span key={tag} className="font-mono text-[10px] px-1.5 py-0.5 rounded bg-muted text-muted-foreground">{tag}</span>
-                            ))}
-                          </div>
-                        </div>
-                      </button>
-                    ))}
+                        </button>
+                      )
+                    })}
                   </div>
                 </div>
               )}

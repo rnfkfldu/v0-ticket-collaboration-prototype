@@ -4,7 +4,8 @@ import { useState, useCallback, useMemo, useRef } from "react"
 import { useRouter } from "next/navigation"
 import {
   TrendingUp, LayoutGrid, LineChart, Plus, X, Search, Bookmark, Trash2,
-  ChevronRight, Tag, Save, Layers, FolderPlus, Check, Eye, Monitor, Bell, Settings
+  ChevronRight, Tag, Save, Layers, FolderPlus, Check, Eye, Monitor, Bell, Settings,
+  Factory, AlertTriangle, ChevronDown
 } from "lucide-react"
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
@@ -173,6 +174,104 @@ const DCS_SCREEN_TAGS: Record<string, string[]> = {
   "G-9003": ["FI-9001", "PI-9001"],
 }
 
+// Equipment Hierarchy for process-based selection
+interface EquipmentNode { id: string; name: string; tags: string[] }
+interface ZoneNode { id: string; name: string; equipment: EquipmentNode[] }
+interface ProcessNode { id: string; name: string; zones: ZoneNode[] }
+
+const EQUIPMENT_HIERARCHY: ProcessNode[] = [
+  {
+    id: "CDU", name: "CDU", zones: [
+      { id: "CDU-PRE", name: "Pre-heat Train", equipment: [
+        { id: "E-101", name: "E-101 Crude/PA Exchanger", tags: ["TI-1001", "TI-1002"] },
+        { id: "E-102", name: "E-102 Crude/Residue Exchanger", tags: ["TI-1001", "PI-1001"] },
+      ]},
+      { id: "CDU-COL", name: "Atmospheric Column", equipment: [
+        { id: "C-101", name: "C-101 Atmospheric Tower", tags: ["TI-1001", "TI-1002", "PI-1001", "LI-1001"] },
+        { id: "C-102", name: "C-102 Stabilizer", tags: ["TI-1002", "FI-1001", "LI-1001"] },
+      ]},
+      { id: "CDU-FUR", name: "Furnace Section", equipment: [
+        { id: "H-101", name: "H-101 Crude Heater", tags: ["TI-1001", "TI-1002", "FI-1001"] },
+      ]},
+    ]
+  },
+  {
+    id: "VDU", name: "VDU", zones: [
+      { id: "VDU-COL", name: "Vacuum Column", equipment: [
+        { id: "C-201", name: "C-201 Vacuum Tower", tags: ["TI-2001", "TI-2002", "PI-2001", "LI-2001"] },
+      ]},
+      { id: "VDU-EJC", name: "Ejector System", equipment: [
+        { id: "J-201", name: "J-201 Steam Ejector", tags: ["PI-2001", "FI-2001"] },
+        { id: "E-201", name: "E-201 Overhead Condenser", tags: ["TI-2001", "FI-2001"] },
+      ]},
+    ]
+  },
+  {
+    id: "HCR", name: "HCR", zones: [
+      { id: "HCR-1ST", name: "1st Stage Reactor", equipment: [
+        { id: "C-301", name: "C-301 1st Stage Reactor", tags: ["TI-3001", "TI-3002", "PI-3001", "FI-3001"] },
+        { id: "C-103", name: "C-103 Guard Reactor", tags: ["TI-3001", "PI-3001", "FI-3001"] },
+        { id: "E-301", name: "E-301 Feed/Effluent Exchanger", tags: ["TI-3001", "TI-3002"] },
+      ]},
+      { id: "HCR-2ND", name: "2nd Stage Reactor", equipment: [
+        { id: "C-302", name: "C-302 2nd Stage Reactor", tags: ["TI-3002", "TI-3003", "PI-3001", "FI-3002"] },
+        { id: "E-302", name: "E-302 Inter-stage Cooler", tags: ["TI-3002", "FI-3001"] },
+      ]},
+      { id: "HCR-FRAC", name: "Fractionator", equipment: [
+        { id: "C-303", name: "C-303 Product Fractionator", tags: ["TI-3003", "PI-3001", "LI-3001", "FI-3001"] },
+      ]},
+      { id: "HCR-H2", name: "H2 System", equipment: [
+        { id: "K-301", name: "K-301 Recycle Compressor", tags: ["PI-3001", "FI-3002"] },
+        { id: "D-301", name: "D-301 HP Separator", tags: ["LI-3001", "PI-3001", "TI-3001"] },
+      ]},
+    ]
+  },
+  {
+    id: "CCR", name: "CCR", zones: [
+      { id: "CCR-RXR", name: "Reactor Section", equipment: [
+        { id: "C-401", name: "C-401 Reforming Reactor #1", tags: ["TI-4001", "TI-4002", "PI-4001"] },
+        { id: "C-402", name: "C-402 Reforming Reactor #2", tags: ["TI-4002", "PI-4001", "FI-4001"] },
+      ]},
+      { id: "CCR-REG", name: "Regenerator", equipment: [
+        { id: "R-401", name: "R-401 Catalyst Regenerator", tags: ["TI-4001", "PI-4001", "FI-4001"] },
+      ]},
+    ]
+  },
+  {
+    id: "DHT", name: "DHT", zones: [
+      { id: "DHT-RXR", name: "Reactor Section", equipment: [
+        { id: "C-501", name: "C-501 DHT Reactor", tags: ["TI-5001", "TI-5002", "PI-5001", "FI-5001"] },
+      ]},
+      { id: "DHT-SEP", name: "Separator Section", equipment: [
+        { id: "D-501", name: "D-501 HP Separator", tags: ["LI-5001", "PI-5001", "TI-5001"] },
+        { id: "D-502", name: "D-502 LP Separator", tags: ["LI-5001", "PI-5001"] },
+      ]},
+    ]
+  },
+  {
+    id: "NHT", name: "NHT", zones: [
+      { id: "NHT-RXR", name: "Reactor Section", equipment: [
+        { id: "C-601", name: "C-601 NHT Reactor", tags: ["TI-6001", "TI-6002", "PI-6001", "FI-6001"] },
+      ]},
+      { id: "NHT-STAB", name: "Stabilizer", equipment: [
+        { id: "C-602", name: "C-602 Stabilizer Column", tags: ["TI-6001", "LI-6001", "PI-6001"] },
+      ]},
+    ]
+  },
+  {
+    id: "Utilities", name: "Utilities", zones: [
+      { id: "UTL-STM", name: "Steam System", equipment: [
+        { id: "B-901", name: "B-901 Boiler", tags: ["TI-9001", "PI-9001", "FI-9001"] },
+      ]},
+      { id: "UTL-CW", name: "Cooling Water", equipment: [
+        { id: "CT-901", name: "CT-901 Cooling Tower", tags: ["TI-9001", "FI-9001"] },
+      ]},
+    ]
+  },
+]
+
+const MAX_TAGS_PER_GROUP = 10
+
 // DCS screen layout: tag positions (%) + equipment shapes for visual schematic
 type TagPoint = { tag: string; x: number; y: number; type: "T" | "P" | "F" | "L" | "C" }
 type Equipment = { id: string; label: string; x: number; y: number; w: number; h: number; shape: "column" | "vessel" | "exchanger" | "pump" | "furnace" | "drum" }
@@ -269,7 +368,7 @@ export function FloatingQuickAccess() {
   const [activePanel, setActivePanel] = useState<"menu" | "trend" | "saved-trends" | "dashboards" | "personalized-alarm">("menu")
 
   // --- 1) Trend Viewer State (always fresh) ---
-  const [trendTab, setTrendTab] = useState<"basic" | "dcs">("basic")
+  const [trendTab, setTrendTab] = useState<"basic" | "process" | "dcs">("basic")
   const [tagInput, setTagInput] = useState("")
   const [activeTags, setActiveTags] = useState<string[]>([])
   const [suggestions, setSuggestions] = useState<string[]>([])
@@ -285,6 +384,13 @@ export function FloatingQuickAccess() {
   const [dcsScreenTags, setDcsScreenTags] = useState<string[]>([])
   const [dcsSelectedTags, setDcsSelectedTags] = useState<string[]>([])
   const [dcsShowTrend, setDcsShowTrend] = useState(false)
+
+  // --- Process tab state ---
+  const [procProcess, setProcProcess] = useState<string>("")
+  const [procZone, setProcZone] = useState<string>("")
+  const [procSelectedEquipment, setProcSelectedEquipment] = useState<string[]>([]) // multi-select equipment IDs
+  const [procShowTrend, setProcShowTrend] = useState(false)
+  const [procTagWarnings, setProcTagWarnings] = useState<Record<string, boolean>>({}) // equipment id -> dismissed
 
   // --- Save dialog state ---
   const [showSaveDialog, setShowSaveDialog] = useState(false)
@@ -409,6 +515,34 @@ export function FloatingQuickAccess() {
   // DCS selected tag trends
   const dcsTagTrends = useMemo(() => dcsSelectedTags.map(tag => ({ tag, ...generateTagTrend(tag) })), [dcsSelectedTags])
 
+  // --- Process tab helpers ---
+  const procProcessNode = EQUIPMENT_HIERARCHY.find(p => p.id === procProcess)
+  const procZoneNode = procProcessNode?.zones.find(z => z.id === procZone)
+
+  // Equipment groups with their tags (multi-select)
+  const procEquipmentGroups = useMemo(() => {
+    if (!procZoneNode) return []
+    return procSelectedEquipment.map(eqId => {
+      const eq = procZoneNode.equipment.find(e => e.id === eqId)
+      if (!eq) return null
+      return { equipment: eq, trends: eq.tags.map(tag => ({ tag, ...generateTagTrend(tag) })) }
+    }).filter(Boolean) as { equipment: EquipmentNode; trends: { tag: string; values: number[]; unit: string; high: number | null; low: number | null; current: number }[] }[]
+  }, [procZoneNode, procSelectedEquipment])
+
+  const toggleProcEquipment = useCallback((eqId: string) => {
+    setProcSelectedEquipment(prev => {
+      if (prev.includes(eqId)) return prev.filter(id => id !== eqId)
+      return [...prev, eqId]
+    })
+    setProcShowTrend(false)
+  }, [])
+
+  const procAllTags = useMemo(() => procEquipmentGroups.flatMap(g => g.equipment.tags), [procEquipmentGroups])
+
+  const resetProcState = useCallback(() => {
+    setProcProcess(""); setProcZone(""); setProcSelectedEquipment([]); setProcShowTrend(false); setProcTagWarnings({})
+  }, [])
+
   // --- Requirement 1: Always start fresh ---
   const openTrendFresh = () => {
     setActiveTags([])
@@ -419,6 +553,7 @@ export function FloatingQuickAccess() {
     setSavedMsg("")
     setTrendTab("basic")
     resetDcsState()
+    resetProcState()
     setActivePanel("trend")
   }
 
@@ -501,8 +636,8 @@ export function FloatingQuickAccess() {
 
   // --- Save trend to group ---
   const handleSaveTrend = () => {
-    const tagsToSave = trendTab === "dcs" ? [...dcsSelectedTags] : [...activeTags]
-    const unitLabel = trendTab === "dcs" && dcsUnit ? dcsUnit : "사용자"
+    const tagsToSave = trendTab === "dcs" ? [...dcsSelectedTags] : trendTab === "process" ? [...procAllTags] : [...activeTags]
+    const unitLabel = trendTab === "dcs" && dcsUnit ? dcsUnit : trendTab === "process" && procProcess ? procProcess : "사용자"
     if (saveMode === "new" && newGroupName.trim()) {
       const ng: TrendGroup = {
         id: `tg-${Date.now()}`,
@@ -675,6 +810,36 @@ export function FloatingQuickAccess() {
                     </button>
                   </div>
                 )}
+                {/* View mode toggle (process tab) */}
+                {trendTab === "process" && procShowTrend && procEquipmentGroups.length > 0 && (
+                  <div className="flex items-center gap-1 border border-border rounded-md p-0.5">
+                    <button
+                      onClick={() => setViewMode("individual")}
+                      className={cn(
+                        "px-2.5 py-1 rounded text-xs font-medium transition-colors cursor-pointer",
+                        viewMode === "individual" ? "bg-primary text-primary-foreground" : "text-muted-foreground hover:text-foreground"
+                      )}
+                    >
+                      개별 보기
+                    </button>
+                    <button
+                      onClick={() => setViewMode("overlay")}
+                      className={cn(
+                        "px-2.5 py-1 rounded text-xs font-medium transition-colors cursor-pointer",
+                        viewMode === "overlay" ? "bg-primary text-primary-foreground" : "text-muted-foreground hover:text-foreground"
+                      )}
+                    >
+                      겹쳐 보기
+                    </button>
+                  </div>
+                )}
+                {/* Save button (process tab) */}
+                {trendTab === "process" && procAllTags.length > 0 && (
+                  <Button variant="outline" size="sm" className="gap-1.5 text-xs cursor-pointer" onClick={() => { setShowSaveDialog(true); setSaveMode("new"); setNewGroupName(""); setSaveTargetId("") }}>
+                    <Save className="h-3.5 w-3.5" />
+                    트렌드 저장
+                  </Button>
+                )}
                 {/* Save button (basic tab) */}
                 {trendTab === "basic" && activeTags.length > 0 && (
                   <Button variant="outline" size="sm" className="gap-1.5 text-xs cursor-pointer" onClick={() => { setShowSaveDialog(true); setSaveMode("new"); setNewGroupName(""); setSaveTargetId("") }}>
@@ -704,6 +869,16 @@ export function FloatingQuickAccess() {
             >
               <LineChart className="h-4 w-4" />
               기본 조회
+            </button>
+            <button
+              onClick={() => setTrendTab("process")}
+              className={cn(
+                "flex-1 flex items-center justify-center gap-2 px-3 py-2 rounded-md text-sm font-medium transition-colors cursor-pointer",
+                trendTab === "process" ? "bg-background shadow-sm text-foreground" : "text-muted-foreground hover:text-foreground"
+              )}
+            >
+              <Factory className="h-4 w-4" />
+              공정 정보 기반 조회
             </button>
             <button
               onClick={() => setTrendTab("dcs")}
@@ -862,6 +1037,206 @@ export function FloatingQuickAccess() {
               </div>
             )}
           </ScrollArea>
+            </>
+          )}
+
+          {/* ===== PROCESS TAB ===== */}
+          {trendTab === "process" && (
+            <>
+              {/* Process/Zone/Equipment selection */}
+              {!procShowTrend && (
+                <div className="space-y-4 shrink-0">
+                  {/* Step 1: Process */}
+                  <div>
+                    <p className="text-xs text-muted-foreground mb-1.5 font-medium">1. 공정 선택</p>
+                    <div className="flex flex-wrap gap-1.5">
+                      {EQUIPMENT_HIERARCHY.map(p => (
+                        <button key={p.id} onClick={() => { setProcProcess(p.id); setProcZone(""); setProcSelectedEquipment([]); setProcTagWarnings({}) }}
+                          className={cn("px-3 py-1.5 rounded-md border text-xs font-medium transition-colors cursor-pointer",
+                            procProcess === p.id ? "border-primary bg-primary/10 text-primary" : "border-border text-muted-foreground hover:text-foreground hover:border-primary/30")}>
+                          {p.id}
+                        </button>
+                      ))}
+                    </div>
+                  </div>
+
+                  {/* Step 2: Zone */}
+                  {procProcessNode && (
+                    <div>
+                      <p className="text-xs text-muted-foreground mb-1.5 font-medium">2. 구역 선택</p>
+                      <div className="flex flex-wrap gap-1.5">
+                        {procProcessNode.zones.map(z => (
+                          <button key={z.id} onClick={() => { setProcZone(z.id); setProcSelectedEquipment([]); setProcTagWarnings({}) }}
+                            className={cn("px-3 py-1.5 rounded-md border text-xs font-medium transition-colors cursor-pointer",
+                              procZone === z.id ? "border-primary bg-primary/10 text-primary" : "border-border text-muted-foreground hover:text-foreground hover:border-primary/30")}>
+                            {z.name}
+                          </button>
+                        ))}
+                      </div>
+                    </div>
+                  )}
+
+                  {/* Step 3: Equipment (multi-select) */}
+                  {procZoneNode && (
+                    <div>
+                      <p className="text-xs text-muted-foreground mb-1.5 font-medium">3. 설비 선택 <span className="text-primary">(다중 선택 가능)</span></p>
+                      <div className="grid grid-cols-1 gap-2">
+                        {procZoneNode.equipment.map(eq => {
+                          const isSelected = procSelectedEquipment.includes(eq.id)
+                          const hasWarning = eq.tags.length > MAX_TAGS_PER_GROUP && isSelected && !procTagWarnings[eq.id]
+                          return (
+                            <div key={eq.id}>
+                              <button onClick={() => toggleProcEquipment(eq.id)}
+                                className={cn("w-full text-left p-3 rounded-lg border transition-all cursor-pointer",
+                                  isSelected ? "border-primary bg-primary/5 ring-1 ring-primary/20" : "border-border hover:border-primary/30 hover:bg-muted/50")}>
+                                <div className="flex items-center justify-between">
+                                  <div className="flex items-center gap-2">
+                                    {isSelected && <div className="w-5 h-5 rounded bg-primary flex items-center justify-center"><Check className="h-3 w-3 text-primary-foreground" /></div>}
+                                    {!isSelected && <div className="w-5 h-5 rounded border border-border" />}
+                                    <span className="font-mono text-sm font-medium">{eq.id}</span>
+                                    <span className="text-xs text-muted-foreground">{eq.name}</span>
+                                  </div>
+                                  <div className="flex items-center gap-1">
+                                    {eq.tags.map(tag => (
+                                      <span key={tag} className="font-mono text-[10px] px-1.5 py-0.5 rounded bg-muted text-muted-foreground">{tag}</span>
+                                    ))}
+                                  </div>
+                                </div>
+                              </button>
+                              {/* Warning for >10 tags */}
+                              {hasWarning && (
+                                <div className="mt-1.5 p-2.5 bg-amber-50 border border-amber-200 rounded-md flex items-start gap-2">
+                                  <AlertTriangle className="h-4 w-4 text-amber-600 shrink-0 mt-0.5" />
+                                  <div className="flex-1">
+                                    <p className="text-xs font-medium text-amber-800">{eq.id}에 태그가 {eq.tags.length}개입니다. (권장 {MAX_TAGS_PER_GROUP}개 이하)</p>
+                                    <p className="text-[11px] text-amber-600 mt-0.5">트렌드 조회 시 가독성이 떨어질 수 있습니다. 일부 태그를 제외하거나, 트렌드에서 개별 확인을 권장합니다.</p>
+                                    <button onClick={() => setProcTagWarnings(prev => ({ ...prev, [eq.id]: true }))}
+                                      className="mt-1.5 text-[11px] text-amber-700 font-medium hover:underline cursor-pointer">확인, 그대로 진행</button>
+                                  </div>
+                                </div>
+                              )}
+                            </div>
+                          )
+                        })}
+                      </div>
+                    </div>
+                  )}
+
+                  {/* Selected summary */}
+                  {procSelectedEquipment.length > 0 && (
+                    <div className="p-3 border border-primary/20 rounded-lg bg-primary/5">
+                      <div className="flex items-center justify-between mb-2">
+                        <p className="text-xs font-medium">선택된 설비: {procSelectedEquipment.length}개 / 태그 합계: {procAllTags.length}개</p>
+                        <Button size="sm" className="h-7 text-xs gap-1.5 cursor-pointer" onClick={() => setProcShowTrend(true)}>
+                          <TrendingUp className="h-3.5 w-3.5" />
+                          트렌드 보기
+                        </Button>
+                      </div>
+                      <div className="flex flex-wrap gap-1.5">
+                        {procSelectedEquipment.map(eqId => {
+                          const eq = procZoneNode?.equipment.find(e => e.id === eqId)
+                          return eq ? (
+                            <Badge key={eqId} variant="secondary" className="gap-1 cursor-pointer" onClick={() => toggleProcEquipment(eqId)}>
+                              <Factory className="h-3 w-3" />
+                              {eq.id}
+                              <span className="text-muted-foreground text-[10px]">({eq.tags.length})</span>
+                              <X className="h-3 w-3 ml-0.5" />
+                            </Badge>
+                          ) : null
+                        })}
+                      </div>
+                    </div>
+                  )}
+
+                  {/* Empty state */}
+                  {!procProcess && (
+                    <div className="flex flex-col items-center justify-center py-16 text-center">
+                      <div className="h-16 w-16 rounded-full bg-muted flex items-center justify-center mb-4">
+                        <Factory className="h-8 w-8 text-muted-foreground" />
+                      </div>
+                      <p className="text-sm font-medium mb-1">공정을 선택하여 관련 설비의 태그를 조회하세요</p>
+                      <p className="text-xs text-muted-foreground max-w-sm">공정 &gt; 구역 &gt; 설비 순으로 선택하면 해당 설비에 연결된 전체 태그가 트렌드로 표시됩니다. 설비를 복수 선택하면 그룹별로 구분되어 표시됩니다.</p>
+                    </div>
+                  )}
+                </div>
+              )}
+
+              {/* Grouped Trend display */}
+              {procShowTrend && procEquipmentGroups.length > 0 && (
+                <ScrollArea className="flex-1 -mx-6 px-6 min-h-0">
+                  <div className="space-y-4 pb-4">
+                    <div className="flex items-center gap-2">
+                      <Button variant="outline" size="sm" className="h-7 text-xs gap-1.5 cursor-pointer" onClick={() => setProcShowTrend(false)}>
+                        <Factory className="h-3.5 w-3.5" />
+                        설비 선택으로 돌아가기
+                      </Button>
+                      <span className="text-xs text-muted-foreground">{procEquipmentGroups.length}개 그룹, {procAllTags.length}개 태그</span>
+                    </div>
+
+                    {procEquipmentGroups.map((group, gi) => (
+                      <div key={group.equipment.id} className="space-y-2">
+                        {/* Group header */}
+                        <div className="flex items-center gap-2 px-1">
+                          <div className="h-6 w-1.5 rounded-full" style={{ backgroundColor: COLORS[gi % COLORS.length] }} />
+                          <span className="text-sm font-semibold">{group.equipment.id}</span>
+                          <span className="text-xs text-muted-foreground">{group.equipment.name}</span>
+                          <Badge variant="outline" className="text-[10px] h-5">{group.trends.length}개 태그</Badge>
+                        </div>
+
+                        {viewMode === "overlay" && group.trends.length >= 2 ? (
+                          <Card className="p-4">
+                            <div className="flex flex-wrap gap-3 mb-2">
+                              {group.trends.map(({ tag, current, unit }, i) => (
+                                <div key={tag} className="flex items-center gap-1.5 text-xs">
+                                  <div className="w-3 h-0.5 rounded" style={{ backgroundColor: COLORS[i % COLORS.length] }} />
+                                  <span className="font-mono font-medium">{tag}</span>
+                                  <span className="text-muted-foreground">({current} {unit})</span>
+                                </div>
+                              ))}
+                            </div>
+                            <OverlayTrendChart tags={group.trends} colors={COLORS} />
+                          </Card>
+                        ) : (
+                          <div className="grid grid-cols-1 lg:grid-cols-2 gap-3">
+                            {group.trends.map(({ tag, values, unit, high, low, current }, i) => {
+                              const isViolation = (high !== null && current > high) || (low !== null && current < low)
+                              return (
+                                <Card key={tag} className={cn("overflow-hidden", isViolation && "border-red-200")}>
+                                  <div className="px-3 pt-2.5 pb-0 flex items-center justify-between">
+                                    <div className="flex items-center gap-2">
+                                      <div className="w-2.5 h-2.5 rounded-full shrink-0" style={{ backgroundColor: COLORS[i % COLORS.length] }} />
+                                      <span className="font-mono text-sm font-semibold">{tag}</span>
+                                      {isViolation && <Badge variant="destructive" className="text-[10px] px-1.5 py-0 h-4">Limit 초과</Badge>}
+                                    </div>
+                                    <span className="text-xs text-muted-foreground">[{unit}]</span>
+                                  </div>
+                                  <div className="px-2">
+                                    <TrendChart values={values} high={high} low={low} color={COLORS[i % COLORS.length]} isAlert={isViolation} height="h-28" />
+                                  </div>
+                                  <div className="px-3 pb-2.5 flex items-center justify-between text-xs border-t border-border/50 pt-1.5">
+                                    <div>
+                                      <span className="text-muted-foreground">현재 </span>
+                                      <span className={cn("font-semibold", isViolation ? "text-red-600" : "text-foreground")}>{current} {unit}</span>
+                                    </div>
+                                    {high !== null && <div><span className="text-muted-foreground">H </span><span className="text-red-500 font-medium">{high}</span></div>}
+                                    {low !== null && <div><span className="text-muted-foreground">L </span><span className="text-blue-500 font-medium">{low}</span></div>}
+                                    <div>
+                                      <span className="text-muted-foreground">범위 </span>
+                                      <span className="font-medium">{Math.min(...values).toFixed(1)} ~ {Math.max(...values).toFixed(1)}</span>
+                                    </div>
+                                  </div>
+                                </Card>
+                              )
+                            })}
+                          </div>
+                        )}
+                        {/* Separator between groups */}
+                        {gi < procEquipmentGroups.length - 1 && <div className="border-t border-border/50 pt-2" />}
+                      </div>
+                    ))}
+                  </div>
+                </ScrollArea>
+              )}
             </>
           )}
 
