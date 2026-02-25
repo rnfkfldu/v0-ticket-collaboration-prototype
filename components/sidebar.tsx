@@ -299,6 +299,14 @@ export function Sidebar({ unreadAlerts = 3 }: SidebarProps) {
       ]
     },
     {
+      id: "alert-management",
+      label: "Alert 관리",
+      icon: Bell,
+      items: [
+        { label: "Alert 관리", href: "/admin/alert-management", icon: Bell },
+      ]
+    },
+    {
       id: "system-settings",
       label: "시스템 설정",
       icon: Settings,

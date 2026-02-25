@@ -686,7 +686,7 @@ const SAMPLE_ALERTS: AlertItem[] = [
       deadline: "2025-02-15",
       sections: [
         { title: "1. 적용 범위", content: "HCR Unit (Reactor Section, Fractionation Section, H2 System) 비상 상황 발생 시 대응 절차.", hasChange: false },
-        { title: "2. 비상 시나리오별 대응", content: "Scenario A: Reactor Runaway - WABT 급상승 시 Quench Gas 주입 및 Feed Cut 절차. Scenario B: H2 Compressor Trip - 단계별 Reactor Depressuring 절차.", hasChange: true },
+        { title: "2. 비상 시나리오별 대응", content: "Scenario A: Reactor Runaway - WABT 급��승 시 Quench Gas 주입 및 Feed Cut 절차. Scenario B: H2 Compressor Trip - 단계별 Reactor Depressuring 절차.", hasChange: true },
         { title: "3. 운전 조건 변경 반영", content: "2024년 하반기 촉매 교체 후 Max WABT 한계 변경: 405C -> 410C. Quench Gas 주입 기준 WABT 변경: 395C -> 400C.", hasChange: true },
         { title: "4. 비상 연락 체계", content: "1차: 당직 Operation Supervisor → 2차: Process Engineer → 3차: Plant Manager. 외부: 소방서, 환경부 신고 기준 유지.", hasChange: false },
         { title: "5. 훈련 이력", content: "최근 훈련: 2024-11-15 (Reactor Runaway Drill). 참여 인원: 생산팀 A/B조, 공정기술팀. 결과: 양호 (대응시간 12분, 목표 15분 이내).", hasChange: false }
@@ -1135,7 +1135,7 @@ export default function AlertsPage() {
       {
         ticketId: newTicket.id,
         wpType: "Analysis" as const,
-        title: "현상 분석",
+        title: "현�� 분석",
         description: "문제 또는 개선사항에 대한 근본 원인 및 데이터 분석",
         ownerTeam: "Process Engineering",
         status: "Not Started" as const,
@@ -1145,7 +1145,7 @@ export default function AlertsPage() {
         ticketId: newTicket.id,
         wpType: "Decision" as const,
         title: "의사결정",
-        description: "분석 결과를 바탕으로 실행 방안 결정",
+        description: "분석 결과를 바탕으로 ��행 방안 결정",
         ownerTeam: "Operations Coordination",
         status: "Not Started" as const,
         dueDate: "",
@@ -1468,17 +1468,17 @@ export default function AlertsPage() {
                             item.alertState === "new" && "border-l-2 border-l-red-500"
                           )}
                         >
-                          <div className="flex items-center gap-2">
-                            <Badge className={cn("text-xs px-1.5 py-0", gradeInfo.color)}>{gradeInfo.label}</Badge>
-                            <Badge variant="outline" className={cn("text-xs px-1.5 py-0", stateInfo.color)}>{stateInfo.label}</Badge>
-                            <span className="text-xs text-muted-foreground ml-auto">{item.unit}</span>
+                          <div className="flex items-center gap-1.5 flex-wrap">
+                            <Badge className={cn("text-xs px-1.5 py-0 shrink-0", gradeInfo.color)}>{gradeInfo.label}</Badge>
+                            <Badge variant="outline" className={cn("text-xs px-1.5 py-0 shrink-0", stateInfo.color)}>{stateInfo.label}</Badge>
+                            <span className="text-xs text-muted-foreground ml-auto shrink-0">{item.unit}</span>
                             {item.alertState === "new" && item.occurrenceHistory && item.occurrenceHistory.length > 1 && (
-                              <span className="flex items-center justify-center h-5 min-w-5 px-1 rounded-full bg-red-500 text-white text-[10px] font-bold">
+                              <span className="flex items-center justify-center h-5 min-w-5 px-1 rounded-full bg-red-500 text-white text-[10px] font-bold shrink-0" title={`${item.occurrenceHistory.length}회 발생`}>
                                 {item.occurrenceHistory.length}
                               </span>
                             )}
                           </div>
-                          <p className={cn("text-sm truncate mt-1", item.alertState === "new" ? "font-bold" : "font-medium")}>{item.title}</p>
+                          <p className={cn("text-sm mt-1 break-words", item.alertState === "new" ? "font-bold" : "font-medium")}>{item.title}</p>
                           <p className="text-xs text-muted-foreground">{item.timestamp}</p>
                         </button>
                       )
@@ -5172,7 +5172,7 @@ export default function AlertsPage() {
             <DialogHeader>
               <DialogTitle className="flex items-center gap-2 text-sm">
                 <TrendingUp className="h-4 w-4 text-emerald-500" />
-                퍼포먼스 지표 추가
+                퍼포먼�� 지표 추가
               </DialogTitle>
             </DialogHeader>
             <div className="space-y-3 py-2">
