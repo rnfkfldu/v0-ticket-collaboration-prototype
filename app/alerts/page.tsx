@@ -552,7 +552,7 @@ const SAMPLE_ALERTS: AlertItem[] = [
       ]
     },
     dailyMonitoringDetail: {
-      aiSummary: "금일 전체 공정은 안정적인 Full Rate 운전을 유지하고 있습니다. 다만, 02/01부터 진행된 Arabian Light → Arabian Medium 원유 전환으로 인해 HCR Unit의 WABT가 1.5°C 상승하였으며, 이는 피드 황함량 증가(+0.3%p)에 대한 정상적인 대응입니다. VDU Heater Outlet 온도는 안정적이며, CDU Overhead 시스템 부식 지표도 정상 범위입니다.\n\n현장 특이사항으로 P-201B Seal Oil Leak이 발견되었으나 경미한 수준으로, 정비팀에서 모니터�� ���입니다. 환경 배출 지표(SO2, NOx, 폐수 COD)는 모두 허용 범위 내에 있습니다.\n\n종합 판정: 정상 운전 유지, P-201B 상태 지속 관찰 권장",
+      aiSummary: "금일 전체 공정은 ��정적인 Full Rate 운전을 유지하고 있습니다. 다만, 02/01부터 진행된 Arabian Light → Arabian Medium 원유 전환으로 인해 HCR Unit의 WABT가 1.5°C 상승하였으며, 이는 피드 황함량 증가(+0.3%p)에 대한 정상적인 대응입니다. VDU Heater Outlet 온도는 안정적이며, CDU Overhead 시스템 부식 지표도 정상 범위입니다.\n\n현장 특이사항으로 P-201B Seal Oil Leak이 발견되었으나 경미한 수준으로, 정비팀에서 모니터�� ���입니다. 환경 배출 지표(SO2, NOx, 폐수 COD)는 모두 허용 범위 내에 있습니다.\n\n종합 판정: 정상 운전 유지, P-201B 상태 지속 관찰 권장",
       keyVariables: [
         { name: "CDU Feed Rate", value: "1,180 m3/hr", change: "+0.5%", status: "normal" },
         { name: "HCR WABT", value: "396.5°C", change: "+1.5°C", status: "warning" },
@@ -759,9 +759,17 @@ export default function AlertsPage() {
 
   // Daily Monitoring 운전변수 트렌드 상태
   const [expandedVarTag, setExpandedVarTag] = useState<string | null>(null)
+  const [showVarTrendDialog, setShowVarTrendDialog] = useState(false)
+  const [selectedVarForTrend, setSelectedVarForTrend] = useState<{tag:string;name:string;val:string;guide:string;range:string;trend:number[]} | null>(null)
 
-  // Custom KPI 추가 상태
+  // 변수 추가 다이얼로그
+  const [showAddVarDialog, setShowAddVarDialog] = useState(false)
+  const [addVarSearch, setAddVarSearch] = useState("")
+  const [monitoredVarTags, setMonitoredVarTags] = useState<string[]>([])
+
+  // Custom KPI 추가 상태 - select from variable list
   const [showAddKpiDialog, setShowAddKpiDialog] = useState(false)
+  const [kpiSearchQuery, setKpiSearchQuery] = useState("")
   const [kpiName, setKpiName] = useState("")
   const [kpiValue, setKpiValue] = useState("")
   const [kpiTarget, setKpiTarget] = useState("")
@@ -820,6 +828,114 @@ export default function AlertsPage() {
     if (!tagId) return null
     return TAG_EQ[tagId] || { process: selectedAlert?.unit || "HCR", zone: "General Section", equipment: "Unknown", eqId: "-", eqType: "-", installed: "-", lastTA: "-" }
   }
+
+  // All process tags for search (100+ tags)
+  const ALL_PROCESS_TAGS = React.useMemo(() => [
+    // CDU Tags
+    { tag: "TI-1001", name: "Column Top Temp", process: "CDU", unit: "\u00b0C", guide: 125, range: "120~130" },
+    { tag: "TI-1002", name: "Column Mid Temp", process: "CDU", unit: "\u00b0C", guide: 245, range: "240~250" },
+    { tag: "TI-1003", name: "Column Bottom Temp", process: "CDU", unit: "\u00b0C", guide: 358, range: "350~365" },
+    { tag: "TI-1004", name: "Furnace Inlet Temp", process: "CDU", unit: "\u00b0C", guide: 275, range: "270~280" },
+    { tag: "TI-1005", name: "Furnace Outlet Temp", process: "CDU", unit: "\u00b0C", guide: 365, range: "360~370" },
+    { tag: "TI-1006", name: "OVHD Temp", process: "CDU", unit: "\u00b0C", guide: 110, range: "105~115" },
+    { tag: "TI-1007", name: "Kero Draw Temp", process: "CDU", unit: "\u00b0C", guide: 190, range: "180~200" },
+    { tag: "TI-1008", name: "LGO Draw Temp", process: "CDU", unit: "\u00b0C", guide: 270, range: "260~280" },
+    { tag: "TI-1009", name: "HGO Draw Temp", process: "CDU", unit: "\u00b0C", guide: 325, range: "315~335" },
+    { tag: "TI-1010", name: "Desalter Outlet Temp", process: "CDU", unit: "\u00b0C", guide: 135, range: "130~140" },
+    { tag: "PI-1001", name: "Column Top Press", process: "CDU", unit: "kg/cm2", guide: 1.5, range: "1.2~1.8" },
+    { tag: "PI-1002", name: "Column Bottom Press", process: "CDU", unit: "kg/cm2", guide: 1.9, range: "1.7~2.1" },
+    { tag: "PI-1003", name: "Furnace Draft", process: "CDU", unit: "mmH2O", guide: -5, range: "-8~-2" },
+    { tag: "FI-1001", name: "Feed Flow Rate", process: "CDU", unit: "m3/h", guide: 350, range: "300~370" },
+    { tag: "FI-1002", name: "Reflux Flow Rate", process: "CDU", unit: "m3/h", guide: 90, range: "80~100" },
+    { tag: "FI-1003", name: "Steam Flow", process: "CDU", unit: "T/h", guide: 4.5, range: "3.5~5.5" },
+    { tag: "FI-1004", name: "Kero Product Flow", process: "CDU", unit: "m3/h", guide: 42, range: "35~50" },
+    { tag: "FI-1005", name: "LGO Product Flow", process: "CDU", unit: "m3/h", guide: 38, range: "30~45" },
+    { tag: "LI-1001", name: "Column Level", process: "CDU", unit: "%", guide: 50, range: "40~60" },
+    { tag: "LI-1002", name: "Reflux Drum Level", process: "CDU", unit: "%", guide: 50, range: "30~70" },
+    { tag: "AI-1001", name: "AR Flash Point", process: "CDU", unit: "\u00b0C", guide: 65, range: ">65" },
+    { tag: "AI-1002", name: "Naphtha EP", process: "CDU", unit: "\u00b0C", guide: 180, range: "175~185" },
+    // HCR Tags
+    { tag: "TI-3001", name: "1st Reactor Inlet Temp", process: "HCR", unit: "\u00b0C", guide: 370, range: "365~380" },
+    { tag: "TI-3002", name: "1st Reactor Outlet Temp", process: "HCR", unit: "\u00b0C", guide: 395, range: "390~405" },
+    { tag: "TI-3003", name: "2nd Reactor Inlet Temp", process: "HCR", unit: "\u00b0C", guide: 380, range: "375~390" },
+    { tag: "TI-3004", name: "2nd Reactor Outlet Temp", process: "HCR", unit: "\u00b0C", guide: 410, range: "400~420" },
+    { tag: "TI-3005", name: "HPHT Sep Temp", process: "HCR", unit: "\u00b0C", guide: 255, range: "245~265" },
+    { tag: "TI-3006", name: "Fractionator Top Temp", process: "HCR", unit: "\u00b0C", guide: 130, range: "120~140" },
+    { tag: "TI-3007", name: "Fractionator Bottom Temp", process: "HCR", unit: "\u00b0C", guide: 345, range: "335~355" },
+    { tag: "TI-3008", name: "Recycle Compressor Out", process: "HCR", unit: "\u00b0C", guide: 65, range: "55~75" },
+    { tag: "TI-3009", name: "H2 Makeup Temp", process: "HCR", unit: "\u00b0C", guide: 45, range: "35~55" },
+    { tag: "TI-3010", name: "Feed Preheat Outlet", process: "HCR", unit: "\u00b0C", guide: 310, range: "300~320" },
+    { tag: "PI-3001", name: "1st Reactor Press", process: "HCR", unit: "kg/cm2", guide: 155, range: "150~160" },
+    { tag: "PI-3002", name: "2nd Reactor Press", process: "HCR", unit: "kg/cm2", guide: 152, range: "148~158" },
+    { tag: "PI-3003", name: "HP Separator Press", process: "HCR", unit: "kg/cm2", guide: 150, range: "145~155" },
+    { tag: "PI-3004", name: "Recycle Gas Press", process: "HCR", unit: "kg/cm2", guide: 158, range: "153~163" },
+    { tag: "FI-3001", name: "Feed Flow Rate", process: "HCR", unit: "m3/h", guide: 280, range: "250~310" },
+    { tag: "FI-3002", name: "H2 Makeup Flow", process: "HCR", unit: "Nm3/h", guide: 85000, range: "75000~95000" },
+    { tag: "FI-3003", name: "Recycle Gas Flow", process: "HCR", unit: "Nm3/h", guide: 120000, range: "105000~135000" },
+    { tag: "FI-3004", name: "Quench Gas Flow 1st", process: "HCR", unit: "Nm3/h", guide: 15000, range: "10000~20000" },
+    { tag: "FI-3005", name: "Quench Gas Flow 2nd", process: "HCR", unit: "Nm3/h", guide: 18000, range: "12000~24000" },
+    { tag: "LI-3001", name: "HP Sep Level", process: "HCR", unit: "%", guide: 50, range: "40~60" },
+    { tag: "LI-3002", name: "LP Sep Level", process: "HCR", unit: "%", guide: 50, range: "40~60" },
+    { tag: "AI-3001", name: "H2 Purity", process: "HCR", unit: "mol%", guide: 99.5, range: ">99.0" },
+    { tag: "AI-3002", name: "Product Sulfur", process: "HCR", unit: "ppm", guide: 5, range: "<10" },
+    // VDU Tags
+    { tag: "TI-2001", name: "VDU Column Top Temp", process: "VDU", unit: "\u00b0C", guide: 95, range: "85~105" },
+    { tag: "TI-2002", name: "VDU Feed Temp", process: "VDU", unit: "\u00b0C", guide: 395, range: "385~405" },
+    { tag: "TI-2003", name: "VDU Bottom Temp", process: "VDU", unit: "\u00b0C", guide: 350, range: "340~360" },
+    { tag: "TI-2004", name: "LVGO Draw Temp", process: "VDU", unit: "\u00b0C", guide: 200, range: "190~210" },
+    { tag: "TI-2005", name: "HVGO Draw Temp", process: "VDU", unit: "\u00b0C", guide: 320, range: "310~330" },
+    { tag: "PI-2001", name: "VDU Column Top Vacuum", process: "VDU", unit: "mmHg", guide: 25, range: "20~30" },
+    { tag: "PI-2002", name: "VDU Flash Zone Press", process: "VDU", unit: "mmHg", guide: 40, range: "35~50" },
+    { tag: "FI-2001", name: "VDU Feed Flow", process: "VDU", unit: "m3/h", guide: 180, range: "160~200" },
+    { tag: "FI-2002", name: "LVGO Product Flow", process: "VDU", unit: "m3/h", guide: 45, range: "35~55" },
+    { tag: "FI-2003", name: "HVGO Product Flow", process: "VDU", unit: "m3/h", guide: 62, range: "50~75" },
+    { tag: "LI-2001", name: "VDU Bottom Level", process: "VDU", unit: "%", guide: 55, range: "40~65" },
+    // FPU Tags
+    { tag: "TI-5001", name: "FPU Reactor Temp", process: "FPU", unit: "\u00b0C", guide: 340, range: "330~350" },
+    { tag: "TI-5002", name: "FPU Stripper Top Temp", process: "FPU", unit: "\u00b0C", guide: 180, range: "170~190" },
+    { tag: "TI-5003", name: "FPU Feed Preheat Temp", process: "FPU", unit: "\u00b0C", guide: 290, range: "280~300" },
+    { tag: "PI-5001", name: "FPU Reactor Press", process: "FPU", unit: "kg/cm2", guide: 42, range: "38~46" },
+    { tag: "FI-5001", name: "FPU Feed Flow", process: "FPU", unit: "m3/h", guide: 85, range: "70~100" },
+    { tag: "FI-5002", name: "FPU H2 Flow", process: "FPU", unit: "Nm3/h", guide: 22000, range: "18000~26000" },
+    { tag: "LI-5001", name: "FPU Sep Level", process: "FPU", unit: "%", guide: 50, range: "35~65" },
+    // CCR Tags
+    { tag: "TI-4001", name: "CCR Reactor #1 Inlet", process: "CCR", unit: "\u00b0C", guide: 530, range: "520~540" },
+    { tag: "TI-4002", name: "CCR Reactor #2 Inlet", process: "CCR", unit: "\u00b0C", guide: 530, range: "520~540" },
+    { tag: "TI-4003", name: "CCR Regenerator Temp", process: "CCR", unit: "\u00b0C", guide: 525, range: "515~535" },
+    { tag: "PI-4001", name: "CCR Reactor Press", process: "CCR", unit: "kg/cm2", guide: 3.5, range: "3.0~4.0" },
+    { tag: "FI-4001", name: "CCR Feed Flow", process: "CCR", unit: "m3/h", guide: 120, range: "100~140" },
+    { tag: "FI-4002", name: "CCR H2 Flow", process: "CCR", unit: "Nm3/h", guide: 35000, range: "28000~42000" },
+    // NHT/DHT Tags
+    { tag: "TI-6001", name: "NHT Reactor Inlet Temp", process: "NHT", unit: "\u00b0C", guide: 310, range: "300~320" },
+    { tag: "TI-6002", name: "NHT Reactor Outlet Temp", process: "NHT", unit: "\u00b0C", guide: 325, range: "315~335" },
+    { tag: "PI-6001", name: "NHT Reactor Press", process: "NHT", unit: "kg/cm2", guide: 32, range: "28~36" },
+    { tag: "FI-6001", name: "NHT Feed Flow", process: "NHT", unit: "m3/h", guide: 95, range: "80~110" },
+    { tag: "TI-7001", name: "DHT Reactor Inlet Temp", process: "DHT", unit: "\u00b0C", guide: 355, range: "345~365" },
+    { tag: "TI-7002", name: "DHT Reactor Outlet Temp", process: "DHT", unit: "\u00b0C", guide: 375, range: "365~385" },
+    { tag: "PI-7001", name: "DHT Reactor Press", process: "DHT", unit: "kg/cm2", guide: 65, range: "58~72" },
+    { tag: "FI-7001", name: "DHT Feed Flow", process: "DHT", unit: "m3/h", guide: 150, range: "130~170" },
+    // Utility Tags
+    { tag: "PI-9001", name: "HP Steam Header Press", process: "Utility", unit: "kg/cm2", guide: 42, range: "40~44" },
+    { tag: "PI-9002", name: "MP Steam Header Press", process: "Utility", unit: "kg/cm2", guide: 12, range: "10~14" },
+    { tag: "PI-9003", name: "LP Steam Header Press", process: "Utility", unit: "kg/cm2", guide: 3.5, range: "3.0~4.0" },
+    { tag: "TI-9001", name: "CW Supply Temp", process: "Utility", unit: "\u00b0C", guide: 28, range: "25~32" },
+    { tag: "TI-9002", name: "CW Return Temp", process: "Utility", unit: "\u00b0C", guide: 38, range: "34~42" },
+    { tag: "FI-9001", name: "Fuel Gas Flow", process: "Utility", unit: "Nm3/h", guide: 5000, range: "4000~6000" },
+    { tag: "FI-9002", name: "Instrument Air Flow", process: "Utility", unit: "Nm3/h", guide: 3500, range: "2800~4200" },
+    { tag: "PI-9004", name: "Fuel Gas Press", process: "Utility", unit: "kg/cm2", guide: 2.5, range: "2.0~3.0" },
+    { tag: "PI-9005", name: "Instrument Air Press", process: "Utility", unit: "kg/cm2", guide: 7.0, range: "6.5~7.5" },
+    { tag: "PI-9006", name: "N2 Header Press", process: "Utility", unit: "kg/cm2", guide: 8.0, range: "7.0~9.0" },
+  ], [])
+
+  // Default health monitoring items for display
+  const DEFAULT_HEALTH_MONITORS = React.useMemo(() => [
+    { id: "FM-D1", equipId: "F-E101A", equipName: "Feed/Effluent HEX #1A", process: "HCR", mode: "W150N", healthIndexUnit: "W/m2K", currentValue: 520, limitValue: 350, projection: 21, prevTaValue: 515.8, driftPct: 82, color: "#ef4444", trend: [580, 575, 568, 560, 555, 548, 542, 538, 535, 530, 525, 520] },
+    { id: "FM-D2", equipId: "F-E101B", equipName: "Feed/Effluent HEX #1B", process: "HCR", mode: "W150N", healthIndexUnit: "W/m2K", currentValue: 540, limitValue: 350, projection: 48, prevTaValue: 540.8, driftPct: -5, color: "#10b981", trend: [542, 541, 540, 539, 540, 541, 540, 539, 540, 541, 540, 540] },
+    { id: "FM-D3", equipId: "F-E102A", equipName: "Feed/Effluent HEX #2A", process: "HCR", mode: "W600N", healthIndexUnit: "W/m2K", currentValue: 480, limitValue: 350, projection: 15, prevTaValue: 510.2, driftPct: 65, color: "#ef4444", trend: [530, 525, 520, 515, 508, 502, 498, 495, 490, 487, 483, 480] },
+    { id: "FM-D4", equipId: "F-E103", equipName: "Product Cooler", process: "HCR", mode: "G-III", healthIndexUnit: "W/m2K", currentValue: 610, limitValue: 350, projection: 52, prevTaValue: 620.5, driftPct: -8, color: "#10b981", trend: [618, 616, 615, 614, 613, 612, 611, 610, 610, 611, 610, 610] },
+    { id: "FM-D5", equipId: "F-E104", equipName: "Recycle Gas Cooler", process: "HCR", mode: "G-III", healthIndexUnit: "W/m2K", currentValue: 560, limitValue: 350, projection: 34, prevTaValue: 595.0, driftPct: 38, color: "#f59e0b", trend: [595, 592, 588, 585, 580, 578, 575, 572, 568, 565, 562, 560] },
+    { id: "FM-D6", equipId: "F-A101", equipName: "Reactor Eff. Air Cooler", process: "HCR", mode: "W150N", healthIndexUnit: "W/m2K", currentValue: 340, limitValue: 350, projection: -2, prevTaValue: 420.0, driftPct: 105, color: "#ef4444", trend: [420, 410, 400, 392, 385, 378, 370, 365, 358, 352, 345, 340] },
+  ], [])
 
   // 문서 리뷰 상태
   const [docReviewComment, setDocReviewComment] = useState("")
@@ -2478,9 +2594,14 @@ export default function AlertsPage() {
                               <Thermometer className="h-4 w-4" />주요 운전변수 현황
                               <Badge variant="secondary" className="text-[10px]">Operation Guide vs Actual</Badge>
                             </CardTitle>
-                            <div className="flex items-center gap-1.5 text-[10px] text-muted-foreground">
-                              <Clock className="h-3 w-3" />
-                              기준 시간: 2026-02-25 07:00
+                            <div className="flex items-center gap-2">
+                              <div className="flex items-center gap-1.5 text-[10px] text-muted-foreground">
+                                <Clock className="h-3 w-3" />
+                                기준: 2026-02-25 07:00
+                              </div>
+                              <Button variant="ghost" size="sm" className="h-6 text-[10px] gap-1 text-primary" onClick={() => setShowAddVarDialog(true)}>
+                                <Plus className="h-3 w-3" />변수 추가
+                              </Button>
                             </div>
                           </div>
                         </CardHeader>
@@ -2497,7 +2618,7 @@ export default function AlertsPage() {
                               </tr></thead>
                               <tbody>
                                 {(() => {
-                                  const varData = [
+                                  const defaultVarData = [
                                     { tag: "TI-1052", name: "Column Top Temp", val: "122.3", guide: "125", range: "120~130", st: "normal", trend: [121.5, 121.8, 122.0, 122.1, 122.3, 122.2, 122.4, 122.3] },
                                     { tag: "PI-1102", name: "Column Top Press", val: "1.35", guide: "1.5", range: "1.2~1.8", st: "normal", trend: [1.33, 1.34, 1.35, 1.34, 1.35, 1.36, 1.35, 1.35] },
                                     { tag: "TI-1352", name: "Furnace Outlet Temp", val: "363.2", guide: "365", range: "360~370", st: "normal", trend: [362.8, 363.0, 363.1, 363.5, 363.2, 363.0, 363.3, 363.2] },
@@ -2514,55 +2635,42 @@ export default function AlertsPage() {
                                     { tag: "FI-2525", name: "Steam Flow", val: "4.5", guide: "4.5", range: "3.5~5.5", st: "normal", trend: [4.4, 4.5, 4.5, 4.5, 4.4, 4.5, 4.5, 4.5] },
                                     { tag: "TI-2625", name: "Condenser Outlet", val: "54.2", guide: "55", range: "48~60", st: "normal", trend: [53.8, 54.0, 54.1, 54.2, 54.1, 54.2, 54.2, 54.2] },
                                   ]
-                                  return varData.map(v => (
-                                    <React.Fragment key={v.tag}>
-                                      <tr
-                                        className={cn("border-b cursor-pointer hover:bg-muted/30 transition-colors", v.st === "warning" && "bg-amber-50/50", expandedVarTag === v.tag && "bg-primary/5")}
-                                        onClick={() => setExpandedVarTag(expandedVarTag === v.tag ? null : v.tag)}
-                                      >
-                                        <td className="px-2 py-1.5"><span className={cn("w-2 h-2 rounded-full inline-block", v.st === "warning" ? "bg-amber-500" : "bg-green-500")} /></td>
-                                        <td className="px-2 py-1.5 font-mono text-muted-foreground">{v.tag}</td>
-                                        <td className="px-2 py-1.5">{v.name}</td>
-                                        <td className="px-2 py-1.5 text-right font-mono font-medium">{v.val}</td>
-                                        <td className="px-2 py-1.5 text-right font-mono text-muted-foreground">{v.guide}</td>
-                                        <td className="px-2 py-1.5 text-center text-muted-foreground flex items-center justify-center gap-1">
+                                  // Add custom monitored variables
+                                  const customVars = monitoredVarTags.map(tagId => {
+                                    const tagInfo = ALL_PROCESS_TAGS.find(t => t.tag === tagId)
+                                    if (!tagInfo) return null
+                                    const baseVal = tagInfo.guide + (Math.random() - 0.5) * tagInfo.guide * 0.03
+                                    return {
+                                      tag: tagInfo.tag, name: tagInfo.name, val: baseVal.toFixed(1), guide: String(tagInfo.guide),
+                                      range: tagInfo.range, st: "normal" as const, isCustom: true,
+                                      trend: Array.from({length: 8}, () => tagInfo.guide + (Math.random() - 0.5) * tagInfo.guide * 0.02)
+                                    }
+                                  }).filter(Boolean) as typeof defaultVarData
+                                  const allVars = [...defaultVarData, ...customVars]
+                                  return allVars.map(v => (
+                                    <tr
+                                      key={v.tag}
+                                      className={cn("border-b cursor-pointer hover:bg-muted/30 transition-colors", v.st === "warning" && "bg-amber-50/50")}
+                                      onClick={() => {
+                                        setSelectedVarForTrend(v)
+                                        setShowVarTrendDialog(true)
+                                      }}
+                                    >
+                                      <td className="px-2 py-1.5"><span className={cn("w-2 h-2 rounded-full inline-block", v.st === "warning" ? "bg-amber-500" : "bg-green-500")} /></td>
+                                      <td className="px-2 py-1.5 font-mono text-muted-foreground">{v.tag}</td>
+                                      <td className="px-2 py-1.5 flex items-center gap-1">
+                                        {v.name}
+                                        {("isCustom" in v) && <Badge variant="outline" className="text-[8px] h-3.5 px-1">추가</Badge>}
+                                      </td>
+                                      <td className="px-2 py-1.5 text-right font-mono font-medium">{v.val}</td>
+                                      <td className="px-2 py-1.5 text-right font-mono text-muted-foreground">{v.guide}</td>
+                                      <td className="px-2 py-1.5 text-center text-muted-foreground">
+                                        <span className="flex items-center justify-center gap-1">
                                           {v.range}
-                                          <ChevronDown className={cn("h-3 w-3 transition-transform", expandedVarTag === v.tag && "rotate-180")} />
-                                        </td>
-                                      </tr>
-                                      {expandedVarTag === v.tag && (
-                                        <tr>
-                                          <td colSpan={6} className="px-2 py-2 bg-muted/20">
-                                            <div className="space-y-1.5">
-                                              <div className="flex items-center justify-between text-[10px] text-muted-foreground">
-                                                <span>최근 8시간 트렌드 ({v.tag})</span>
-                                                <span>Guide: {v.guide} | Range: {v.range}</span>
-                                              </div>
-                                              <div className="h-16 flex items-end gap-px">
-                                                {v.trend.map((val, i) => {
-                                                  const min = Math.min(...v.trend) * 0.998
-                                                  const max = Math.max(...v.trend) * 1.002
-                                                  const h = max > min ? ((val - min) / (max - min)) * 100 : 50
-                                                  return (
-                                                    <div key={i} className="flex-1 flex flex-col items-center gap-0.5">
-                                                      <div className="w-full bg-primary/70 rounded-t" style={{ height: `${Math.max(h, 5)}%` }} />
-                                                      <span className="text-[8px] text-muted-foreground font-mono">{val}</span>
-                                                    </div>
-                                                  )
-                                                })}
-                                              </div>
-                                              <div className="flex justify-between text-[8px] text-muted-foreground">
-                                                <span>23:00</span>
-                                                <span>01:00</span>
-                                                <span>03:00</span>
-                                                <span>05:00</span>
-                                                <span>07:00</span>
-                                              </div>
-                                            </div>
-                                          </td>
-                                        </tr>
-                                      )}
-                                    </React.Fragment>
+                                          <ExternalLink className="h-2.5 w-2.5 opacity-40" />
+                                        </span>
+                                      </td>
+                                    </tr>
                                   ))
                                 })()}
                               </tbody>
@@ -2579,118 +2687,175 @@ export default function AlertsPage() {
                           </CardTitle>
                         </CardHeader>
                         <CardContent>
-                          <div className="grid grid-cols-2 gap-4">
+                          <div className="space-y-4">
                             {/* Custom Alarms - from personalized alarm storage */}
                             <div>
                               <p className="text-xs font-medium mb-2 flex items-center gap-1.5">
-                                <Bell className="h-3 w-3 text-amber-500" />Custom 알람 목록
+                                <Bell className="h-3.5 w-3.5 text-amber-500" />Custom 알람 목록
                                 <Badge variant="secondary" className="text-[8px] h-4">{personalizedAlarms.filter(a => a.active).length + 2}</Badge>
                               </p>
-                              {/* Default custom alarms */}
-                              {[
-                                { tag: "AI-1752", name: "AR Flash Point < 65\u00b0C", current: "69.5\u00b0C", ok: true },
-                                { tag: "TI-1352", name: "Furnace Outlet > 370\u00b0C", current: "363.2\u00b0C", ok: true },
-                              ].map(item => (
-                                <div key={item.tag} className="flex items-center gap-2 p-2 border rounded mb-1.5 text-xs">
-                                  <span className={cn("w-2 h-2 rounded-full shrink-0", item.ok ? "bg-green-500" : "bg-red-500")} />
-                                  <div className="flex-1 min-w-0"><p className="truncate">{item.name}</p></div>
-                                  <span className="font-mono shrink-0">{item.current}</span>
-                                </div>
-                              ))}
-                              {/* Personalized alarms from floating button registration */}
-                              {personalizedAlarms.filter(a => a.active).map(alarm => {
-                                const currentVal = (parseFloat(alarm.tagId.replace(/\D/g, "")) % 100 + 50).toFixed(1)
-                                const violated = (alarm.min !== undefined && parseFloat(currentVal) < alarm.min) || (alarm.max !== undefined && parseFloat(currentVal) > alarm.max)
-                                return (
-                                  <div key={alarm.id} className={cn("flex items-center gap-2 p-2 border rounded mb-1.5 text-xs", violated && "border-red-200 bg-red-50/30")}>
-                                    <span className={cn("w-2 h-2 rounded-full shrink-0", violated ? "bg-red-500" : "bg-green-500")} />
-                                    <div className="flex-1 min-w-0">
-                                      <p className="truncate">{alarm.tagId}: {alarm.min !== undefined ? `Min ${alarm.min}` : ""}{alarm.min !== undefined && alarm.max !== undefined ? " ~ " : ""}{alarm.max !== undefined ? `Max ${alarm.max}` : ""} {alarm.unit}</p>
-                                      {alarm.tagDescription && <p className="text-[10px] text-muted-foreground truncate">{alarm.tagDescription}</p>}
-                                    </div>
-                                    <span className="font-mono shrink-0">{currentVal} {alarm.unit}</span>
+                              <div className="space-y-1.5">
+                                {/* Default custom alarms */}
+                                {[
+                                  { tag: "AI-1752", name: "AR Flash Point < 65\u00b0C", current: "69.5\u00b0C", ok: true },
+                                  { tag: "TI-1352", name: "Furnace Outlet > 370\u00b0C", current: "363.2\u00b0C", ok: true },
+                                ].map(item => (
+                                  <div key={item.tag} className="flex items-center gap-2 p-2 border rounded text-xs">
+                                    <span className={cn("w-2 h-2 rounded-full shrink-0", item.ok ? "bg-green-500" : "bg-red-500")} />
+                                    <div className="flex-1 min-w-0"><p className="truncate">{item.name}</p></div>
+                                    <span className="font-mono shrink-0">{item.current}</span>
                                   </div>
-                                )
-                              })}
-                              {personalizedAlarms.filter(a => a.active).length === 0 && (
-                                <p className="text-[10px] text-muted-foreground py-1">우측 하단 플로팅 버튼에서 개인화 알림을 등록하세요.</p>
-                              )}
+                                ))}
+                                {/* Personalized alarms from floating button registration */}
+                                {personalizedAlarms.filter(a => a.active).map(alarm => {
+                                  const currentVal = (parseFloat(alarm.tagId.replace(/\D/g, "")) % 100 + 50).toFixed(1)
+                                  const violated = (alarm.min !== undefined && parseFloat(currentVal) < alarm.min) || (alarm.max !== undefined && parseFloat(currentVal) > alarm.max)
+                                  return (
+                                    <div key={alarm.id} className={cn("flex items-center gap-2 p-2 border rounded text-xs", violated && "border-red-200 bg-red-50/30")}>
+                                      <span className={cn("w-2 h-2 rounded-full shrink-0", violated ? "bg-red-500" : "bg-green-500")} />
+                                      <div className="flex-1 min-w-0">
+                                        <p className="truncate">{alarm.tagId}: {alarm.min !== undefined ? `Min ${alarm.min}` : ""}{alarm.min !== undefined && alarm.max !== undefined ? " ~ " : ""}{alarm.max !== undefined ? `Max ${alarm.max}` : ""} {alarm.unit}</p>
+                                        {alarm.tagDescription && <p className="text-[10px] text-muted-foreground truncate">{alarm.tagDescription}</p>}
+                                      </div>
+                                      <span className="font-mono shrink-0">{currentVal} {alarm.unit}</span>
+                                    </div>
+                                  )
+                                })}
+                                {personalizedAlarms.filter(a => a.active).length === 0 && (
+                                  <p className="text-[10px] text-muted-foreground py-1">우측 하단 플로팅 버튼에서 개인화 알림을 등록하세요.</p>
+                                )}
+                              </div>
                             </div>
 
-                            {/* Health Focus - from focus monitoring storage + trend */}
+                            {/* Separator */}
+                            <div className="border-t" />
+
+                            {/* 장기 건전성 집중 모니터링 - Detailed trend cards */}
                             <div>
-                              <p className="text-xs font-medium mb-2 flex items-center gap-1.5">
-                                <Flame className="h-3 w-3 text-red-500" />장기 건전성 집중 모니터링
-                                <Badge variant="secondary" className="text-[8px] h-4">{focusMonitoringItems.length}</Badge>
+                              <p className="text-xs font-medium mb-3 flex items-center gap-1.5">
+                                <Flame className="h-3.5 w-3.5 text-red-500" />장기 건전성 집중 모니터링
+                                <Badge variant="secondary" className="text-[8px] h-4">{DEFAULT_HEALTH_MONITORS.length}</Badge>
                               </p>
-                              {focusMonitoringItems.length > 0 ? focusMonitoringItems.map(item => (
-                                <div key={item.id} className="p-2 border border-red-100 bg-red-50/30 rounded mb-2 text-xs">
-                                  <div className="flex items-center gap-2 mb-1.5">
-                                    <span className="w-2 h-2 rounded-full bg-red-500 shrink-0" />
-                                    <span className="font-medium">{item.equipId} - {item.equipName}</span>
-                                    <Badge variant="outline" className="text-[8px] h-4 ml-auto">{item.process}</Badge>
-                                  </div>
-                                  <div className="flex items-center justify-between text-[10px] text-muted-foreground mb-1">
-                                    <span>{item.healthIndexName}: <span className="font-mono font-medium text-foreground">{item.currentValue} {item.healthIndexUnit}</span></span>
-                                    <span>Limit: {item.limitValue} | Drift {item.driftPct > 0 ? "+" : ""}{item.driftPct.toFixed(0)}%</span>
-                                  </div>
-                                  {/* Mini trend chart */}
-                                  <div className="h-10 flex items-end gap-px mt-1">
-                                    {(item.trend.length > 0 ? item.trend.slice(-12) : []).map((val, i, arr) => {
-                                      const mn = Math.min(...arr) * 0.99
-                                      const mx = Math.max(...arr) * 1.01
-                                      const h = mx > mn ? ((val - mn) / (mx - mn)) * 100 : 50
-                                      return (
-                                        <div key={i} className="flex-1 bg-red-400/60 rounded-t" style={{ height: `${Math.max(h, 5)}%` }} />
-                                      )
-                                    })}
-                                  </div>
-                                  {item.trend.length > 0 && (
-                                    <div className="flex justify-between text-[8px] text-muted-foreground mt-0.5">
-                                      <span>12주 전</span>
-                                      <span>현재</span>
+                              <div className="grid grid-cols-2 gap-3">
+                                {DEFAULT_HEALTH_MONITORS.map(item => {
+                                  const isGood = item.driftPct <= 0
+                                  const isWarning = item.driftPct > 0 && item.driftPct < 80
+                                  const isCritical = item.driftPct >= 80
+                                  const trendColor = isCritical ? "#ef4444" : isWarning ? "#f59e0b" : "#10b981"
+                                  return (
+                                    <div key={item.id} className="border rounded-lg p-3 bg-card">
+                                      {/* Header with equip info */}
+                                      <div className="flex items-center gap-2 mb-2">
+                                        <span className={cn("w-2.5 h-2.5 rounded-full shrink-0", isCritical ? "bg-red-500" : isWarning ? "bg-amber-500" : "bg-green-500")} />
+                                        <span className="text-xs font-semibold">{item.equipId}</span>
+                                        <Badge variant="outline" className="text-[9px] h-4">{item.process}</Badge>
+                                        <Badge variant="outline" className="text-[9px] h-4">{item.mode}</Badge>
+                                        <span className="ml-auto text-[10px] text-muted-foreground">[{item.healthIndexUnit}]</span>
+                                      </div>
+                                      <p className="text-[10px] text-muted-foreground mb-2">{item.equipName}</p>
+
+                                      {/* SVG Trend Chart */}
+                                      <div className="relative h-24 mb-2">
+                                        <svg viewBox="0 0 240 80" className="w-full h-full" preserveAspectRatio="none">
+                                          {/* Background grid */}
+                                          <line x1="0" y1="20" x2="240" y2="20" stroke="currentColor" strokeOpacity="0.06" />
+                                          <line x1="0" y1="40" x2="240" y2="40" stroke="currentColor" strokeOpacity="0.06" />
+                                          <line x1="0" y1="60" x2="240" y2="60" stroke="currentColor" strokeOpacity="0.06" />
+
+                                          {/* Limit line */}
+                                          {(() => {
+                                            const mn = Math.min(...item.trend, item.limitValue) * 0.95
+                                            const mx = Math.max(...item.trend, item.limitValue) * 1.02
+                                            const limitY = 75 - ((item.limitValue - mn) / (mx - mn)) * 70
+                                            return (
+                                              <>
+                                                {/* Below-limit danger zone */}
+                                                <rect x="0" y={limitY} width="240" height={75 - limitY} fill={isCritical ? "#fecaca" : "#fef3c7"} opacity="0.3" />
+                                                <line x1="0" y1={limitY} x2="240" y2={limitY} stroke="#ef4444" strokeWidth="0.8" strokeDasharray="4,3" />
+                                                <text x="242" y={limitY + 3} fontSize="6" fill="#ef4444" fontFamily="monospace">Limit</text>
+                                              </>
+                                            )
+                                          })()}
+
+                                          {/* Projection line (dashed) */}
+                                          {(() => {
+                                            const mn = Math.min(...item.trend, item.limitValue) * 0.95
+                                            const mx = Math.max(...item.trend, item.limitValue) * 1.02
+                                            const lastVal = item.trend[item.trend.length - 1]
+                                            const lastY = 75 - ((lastVal - mn) / (mx - mn)) * 70
+                                            const projEnd = item.limitValue
+                                            const projY = 75 - ((projEnd - mn) / (mx - mn)) * 70
+                                            const lastX = ((item.trend.length - 1) / (item.trend.length - 1)) * 180
+                                            return (
+                                              <line x1={lastX} y1={lastY} x2="240" y2={Math.min(projY, 75)} stroke="#818cf8" strokeWidth="0.8" strokeDasharray="3,2" />
+                                            )
+                                          })()}
+
+                                          {/* Actual trend line */}
+                                          {(() => {
+                                            const mn = Math.min(...item.trend, item.limitValue) * 0.95
+                                            const mx = Math.max(...item.trend, item.limitValue) * 1.02
+                                            const points = item.trend.map((val, i) => {
+                                              const x = (i / (item.trend.length - 1)) * 180
+                                              const y = 75 - ((val - mn) / (mx - mn)) * 70
+                                              return `${x},${y}`
+                                            }).join(" ")
+                                            return (
+                                              <polyline points={points} fill="none" stroke={trendColor} strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round" />
+                                            )
+                                          })()}
+
+                                          {/* Current value marker */}
+                                          {(() => {
+                                            const mn = Math.min(...item.trend, item.limitValue) * 0.95
+                                            const mx = Math.max(...item.trend, item.limitValue) * 1.02
+                                            const lastVal = item.trend[item.trend.length - 1]
+                                            const lastX = 180
+                                            const lastY = 75 - ((lastVal - mn) / (mx - mn)) * 70
+                                            return <circle cx={lastX} cy={lastY} r="2.5" fill={trendColor} />
+                                          })()}
+
+                                          {/* Vertical "현재" line */}
+                                          <line x1="180" y1="2" x2="180" y2="78" stroke="currentColor" strokeOpacity="0.15" strokeWidth="0.5" strokeDasharray="2,2" />
+                                          <text x="178" y="8" fontSize="5" fill="currentColor" opacity="0.4" textAnchor="end" fontFamily="sans-serif">현재</text>
+                                        </svg>
+                                      </div>
+
+                                      {/* Metrics row */}
+                                      <div className="flex items-center gap-2 text-[10px] flex-wrap">
+                                        <span className="text-muted-foreground">현재 <span className="font-mono font-semibold text-foreground">{item.currentValue}</span> {item.healthIndexUnit}</span>
+                                        <span className="text-muted-foreground">Limit <span className="font-mono">{item.limitValue}</span></span>
+                                        <span className="text-muted-foreground">Projection <span className="font-mono">{item.projection}주</span></span>
+                                        <span className="text-muted-foreground">전 TA <span className="font-mono">{item.prevTaValue}</span> {item.healthIndexUnit}</span>
+                                        <Badge 
+                                          className={cn(
+                                            "ml-auto text-[9px] h-4 px-1.5 gap-0.5",
+                                            isCritical ? "bg-red-100 text-red-700 hover:bg-red-100" : isWarning ? "bg-amber-100 text-amber-700 hover:bg-amber-100" : "bg-green-100 text-green-700 hover:bg-green-100"
+                                          )}
+                                        >
+                                          {item.driftPct > 0 && <ArrowRight className="h-2.5 w-2.5 rotate-[-45deg]" />}
+                                          Drift {item.driftPct > 0 ? "+" : ""}{item.driftPct}%
+                                        </Badge>
+                                      </div>
                                     </div>
-                                  )}
-                                </div>
-                              )) : (
-                                <div>
-                                  {/* Fallback: show red traffic light items from health data */}
-                                  {(() => {
-                                    const allEquip = [...getEquipmentData("fouling"), ...getEquipmentData("coking")]
-                                    const focusItems = allEquip.filter(eq => eq.trafficLight === "red").slice(0, 2)
-                                    return focusItems.length > 0 ? focusItems.map(eq => (
-                                      <div key={eq.id} className="p-2 border border-red-100 bg-red-50/30 rounded mb-2 text-xs">
-                                        <div className="flex items-center gap-2 mb-1.5">
+                                  )
+                                })}
+                              </div>
+                              {focusMonitoringItems.length > 0 && (
+                                <div className="mt-3">
+                                  <p className="text-[10px] text-muted-foreground mb-2">사용자 등록 항목</p>
+                                  <div className="grid grid-cols-2 gap-2">
+                                    {focusMonitoringItems.map(item => (
+                                      <div key={item.id} className="p-2 border border-red-100 bg-red-50/30 rounded text-xs">
+                                        <div className="flex items-center gap-2 mb-1">
                                           <span className="w-2 h-2 rounded-full bg-red-500 shrink-0" />
-                                          <span className="font-medium">{eq.id} - {eq.name}</span>
-                                          <Badge variant="outline" className="text-[8px] h-4 ml-auto">{eq.process}</Badge>
+                                          <span className="font-medium">{item.equipId}</span>
+                                          <Badge variant="outline" className="text-[8px] h-3.5">{item.process}</Badge>
                                         </div>
-                                        <div className="flex items-center justify-between text-[10px] text-muted-foreground mb-1">
-                                          <span>{eq.healthIndex.name}: <span className="font-mono font-medium text-foreground">{eq.healthIndex.currentValue} {eq.healthIndex.unit}</span></span>
-                                          <span>Drift {eq.driftPct > 0 ? "+" : ""}{eq.driftPct.toFixed(0)}%</span>
-                                        </div>
-                                        {/* Mini trend */}
-                                        <div className="h-10 flex items-end gap-px mt-1">
-                                          {eq.healthIndex.trend.slice(-12).map((val, i, arr) => {
-                                            const mn = Math.min(...arr) * 0.99
-                                            const mx = Math.max(...arr) * 1.01
-                                            const h = mx > mn ? ((val - mn) / (mx - mn)) * 100 : 50
-                                            return <div key={i} className="flex-1 bg-red-400/60 rounded-t" style={{ height: `${Math.max(h, 5)}%` }} />
-                                          })}
-                                        </div>
-                                        <div className="flex justify-between text-[8px] text-muted-foreground mt-0.5">
-                                          <span>12주 전</span>
-                                          <span>현재</span>
-                                        </div>
+                                        <p className="text-[10px] text-muted-foreground">{item.healthIndexName}: {item.currentValue} {item.healthIndexUnit} | Drift {item.driftPct > 0 ? "+" : ""}{item.driftPct.toFixed(0)}%</p>
                                       </div>
-                                    )) : (
-                                      <div className="text-center py-4 text-xs text-muted-foreground">
-                                        <CheckCircle className="h-5 w-5 text-green-400 mx-auto mb-1" />
-                                        집중 모니터링 항목 없음
-                                      </div>
-                                    )
-                                  })()}
-                                  <p className="text-[10px] text-muted-foreground">운전현황 {'>'} 장기 건전성 관리에서 집중 모니터링을 등록하세요.</p>
+                                    ))}
+                                  </div>
                                 </div>
                               )}
                             </div>
@@ -3434,7 +3599,7 @@ export default function AlertsPage() {
                         <CardHeader className="pb-2">
                           <CardTitle className="text-sm flex items-center gap-2">
                             <Clock className="h-4 w-4" />
-                            과거 알람 발생 이력 ({selectedAlert.data?.tagId})
+                            과거 알람 발��� 이력 ({selectedAlert.data?.tagId})
                           </CardTitle>
                           <p className="text-xs text-muted-foreground mt-1">이 커스텀 알람 조건에서 과거 발생 이력</p>
                         </CardHeader>
@@ -4405,9 +4570,9 @@ export default function AlertsPage() {
           </DialogContent>
         </Dialog>
 
-        {/* Custom KPI 추가 다이얼로그 */}
-        <Dialog open={showAddKpiDialog} onOpenChange={setShowAddKpiDialog}>
-          <DialogContent className="max-w-sm">
+        {/* Custom KPI 추가 다이얼로그 - 운전변수 리스트에서 선택 */}
+        <Dialog open={showAddKpiDialog} onOpenChange={(open) => { setShowAddKpiDialog(open); if (!open) { setKpiSearchQuery(""); setKpiName(""); setKpiValue(""); setKpiTarget(""); setKpiUnit("") } }}>
+          <DialogContent className="max-w-md">
             <DialogHeader>
               <DialogTitle className="flex items-center gap-2 text-sm">
                 <TrendingUp className="h-4 w-4 text-emerald-500" />
@@ -4416,28 +4581,208 @@ export default function AlertsPage() {
             </DialogHeader>
             <div className="space-y-3 py-2">
               <div className="space-y-1.5">
-                <Label className="text-xs">지표명</Label>
-                <Input value={kpiName} onChange={e => setKpiName(e.target.value)} placeholder="예: Conversion Rate" className="text-sm" />
+                <Label className="text-xs">운전변수에서 선택</Label>
+                <Input 
+                  value={kpiSearchQuery} 
+                  onChange={e => setKpiSearchQuery(e.target.value)} 
+                  placeholder="Tag ID 또는 변수명으로 검색..." 
+                  className="text-sm" 
+                />
+                {kpiSearchQuery && (
+                  <ScrollArea className="h-40 border rounded-md">
+                    <div className="p-1">
+                      {ALL_PROCESS_TAGS.filter(t => 
+                        t.tag.toLowerCase().includes(kpiSearchQuery.toLowerCase()) ||
+                        t.name.toLowerCase().includes(kpiSearchQuery.toLowerCase()) ||
+                        t.process.toLowerCase().includes(kpiSearchQuery.toLowerCase())
+                      ).slice(0, 15).map(t => (
+                        <button
+                          key={t.tag}
+                          className={cn("w-full flex items-center gap-2 px-2 py-1.5 text-xs rounded hover:bg-muted/60 text-left cursor-pointer", kpiName === `${t.tag} ${t.name}` && "bg-primary/10")}
+                          onClick={() => {
+                            setKpiName(`${t.tag} ${t.name}`)
+                            const baseVal = t.guide + (Math.random() - 0.5) * t.guide * 0.05
+                            setKpiValue(baseVal.toFixed(1))
+                            setKpiTarget(String(t.guide))
+                            setKpiUnit(t.unit)
+                            setKpiSearchQuery("")
+                          }}
+                        >
+                          <Badge variant="outline" className="text-[9px] h-4 shrink-0">{t.process}</Badge>
+                          <span className="font-mono text-muted-foreground">{t.tag}</span>
+                          <span className="flex-1 truncate">{t.name}</span>
+                          <span className="text-muted-foreground shrink-0">{t.unit}</span>
+                        </button>
+                      ))}
+                      {ALL_PROCESS_TAGS.filter(t => 
+                        t.tag.toLowerCase().includes(kpiSearchQuery.toLowerCase()) ||
+                        t.name.toLowerCase().includes(kpiSearchQuery.toLowerCase()) ||
+                        t.process.toLowerCase().includes(kpiSearchQuery.toLowerCase())
+                      ).length === 0 && (
+                        <p className="text-xs text-muted-foreground text-center py-3">검색 결과가 없습니다.</p>
+                      )}
+                    </div>
+                  </ScrollArea>
+                )}
               </div>
-              <div className="grid grid-cols-3 gap-2">
-                <div className="space-y-1.5">
-                  <Label className="text-xs">현재값</Label>
-                  <Input type="number" value={kpiValue} onChange={e => setKpiValue(e.target.value)} placeholder="0" className="text-sm font-mono" />
+              {kpiName && (
+                <div className="p-2.5 bg-muted/30 rounded-lg space-y-2">
+                  <p className="text-xs font-medium">{kpiName}</p>
+                  <div className="grid grid-cols-3 gap-2">
+                    <div className="space-y-1">
+                      <Label className="text-[10px] text-muted-foreground">현재값</Label>
+                      <Input type="number" value={kpiValue} onChange={e => setKpiValue(e.target.value)} className="text-xs font-mono h-7" />
+                    </div>
+                    <div className="space-y-1">
+                      <Label className="text-[10px] text-muted-foreground">목표값 (Guide)</Label>
+                      <Input type="number" value={kpiTarget} onChange={e => setKpiTarget(e.target.value)} className="text-xs font-mono h-7" />
+                    </div>
+                    <div className="space-y-1">
+                      <Label className="text-[10px] text-muted-foreground">단위</Label>
+                      <Input value={kpiUnit} onChange={e => setKpiUnit(e.target.value)} className="text-xs h-7" />
+                    </div>
+                  </div>
                 </div>
-                <div className="space-y-1.5">
-                  <Label className="text-xs">목표값</Label>
-                  <Input type="number" value={kpiTarget} onChange={e => setKpiTarget(e.target.value)} placeholder="0" className="text-sm font-mono" />
-                </div>
-                <div className="space-y-1.5">
-                  <Label className="text-xs">단위</Label>
-                  <Input value={kpiUnit} onChange={e => setKpiUnit(e.target.value)} placeholder="%" className="text-sm" />
-                </div>
-              </div>
+              )}
             </div>
             <DialogFooter>
               <Button variant="outline" size="sm" onClick={() => setShowAddKpiDialog(false)}>취소</Button>
               <Button size="sm" onClick={handleAddKpi} disabled={!kpiName || !kpiValue || !kpiTarget}>추가</Button>
             </DialogFooter>
+          </DialogContent>
+        </Dialog>
+
+        {/* 변수 추가 다이얼로그 */}
+        <Dialog open={showAddVarDialog} onOpenChange={(open) => { setShowAddVarDialog(open); if (!open) setAddVarSearch("") }}>
+          <DialogContent className="max-w-md">
+            <DialogHeader>
+              <DialogTitle className="flex items-center gap-2 text-sm">
+                <Thermometer className="h-4 w-4" />
+                모니터링 변수 추가
+              </DialogTitle>
+            </DialogHeader>
+            <div className="space-y-3 py-2">
+              <Input 
+                value={addVarSearch} 
+                onChange={e => setAddVarSearch(e.target.value)} 
+                placeholder="Tag ID, 변수명 또는 프로세스로 검색 (100+개 태그)..." 
+                className="text-sm" 
+              />
+              <ScrollArea className="h-64 border rounded-md">
+                <div className="p-1">
+                  {ALL_PROCESS_TAGS
+                    .filter(t => 
+                      !addVarSearch ||
+                      t.tag.toLowerCase().includes(addVarSearch.toLowerCase()) ||
+                      t.name.toLowerCase().includes(addVarSearch.toLowerCase()) ||
+                      t.process.toLowerCase().includes(addVarSearch.toLowerCase())
+                    )
+                    .map(t => {
+                      const isAdded = monitoredVarTags.includes(t.tag)
+                      return (
+                        <div key={t.tag} className={cn("flex items-center gap-2 px-2 py-1.5 text-xs rounded", isAdded && "bg-primary/5")}>
+                          <Badge variant="outline" className="text-[9px] h-4 shrink-0">{t.process}</Badge>
+                          <span className="font-mono text-muted-foreground w-14 shrink-0">{t.tag}</span>
+                          <span className="flex-1 truncate">{t.name}</span>
+                          <span className="text-muted-foreground shrink-0 text-[10px]">{t.unit}</span>
+                          <Button
+                            variant={isAdded ? "secondary" : "outline"}
+                            size="sm"
+                            className={cn("h-5 text-[10px] px-2 shrink-0", isAdded && "text-primary")}
+                            onClick={() => {
+                              if (isAdded) {
+                                setMonitoredVarTags(prev => prev.filter(tag => tag !== t.tag))
+                              } else {
+                                setMonitoredVarTags(prev => [...prev, t.tag])
+                              }
+                            }}
+                          >
+                            {isAdded ? "추가됨" : "추가"}
+                          </Button>
+                        </div>
+                      )
+                    })}
+                </div>
+              </ScrollArea>
+              <p className="text-[10px] text-muted-foreground">
+                {monitoredVarTags.length}개 변수 추가 선택됨 | 전체 {ALL_PROCESS_TAGS.length}개 태그
+              </p>
+            </div>
+            <DialogFooter>
+              <Button variant="outline" size="sm" onClick={() => setShowAddVarDialog(false)}>닫기</Button>
+            </DialogFooter>
+          </DialogContent>
+        </Dialog>
+
+        {/* 운전변수 트렌드 팝업 */}
+        <Dialog open={showVarTrendDialog} onOpenChange={setShowVarTrendDialog}>
+          <DialogContent className="max-w-lg">
+            {selectedVarForTrend && (
+              <>
+                <DialogHeader>
+                  <DialogTitle className="flex items-center gap-2 text-sm">
+                    <TrendingUp className="h-4 w-4" />
+                    {selectedVarForTrend.tag} - {selectedVarForTrend.name}
+                  </DialogTitle>
+                </DialogHeader>
+                <div className="space-y-3 py-2">
+                  <div className="flex items-center gap-3 text-xs">
+                    <div className="flex items-center gap-1.5">
+                      <span className="text-muted-foreground">현재값:</span>
+                      <span className="font-mono font-semibold">{selectedVarForTrend.val}</span>
+                    </div>
+                    <div className="flex items-center gap-1.5">
+                      <span className="text-muted-foreground">Guide:</span>
+                      <span className="font-mono">{selectedVarForTrend.guide}</span>
+                    </div>
+                    <div className="flex items-center gap-1.5">
+                      <span className="text-muted-foreground">Range:</span>
+                      <span className="font-mono">{selectedVarForTrend.range}</span>
+                    </div>
+                    <div className="flex items-center gap-1.5 ml-auto">
+                      <Clock className="h-3 w-3 text-muted-foreground" />
+                      <span className="text-muted-foreground">2026-02-25 07:00 기준</span>
+                    </div>
+                  </div>
+                  <div className="border rounded-lg p-3 bg-muted/20">
+                    <p className="text-[10px] text-muted-foreground mb-2">최근 8시간 트렌드</p>
+                    <div className="h-32 flex items-end gap-1">
+                      {selectedVarForTrend.trend.map((val, i) => {
+                        const mn = Math.min(...selectedVarForTrend.trend) * 0.998
+                        const mx = Math.max(...selectedVarForTrend.trend) * 1.002
+                        const h = mx > mn ? ((val - mn) / (mx - mn)) * 100 : 50
+                        return (
+                          <div key={i} className="flex-1 flex flex-col items-center gap-1">
+                            <span className="text-[9px] font-mono text-muted-foreground">{val}</span>
+                            <div className="w-full bg-primary/60 rounded-t transition-all" style={{ height: `${Math.max(h, 8)}%` }} />
+                          </div>
+                        )
+                      })}
+                    </div>
+                    <div className="flex justify-between text-[9px] text-muted-foreground mt-1.5 border-t pt-1">
+                      <span>23:00</span>
+                      <span>00:00</span>
+                      <span>01:00</span>
+                      <span>03:00</span>
+                      <span>05:00</span>
+                      <span>06:00</span>
+                      <span>07:00</span>
+                    </div>
+                  </div>
+                  {/* Guide line indicator */}
+                  <div className="flex items-center gap-2 text-xs">
+                    <div className="flex items-center gap-1.5">
+                      <div className="w-3 h-0.5 bg-primary/60" />
+                      <span className="text-muted-foreground">Actual</span>
+                    </div>
+                    <div className="flex items-center gap-1.5">
+                      <div className="w-3 h-0.5 bg-amber-400 border-dashed" style={{ borderTopWidth: 1 }} />
+                      <span className="text-muted-foreground">Guide: {selectedVarForTrend.guide}</span>
+                    </div>
+                  </div>
+                </div>
+              </>
+            )}
           </DialogContent>
         </Dialog>
 
