@@ -15,7 +15,7 @@ export interface Ticket {
   allowedTeams?: string[]
   unit?: string
   area?: string
-  equipment?: string // Added equipment field
+  equipment?: string
   tags?: string[]
   fromTime?: string
   toTime?: string
@@ -50,11 +50,56 @@ export interface Ticket {
     testEndDate: string
     targetVariables: string[]
     operatingGuide: string
-    feedbackDeadline: string  // testEndDate + 30일
+    feedbackDeadline: string
     feedbackContent?: string
     testStatus: "planned" | "in-progress" | "completed" | "feedback-pending" | "closed"
     reviewedByProduction?: boolean
   }
+  // 이벤트 프로세스 플로우
+  processStatus?: "issued" | "accepted" | "rejected" | "review" | "additional-review" | "review-complete" | "closed" | "hold"
+  processFlow?: EventProcessStep[]
+  // 추가 검토자
+  additionalReviewer?: {
+    name: string
+    team: string
+    status: "pending" | "in-progress" | "completed"
+    assignedAt: string
+    completedAt?: string
+  }
+  // 의견 (opinions)
+  opinions?: EventOpinion[]
+  // 댓글
+  comments?: EventComment[]
+}
+
+export interface EventProcessStep {
+  step: "issued" | "accepted" | "rejected" | "review" | "additional-review" | "review-complete" | "closed"
+  label: string
+  status: "completed" | "current" | "upcoming" | "skipped"
+  assignee?: string
+  team?: string
+  timestamp?: string
+}
+
+export interface EventOpinion {
+  id: string
+  author: string
+  team: string
+  templateType: string
+  templateLabel: string
+  fields: { label: string; value: string }[]
+  dataBoxes?: DataInsertBox[]
+  attachments?: { fileName: string; fileUrl: string }[]
+  status: "draft" | "submitted"
+  createdAt: string
+  submittedAt?: string
+}
+
+export interface EventComment {
+  id: string
+  author: string
+  content: string
+  timestamp: string
 }
 
 export interface WorkPackage {
