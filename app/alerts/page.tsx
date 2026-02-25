@@ -564,6 +564,24 @@ const SAMPLE_ALERTS: AlertItem[] = [
       diagrams: ["CDU Process Flow", "HCR Reactor Profile", "VDU Column Profile"]
     }
   },
+  // Weekly Monitoring AI 요약
+  {
+    id: "NTC-012",
+    type: "notice",
+    subType: "weekly-monitoring",
+    title: "Weekly Monitoring AI 요약 (2025년 5주차)",
+    description: "GenAI가 금주 운전 현황을 종합 분석했습니다. 장기 건전성 및 이상징후 탐지 결과를 확인하세요.",
+    timestamp: "2025-02-02 09:00",
+    status: "unread",
+    severity: "warning",
+    data: {
+      items: [
+        { name: "장기 건전성 종합", status: "warning", value: "전체 118건 중 Red 46건, Yellow 13건" },
+        { name: "이상징후 탐지", status: "warning", value: "Danger 8건, Warning 11건, Normal 9건" },
+        { name: "주요 이슈", status: "warning", value: "F-E101A Fouling 가속, FV-2001 Valve Sticking 의심" },
+      ]
+    }
+  },
   // DCS 모듈 수정 요청
   {
     id: "NTC-009",
@@ -744,6 +762,7 @@ export default function AlertsPage() {
   
   // Daily Monitoring 판정 상태
   const [dailyMonitoringAction, setDailyMonitoringAction] = useState<"normal" | "caution" | "ticket" | null>(null)
+  const [weeklyMonitoringAction, setWeeklyMonitoringAction] = useState<"normal" | "caution" | "ticket" | null>(null)
   
   // Standing Issue 상태
   const [standingIssues, setStandingIssues] = useState<StandingIssue[]>(INITIAL_STANDING_ISSUES)
@@ -974,6 +993,7 @@ export default function AlertsPage() {
       case "external-data": return <ExternalLink className="h-4 w-4" />
       case "auto-calc": return <Calculator className="h-4 w-4" />
       case "daily-monitoring": return <Eye className="h-4 w-4" />
+      case "weekly-monitoring": return <BarChart3 className="h-4 w-4" />
       case "dcs-modification": return <Monitor className="h-4 w-4" />
       default: return <Info className="h-4 w-4" />
     }
@@ -998,6 +1018,7 @@ export default function AlertsPage() {
       case "external-data": return "외부 데이터"
       case "auto-calc": return "자동 계산"
       case "daily-monitoring": return "Daily Monitoring"
+      case "weekly-monitoring": return "Weekly Monitoring"
       case "dcs-modification": return "DCS 수정 요청"
       case "licensor-review": return "라이센서 리뷰"
       case "mode-switch": return "Mode Switch"
@@ -1255,7 +1276,7 @@ export default function AlertsPage() {
   }
 
   // Notice 정렬: daily-monitoring을 최상위, 그 다음 anomaly, 나머지는 시간순
-  const noticeSortOrder: Record<string, number> = { "daily-monitoring": 0, "monthly-report-review": 1, "contingency-plan-review": 2, "anomaly": 3, "dcs-modification": 4 }
+  const noticeSortOrder: Record<string, number> = { "daily-monitoring": 0, "weekly-monitoring": 1, "monthly-report-review": 2, "contingency-plan-review": 3, "anomaly": 4, "dcs-modification": 5 }
   const sortedNotices = alerts.filter(a => a.type === "notice").sort((a, b) => {
     const orderA = noticeSortOrder[a.subType] ?? 99
     const orderB = noticeSortOrder[b.subType] ?? 99
@@ -3125,8 +3146,299 @@ export default function AlertsPage() {
                     )
                   })()}
 
-                  {/* 기존 Notice 타입 (이상징후/DCS/Daily Monitoring/장기모니터링 제외): 아이템 리스트 */}
-                  {selectedAlert.data?.items && !["anomaly", "daily-monitoring", "dcs-modification", "monthly-report-review", "contingency-plan-review", "long-term"].includes(selectedAlert.subType) && (
+                  {/* ===== Weekly Monitoring 요약 상세 ===== */}
+                  {selectedAlert.subType === "weekly-monitoring" && (() => {
+                    // Health data from HEALTH_CATEGORIES
+                    const cats = Object.values(HEALTH_CATEGORIES)
+                    const catData = cats.map(cat => {
+                      const equip = getEquipmentData(cat.id)
+                      const red = equip.filter(e => e.trafficLight === "red")
+                      const yellow = equip.filter(e => e.trafficLight === "yellow")
+                      const green = equip.filter(e => e.trafficLight === "green")
+                      return { ...cat, red, yellow, green, total: equip.length }
+                    })
+                    const totals = catData.reduce((a, c) => ({
+                      red: a.red + c.red.length, yellow: a.yellow + c.yellow.length,
+                      green: a.green + c.green.length, total: a.total + c.total,
+                    }), { red: 0, yellow: 0, green: 0, total: 0 })
+
+                    // Anomaly data
+                    const anomalyData = {
+                      similarOp: { danger: 4, warning: 5, normal: 5, tags: 14 },
+                      instrument: { peakFlatline: 2, oscillation: 4, peak: 3, flatline: 2, hunting: 2 },
+                      drift: { driftExpand: 2, watchNeeded: 2, monitorItems: 7 },
+                    }
+                    const anomTotals = { danger: 8, warning: 11, normal: 9 }
+
+                    return (
+                      <>
+                        {/* 1. AI Weekly Summary */}
+                        <Card className="border-l-4 border-l-indigo-500">
+                          <CardContent className="py-4">
+                            <div className="flex items-start gap-3">
+                              <div className="h-8 w-8 rounded-lg bg-indigo-50 flex items-center justify-center shrink-0 mt-0.5">
+                                <Sparkles className="h-4 w-4 text-indigo-600" />
+                              </div>
+                              <div className="flex-1 min-w-0">
+                                <div className="flex items-center gap-2 mb-2">
+                                  <h3 className="text-sm font-semibold">AI Weekly Summary</h3>
+                                  <Badge variant="secondary" className="text-[10px]">GenAI</Badge>
+                                  <span className="text-[10px] text-muted-foreground ml-auto">2025-02-02 09:00 생성</span>
+                                </div>
+                                <div className="p-3 bg-muted/40 rounded-lg mb-3">
+                                  <p className="text-xs leading-relaxed">
+                                    {"금주(2025년 5주차) 전반적인 공정 운전은 안정적으로 유지되었으나, 장기 건전성 관점에서 일부 주의가 필요합니다. 전체 118개 모니터링 항목 중 Red 46건(39%)으로 전주 대비 3건 증가하였으며, 특히 Fouling 카테고리에서 F-E101A, F-E102A의 열교환 성능 저하가 가속화되고 있습니다.\n\n이상징후 탐지에서는 총 28건이 감지되었으며 Danger 8건 중 FV-2001 Control Valve Sticking 의심 건과 E-101 UA Value 지속 하락이 중점 관리 대상입니다. DR 데이터 대비 Drift 감지에서 FI-1501 Flow Meter 교정 필요성이 재확인되었습니다.\n\n종합 판정: 전주 대비 건전성 지표 소폭 악화. F-E101A 세정 일정 검토 및 FV-2001 정비 점검 권장."}
+                                  </p>
+                                </div>
+                                <div className="p-3 bg-muted/40 rounded-lg">
+                                  <p className="text-xs font-medium text-muted-foreground mb-1.5">주간 핵심 변동 사항</p>
+                                  <div className="space-y-1.5">
+                                    {[
+                                      { name: "Fouling Red 항목", value: "18건 (+3)", change: "전주 대비 증가", status: "warning" as const },
+                                      { name: "Anomaly Danger", value: "8건 (+1)", change: "FV-2001 신규", status: "warning" as const },
+                                      { name: "WABT 상승 추세", value: "402\u00b0C (+2\u00b0C/주)", change: "지속 관찰", status: "warning" as const },
+                                      { name: "에너지 효율 (EII)", value: "97.8 (개선)", change: "-0.4", status: "normal" as const },
+                                      { name: "처리량 준수율", value: "98.5%", change: "+0.3%p", status: "normal" as const },
+                                      { name: "무사고 일수", value: "439일", change: "+7일", status: "normal" as const },
+                                    ].map((v, i) => (
+                                      <div key={i} className="flex items-center gap-2 text-xs">
+                                        <span className={cn("w-1.5 h-1.5 rounded-full shrink-0", v.status === "warning" ? "bg-amber-500" : "bg-green-500")} />
+                                        <span className="font-medium w-36 shrink-0">{v.name}</span>
+                                        <span className="text-muted-foreground">{v.change}</span>
+                                        <span className="font-mono ml-auto">{v.value}</span>
+                                      </div>
+                                    ))}
+                                  </div>
+                                </div>
+                              </div>
+                            </div>
+                          </CardContent>
+                        </Card>
+
+                        {/* 2. 장기 건전성 현황 */}
+                        <Card className="border-blue-200/50">
+                          <CardHeader className="pb-2">
+                            <div className="flex items-center justify-between">
+                              <CardTitle className="text-sm flex items-center gap-2">
+                                <TrendingUp className="h-4 w-4" />
+                                장기 건전성 현황
+                              </CardTitle>
+                              <Button
+                                variant="outline"
+                                size="sm"
+                                className="h-7 text-xs gap-1.5 border-blue-200 text-blue-600 hover:bg-blue-50"
+                                onClick={() => router.push("/operations/health/overview")}
+                              >
+                                <ExternalLink className="h-3 w-3" />
+                                전체 화면
+                              </Button>
+                            </div>
+                          </CardHeader>
+                          <CardContent className="space-y-3">
+                            {/* Summary bar */}
+                            <div className="flex items-center gap-4 text-xs">
+                              <span className="text-muted-foreground">전체 <span className="font-semibold text-foreground">{totals.total}</span></span>
+                              <div className="flex items-center gap-1"><span className="h-2.5 w-2.5 rounded-full bg-red-500" /><span className="font-semibold text-red-600">{totals.red}</span></div>
+                              <div className="flex items-center gap-1"><span className="h-2.5 w-2.5 rounded-full bg-amber-400" /><span className="font-semibold text-amber-600">{totals.yellow}</span></div>
+                              <div className="flex items-center gap-1"><span className="h-2.5 w-2.5 rounded-full bg-emerald-500" /><span className="font-semibold text-emerald-600">{totals.green}</span></div>
+                              {totals.total > 0 && (
+                                <div className="flex h-2.5 flex-1 rounded-full overflow-hidden bg-muted ml-auto">
+                                  <div className="bg-red-500" style={{ width: `${(totals.red / totals.total) * 100}%` }} />
+                                  <div className="bg-amber-400" style={{ width: `${(totals.yellow / totals.total) * 100}%` }} />
+                                  <div className="bg-emerald-500" style={{ width: `${(totals.green / totals.total) * 100}%` }} />
+                                </div>
+                              )}
+                            </div>
+
+                            {/* Category rows */}
+                            <div className="grid grid-cols-1 gap-2">
+                              {catData.map(cat => (
+                                <div
+                                  key={cat.id}
+                                  className={cn(
+                                    "flex items-center gap-3 p-2.5 rounded-lg border cursor-pointer transition-colors hover:bg-muted/50",
+                                    cat.red.length > 0 ? "border-red-200 bg-red-50/30" : "border-border"
+                                  )}
+                                  onClick={() => router.push(`/operations/health/${cat.id}`)}
+                                >
+                                  <div className="shrink-0">
+                                    <Activity className="h-4 w-4 text-muted-foreground" />
+                                  </div>
+                                  <div className="flex-1 min-w-0">
+                                    <div className="flex items-center gap-2">
+                                      <span className="text-xs font-semibold">{cat.label}</span>
+                                      <span className="text-[10px] text-muted-foreground truncate">{cat.healthIndexName}</span>
+                                    </div>
+                                    {cat.red.length > 0 && (
+                                      <div className="flex items-center gap-1 mt-0.5">
+                                        <AlertTriangle className="h-3 w-3 text-red-500 shrink-0" />
+                                        <span className="text-[10px] text-red-600 truncate">
+                                          {cat.red.slice(0, 2).map(e => e.id).join(", ")}
+                                          {cat.red.length > 2 && ` 외 ${cat.red.length - 2}건`}
+                                        </span>
+                                      </div>
+                                    )}
+                                  </div>
+                                  <div className="flex items-center gap-2 shrink-0">
+                                    <div className="flex items-center gap-1">
+                                      <span className="h-2 w-2 rounded-full bg-red-500" />
+                                      <span className="text-[11px] font-semibold text-red-600">{cat.red.length}</span>
+                                    </div>
+                                    <div className="flex items-center gap-1">
+                                      <span className="h-2 w-2 rounded-full bg-amber-400" />
+                                      <span className="text-[11px] font-semibold text-amber-600">{cat.yellow.length}</span>
+                                    </div>
+                                    <div className="flex items-center gap-1">
+                                      <span className="h-2 w-2 rounded-full bg-emerald-500" />
+                                      <span className="text-[11px] font-semibold text-emerald-600">{cat.green.length}</span>
+                                    </div>
+                                    <ChevronRight className="h-3.5 w-3.5 text-muted-foreground" />
+                                  </div>
+                                </div>
+                              ))}
+                            </div>
+                          </CardContent>
+                        </Card>
+
+                        {/* 3. Anomaly Detection */}
+                        <Card>
+                          <CardHeader className="pb-2">
+                            <CardTitle className="text-sm flex items-center gap-2">
+                              <Activity className="h-4 w-4" />
+                              Anomaly Detection
+                            </CardTitle>
+                          </CardHeader>
+                          <CardContent className="space-y-3">
+                            <div className="grid grid-cols-3 gap-3">
+                              {/* Card 1: 유사운전시점 비교 */}
+                              <div className="border-l-4 border-l-emerald-400 rounded-lg border p-3 bg-card hover:bg-muted/30 transition-colors cursor-pointer">
+                                <div className="flex items-center gap-2 mb-2">
+                                  <div className="h-7 w-7 rounded-lg bg-emerald-50 flex items-center justify-center">
+                                    <Zap className="h-3.5 w-3.5 text-emerald-600" />
+                                  </div>
+                                </div>
+                                <h4 className="text-xs font-semibold mb-1">유사운전시점 비교</h4>
+                                <p className="text-[10px] text-muted-foreground mb-2">과거 유사 운전 데이터 대비 이상 변수 탐지</p>
+                                <div className="flex flex-wrap gap-1.5 mb-2">
+                                  <Badge className="text-[9px] h-4 bg-red-100 text-red-700 hover:bg-red-100">Danger {anomalyData.similarOp.danger}</Badge>
+                                  <Badge className="text-[9px] h-4 bg-amber-100 text-amber-700 hover:bg-amber-100">Warning {anomalyData.similarOp.warning}</Badge>
+                                  <Badge className="text-[9px] h-4 bg-green-100 text-green-700 hover:bg-green-100">Normal {anomalyData.similarOp.normal}</Badge>
+                                </div>
+                                <p className="text-[10px] text-muted-foreground">분석 태그: {anomalyData.similarOp.tags}건</p>
+                              </div>
+
+                              {/* Card 2: 계기 오류 탐지 */}
+                              <div className="border-l-4 border-l-blue-400 rounded-lg border p-3 bg-card hover:bg-muted/30 transition-colors cursor-pointer">
+                                <div className="flex items-center gap-2 mb-2">
+                                  <div className="h-7 w-7 rounded-lg bg-blue-50 flex items-center justify-center">
+                                    <Gauge className="h-3.5 w-3.5 text-blue-600" />
+                                  </div>
+                                </div>
+                                <h4 className="text-xs font-semibold mb-1">계기 오류 탐지</h4>
+                                <p className="text-[10px] text-muted-foreground mb-2">Peak, Flatline, Oscillation 등 계기 이상 감지</p>
+                                <div className="flex flex-wrap gap-1.5 mb-2">
+                                  <Badge className="text-[9px] h-4 bg-purple-100 text-purple-700 hover:bg-purple-100">Peak/Flatline {anomalyData.instrument.peakFlatline}</Badge>
+                                  <Badge className="text-[9px] h-4 bg-orange-100 text-orange-700 hover:bg-orange-100">Oscillation {anomalyData.instrument.oscillation}</Badge>
+                                </div>
+                                <div className="flex items-center gap-3 text-[10px] text-muted-foreground">
+                                  <span className="flex items-center gap-1"><Flame className="h-3 w-3 text-red-400" />Peak {anomalyData.instrument.peak}</span>
+                                  <span className="flex items-center gap-1"><BarChart3 className="h-3 w-3 text-blue-400" />Flatline {anomalyData.instrument.flatline}</span>
+                                  <span className="flex items-center gap-1"><Activity className="h-3 w-3 text-amber-400" />Hunting {anomalyData.instrument.hunting}</span>
+                                </div>
+                              </div>
+
+                              {/* Card 3: DR 데이터 대비 Drift 감지 */}
+                              <div className="border-l-4 border-l-purple-400 rounded-lg border p-3 bg-card hover:bg-muted/30 transition-colors cursor-pointer">
+                                <div className="flex items-center gap-2 mb-2">
+                                  <div className="h-7 w-7 rounded-lg bg-purple-50 flex items-center justify-center">
+                                    <TrendingUp className="h-3.5 w-3.5 text-purple-600" />
+                                  </div>
+                                </div>
+                                <h4 className="text-xs font-semibold mb-1">DR 데이터 대비 Drift 감지</h4>
+                                <p className="text-[10px] text-muted-foreground mb-2">RTDB vs DR 수치 편차 점진적 확대 탐지</p>
+                                <div className="flex flex-wrap gap-1.5 mb-2">
+                                  <Badge className="text-[9px] h-4 bg-red-100 text-red-700 hover:bg-red-100">Drift 확대 {anomalyData.drift.driftExpand}</Badge>
+                                  <Badge className="text-[9px] h-4 bg-amber-100 text-amber-700 hover:bg-amber-100">관찰 필요 {anomalyData.drift.watchNeeded}</Badge>
+                                </div>
+                                <p className="text-[10px] text-muted-foreground">모니터링 항목: {anomalyData.drift.monitorItems}건</p>
+                              </div>
+                            </div>
+
+                            {/* Bottom summary */}
+                            <div className="flex items-center justify-between pt-2 border-t">
+                              <div className="flex items-center gap-4 text-xs">
+                                <span className="flex items-center gap-1.5"><span className="h-2.5 w-2.5 rounded-full bg-red-500" />Danger {anomTotals.danger}</span>
+                                <span className="flex items-center gap-1.5"><span className="h-2.5 w-2.5 rounded-full bg-amber-400" />Warning {anomTotals.warning}</span>
+                                <span className="flex items-center gap-1.5"><span className="h-2.5 w-2.5 rounded-full bg-emerald-500" />Normal {anomTotals.normal}</span>
+                              </div>
+                              <span className="text-[10px] text-muted-foreground">마지막 분석: 2025-02-02 07:00</span>
+                            </div>
+                          </CardContent>
+                        </Card>
+
+                        {/* 4. 엔지니어 의견 */}
+                        <Card className="border-amber-200/50 bg-amber-50/10">
+                          <CardHeader className="pb-2">
+                            <CardTitle className="text-sm flex items-center gap-2">
+                              <CheckCircle className="h-4 w-4 text-muted-foreground" />
+                              엔지니어 의견
+                            </CardTitle>
+                          </CardHeader>
+                          <CardContent>
+                            <p className="text-xs font-medium mb-3">판정 선택</p>
+                            <div className="grid grid-cols-3 gap-3 mb-4">
+                              <button
+                                className={cn(
+                                  "border rounded-lg p-4 text-center transition-all hover:shadow-sm cursor-pointer",
+                                  weeklyMonitoringAction === "normal" ? "border-emerald-400 bg-emerald-50 ring-2 ring-emerald-200" : "border-border hover:border-muted-foreground/30"
+                                )}
+                                onClick={() => setWeeklyMonitoringAction("normal")}
+                              >
+                                <CheckCircle className="h-6 w-6 mx-auto mb-2 text-emerald-500" />
+                                <p className="text-sm font-medium">정상</p>
+                                <p className="text-[10px] text-muted-foreground mt-0.5">특이사항 없음</p>
+                              </button>
+                              <button
+                                className={cn(
+                                  "border rounded-lg p-4 text-center transition-all hover:shadow-sm cursor-pointer",
+                                  weeklyMonitoringAction === "caution" ? "border-amber-400 bg-amber-50 ring-2 ring-amber-200" : "border-border hover:border-muted-foreground/30"
+                                )}
+                                onClick={() => setWeeklyMonitoringAction("caution")}
+                              >
+                                <AlertCircle className="h-6 w-6 mx-auto mb-2 text-amber-500" />
+                                <p className="text-sm font-medium">주의</p>
+                                <p className="text-[10px] text-muted-foreground mt-0.5">지속 관찰 필요</p>
+                              </button>
+                              <button
+                                className={cn(
+                                  "border rounded-lg p-4 text-center transition-all hover:shadow-sm cursor-pointer",
+                                  weeklyMonitoringAction === "ticket" ? "border-red-400 bg-red-50 ring-2 ring-red-200" : "border-border hover:border-muted-foreground/30"
+                                )}
+                                onClick={() => setWeeklyMonitoringAction("ticket")}
+                              >
+                                <FileText className="h-6 w-6 mx-auto mb-2 text-red-500" />
+                                <p className="text-sm font-medium">이벤트화</p>
+                                <p className="text-[10px] text-muted-foreground mt-0.5">즉시 조치 필요</p>
+                              </button>
+                            </div>
+                            {weeklyMonitoringAction && (
+                              <div className="space-y-2">
+                                <Textarea
+                                  placeholder="의견을 입력하세요..."
+                                  className="text-xs min-h-[60px] resize-none"
+                                  value={reviewComment}
+                                  onChange={e => setReviewComment(e.target.value)}
+                                />
+                              </div>
+                            )}
+                          </CardContent>
+                        </Card>
+                      </>
+                    )
+                  })()}
+
+                  {/* 기존 Notice 타입 (이상징후/DCS/Daily Monitoring/장기모니터링/Weekly 제외): 아이템 리스트 */}
+                  {selectedAlert.data?.items && !["anomaly", "daily-monitoring", "weekly-monitoring", "dcs-modification", "monthly-report-review", "contingency-plan-review", "long-term"].includes(selectedAlert.subType) && (
                     <Card>
                       <CardHeader className="pb-2">
                         <CardTitle className="text-sm">상세 항목</CardTitle>
@@ -3478,7 +3790,7 @@ export default function AlertsPage() {
                     </Card>
                   )}
 
-                  {/* 커스텀 알람: 기본 알람 정보 + 트렌드 + 과거 이력 (Alert 컴포넌트 차용) */}
+                  {/* 커스텀 알람: 기본 알람 정보 + 트렌드 + 과거 이력 (Alert 컴포넌��� 차용) */}
                   {selectedAlert.subType === "custom-alarm" && (
                     <>
                       {/* 알람 기본 정보 */}
@@ -3720,7 +4032,7 @@ export default function AlertsPage() {
                           <span className="font-medium">라이센서 분기 리뷰 준비</span>
                         </div>
                         <p className="text-sm text-muted-foreground mb-4">
-                          Performance 데이터 준비 및 질의사항을 정리하세요.
+                          Performance 데이터 준비 및 질의사항을 정리하세��.
                         </p>
                         <div className="flex gap-2">
                           <Button variant="outline">
@@ -3853,6 +4165,51 @@ export default function AlertsPage() {
                         className="border-amber-300 text-amber-700 hover:bg-amber-50 bg-transparent"
                         onClick={() => {
                           setDailyMonitoringAction("caution")
+                          alert("주의 판정으로 저장되었습니다. 지속 관찰 대상으로 등록됩니다.")
+                          setAlerts(alerts.map(a => a.id === selectedAlert.id ? { ...a, status: "acknowledged" } : a))
+                        }}
+                      >
+                        <AlertCircle className="h-4 w-4 mr-2" />
+                        주의
+                      </Button>
+                      <Button 
+                        variant="outline"
+                        className="border-primary/50 text-primary hover:bg-primary/5 bg-transparent"
+                        onClick={() => setShowDailyReportDialog(true)}
+                      >
+                        <Plus className="h-4 w-4 mr-2" />
+                        Standing Issue 추가 등록
+                      </Button>
+                      <Button 
+                        className="bg-red-600 hover:bg-red-700 text-white"
+                        onClick={() => handleCreateTicket(selectedAlert)}
+                      >
+                        <FileText className="h-4 w-4 mr-2" />
+                        이벤트화
+                      </Button>
+                    </>
+                  )}
+
+                  {/* Notice: Weekly Monitoring - 4가지 버튼 */}
+                  {selectedAlert.subType === "weekly-monitoring" && (
+                    <>
+                      <Button 
+                        variant="outline"
+                        className="bg-transparent"
+                        onClick={() => {
+                          setWeeklyMonitoringAction("normal")
+                          alert("특이사항 없음으로 처리되었습니다.")
+                          setAlerts(alerts.map(a => a.id === selectedAlert.id ? { ...a, status: "resolved" } : a))
+                        }}
+                      >
+                        <CheckCircle className="h-4 w-4 mr-2" />
+                        특이사항 없음
+                      </Button>
+                      <Button 
+                        variant="outline"
+                        className="border-amber-300 text-amber-700 hover:bg-amber-50 bg-transparent"
+                        onClick={() => {
+                          setWeeklyMonitoringAction("caution")
                           alert("주의 판정으로 저장되었습니다. 지속 관찰 대상으로 등록됩니다.")
                           setAlerts(alerts.map(a => a.id === selectedAlert.id ? { ...a, status: "acknowledged" } : a))
                         }}
@@ -4557,7 +4914,7 @@ export default function AlertsPage() {
               <Button variant="outline" onClick={() => { setShowCsrDialog(false); setCsrDescription("") }} className="bg-transparent">취소</Button>
               <Button 
                 onClick={() => {
-                  alert("CSR이 IT운영팀으로 전달되었습니다.\n\nCSR 번호: CSR-2025-0215\n수신: IT운영팀\n상태: 접수 대기")
+                  alert("CSR이 IT운영팀으로 전달되���습니다.\n\nCSR 번호: CSR-2025-0215\n수신: IT운영팀\n상태: 접수 대기")
                   setShowCsrDialog(false)
                   setCsrDescription("")
                 }}
