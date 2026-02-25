@@ -755,7 +755,7 @@ export function FloatingQuickAccess() {
 
       {/* ===== 1) 태그 트렌드 조회 Dialog (Larger, with overlay/save) ===== */}
       <Dialog open={isOpen && activePanel === "trend"} onOpenChange={(open) => { if (!open) handleClose() }}>
-        <DialogContent className="max-w-7xl w-[95vw] max-h-[92vh] overflow-hidden flex flex-col">
+        <DialogContent className="!max-w-[95vw] !w-[95vw] !h-[92vh] !max-h-[92vh] overflow-hidden flex flex-col">
           <DialogHeader className="shrink-0">
             <div className="flex items-center justify-between">
               <DialogTitle className="flex items-center gap-2">
