@@ -1,6 +1,10 @@
 "use client"
 
-import React, { createContext, useContext, useState, type ReactNode } from "react"
+import React, { createContext, useContext, useState, useEffect, type ReactNode } from "react"
+
+// Storage key for persisting user selection
+const USER_STORAGE_KEY = "selected-user-id"
+const SCOPE_STORAGE_KEY = "selected-scope-mode"
 
 // ============================================================
 // 1) Division / Process Registry
@@ -159,9 +163,68 @@ interface UserContextValue {
 
 const UserContext = createContext<UserContextValue | null>(null)
 
+// Helper to get initial user from localStorage
+function getInitialUser(): UserProfile {
+  if (typeof window === "undefined") return USER_PROFILES[0]
+  try {
+    const savedUserId = localStorage.getItem(USER_STORAGE_KEY)
+    if (savedUserId) {
+      const found = USER_PROFILES.find(u => u.id === savedUserId)
+      if (found) return found
+    }
+  } catch {
+    // localStorage not available
+  }
+  return USER_PROFILES[0]
+}
+
+// Helper to get initial scope from localStorage
+function getInitialScope(): ScopeMode {
+  if (typeof window === "undefined") return "my-processes"
+  try {
+    const savedScope = localStorage.getItem(SCOPE_STORAGE_KEY)
+    if (savedScope === "all-processes" || savedScope === "my-processes") {
+      return savedScope
+    }
+  } catch {
+    // localStorage not available
+  }
+  return "my-processes"
+}
+
 export function UserProvider({ children }: { children: ReactNode }) {
-  const [currentUser, setCurrentUser] = useState<UserProfile>(USER_PROFILES[0])
-  const [scopeMode, setScopeMode] = useState<ScopeMode>("my-processes")
+  const [currentUser, setCurrentUserState] = useState<UserProfile>(USER_PROFILES[0])
+  const [scopeMode, setScopeModeState] = useState<ScopeMode>("my-processes")
+  const [isInitialized, setIsInitialized] = useState(false)
+
+  // Initialize from localStorage on client side
+  useEffect(() => {
+    const savedUser = getInitialUser()
+    const savedScope = getInitialScope()
+    setCurrentUserState(savedUser)
+    setScopeModeState(savedScope)
+    setIsInitialized(true)
+  }, [])
+
+  // Wrapper to persist user selection
+  const setCurrentUser = (user: UserProfile) => {
+    setCurrentUserState(user)
+    try {
+      localStorage.setItem(USER_STORAGE_KEY, user.id)
+    } catch {
+      // localStorage not available
+    }
+  }
+
+  // Wrapper to persist scope selection
+  const setScopeMode = (mode: ScopeMode) => {
+    setScopeModeState(mode)
+    try {
+      localStorage.setItem(SCOPE_STORAGE_KEY, mode)
+    } catch {
+      // localStorage not available
+    }
+  }
 
   const assignedProcesses = ALL_PROCESSES.filter(p =>
     currentUser.assignedProcessIds.includes(p.id)
