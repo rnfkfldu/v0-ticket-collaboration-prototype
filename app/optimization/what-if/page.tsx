@@ -6,19 +6,24 @@ import { Button } from "@/components/ui/button"
 import { Badge } from "@/components/ui/badge"
 import { Label } from "@/components/ui/label"
 import { Input } from "@/components/ui/input"
+import { Textarea } from "@/components/ui/textarea"
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
 import { Slider } from "@/components/ui/slider"
 import { RadioGroup, RadioGroupItem } from "@/components/ui/radio-group"
 import { Separator } from "@/components/ui/separator"
 import { Progress } from "@/components/ui/progress"
 import { ScrollArea } from "@/components/ui/scroll-area"
+import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from "@/components/ui/dialog"
 import { 
   Target, Play, RotateCcw, Save, Download, TrendingUp, TrendingDown,
   BarChart3, Cpu, Box, CheckCircle, Clock, ChevronRight, ChevronLeft,
-  Settings2, Layers, Calendar, FileText, ArrowRight, Zap, Activity, LineChart
+  Settings2, Layers, Calendar, FileText, ArrowRight, Zap, Activity, LineChart,
+  AlertCircle, Plus
 } from "lucide-react"
 import { useState, useMemo } from "react"
 import { cn } from "@/lib/utils"
+import { useRouter } from "next/navigation"
+import { useUser } from "@/lib/user-context"
 import {
   LineChart as RechartsLineChart,
   Line,
@@ -160,6 +165,9 @@ const STEPS = [
 ]
 
 export default function WhatIfSimulationPage() {
+  const router = useRouter()
+  const { currentUser } = useUser()
+  
   // Step state
   const [currentStep, setCurrentStep] = useState(1)
   const [selectedModelId, setSelectedModelId] = useState<string | null>(null)
@@ -169,6 +177,15 @@ export default function WhatIfSimulationPage() {
   
   // Simulation mode: single (단건) or iteration (심화)
   const [simulationMode, setSimulationMode] = useState<"single" | "iteration">("single")
+  
+  // Dialog state
+  const [showSaveDialog, setShowSaveDialog] = useState(false)
+  const [showEventDialog, setShowEventDialog] = useState(false)
+  const [scenarioName, setScenarioName] = useState("")
+  const [scenarioDescription, setScenarioDescription] = useState("")
+  const [eventTitle, setEventTitle] = useState("")
+  const [eventDescription, setEventDescription] = useState("")
+  const [eventPriority, setEventPriority] = useState("P2")
   
   // Single mode state
   const [isSimulating, setIsSimulating] = useState(false)
@@ -1016,7 +1033,14 @@ export default function WhatIfSimulationPage() {
                 </div>
                 
                 <div className="grid grid-cols-2 gap-4">
-                  <Card className="p-6 hover:border-primary/50 transition-colors cursor-pointer">
+                  <Card 
+                    className="p-6 hover:border-primary/50 transition-colors cursor-pointer"
+                    onClick={() => {
+                      setScenarioName(`${selectedModel?.process || ""} ${simulationMode === "single" ? "단건" : "반복"} 시뮬레이션`)
+                      setScenarioDescription(`${selectedModel?.name || ""} 모델 기반 시뮬레이션 결과`)
+                      setShowSaveDialog(true)
+                    }}
+                  >
                     <div className="flex items-center gap-4">
                       <div className="p-3 rounded-lg bg-primary/10">
                         <Save className="h-6 w-6 text-primary" />
@@ -1052,7 +1076,14 @@ export default function WhatIfSimulationPage() {
                     </div>
                   </Card>
                   
-                  <Card className="p-6 hover:border-primary/50 transition-colors cursor-pointer">
+                  <Card 
+                    className="p-6 hover:border-primary/50 transition-colors cursor-pointer"
+                    onClick={() => {
+                      setEventTitle(`[시뮬레이션 적용] ${selectedModel?.process || ""} 운전 조건 변경`)
+                      setEventDescription(`What-if 시뮬레이션 결과에 따른 운전 조건 변경 요청입니다.\n\n모델: ${selectedModel?.name || ""}\n시뮬레이션 유형: ${simulationMode === "single" ? "단건 분석" : "반복 분석"}\n\n주요 변경사항:\n${simulationMode === "single" && simulationResults.length > 0 ? simulationResults.map(r => `- ${r.name}: ${r.base} → ${r.simulated} ${r.unit} (${r.diffPct > 0 ? "+" : ""}${r.diffPct.toFixed(1)}%)`).join("\n") : "반복 시뮬레이션 결과 참조"}`)
+                      setShowEventDialog(true)
+                    }}
+                  >
                     <div className="flex items-center gap-4">
                       <div className="p-3 rounded-lg bg-green-500/10">
                         <Zap className="h-6 w-6 text-green-600" />
@@ -1080,6 +1111,155 @@ export default function WhatIfSimulationPage() {
           </div>
         </div>
       </div>
+      
+      {/* Save Scenario Dialog */}
+      <Dialog open={showSaveDialog} onOpenChange={setShowSaveDialog}>
+        <DialogContent className="max-w-md">
+          <DialogHeader>
+            <DialogTitle className="flex items-center gap-2">
+              <Save className="h-5 w-5 text-primary" />
+              시나리오 저장
+            </DialogTitle>
+          </DialogHeader>
+          <div className="space-y-4 py-4">
+            <div className="space-y-2">
+              <Label htmlFor="scenario-name">시나리오 이름 *</Label>
+              <Input
+                id="scenario-name"
+                value={scenarioName}
+                onChange={(e) => setScenarioName(e.target.value)}
+                placeholder="시뮬레이션 시나리오 이름"
+              />
+            </div>
+            <div className="space-y-2">
+              <Label htmlFor="scenario-desc">설명</Label>
+              <Textarea
+                id="scenario-desc"
+                value={scenarioDescription}
+                onChange={(e) => setScenarioDescription(e.target.value)}
+                placeholder="시뮬레이션 목적 및 주요 내용"
+                className="min-h-20"
+              />
+            </div>
+            <div className="p-3 bg-muted/50 rounded-lg space-y-2 text-sm">
+              <div className="flex justify-between">
+                <span className="text-muted-foreground">모델</span>
+                <span className="font-medium">{selectedModel?.name}</span>
+              </div>
+              <div className="flex justify-between">
+                <span className="text-muted-foreground">공정</span>
+                <span className="font-medium">{selectedModel?.process}</span>
+              </div>
+              <div className="flex justify-between">
+                <span className="text-muted-foreground">시뮬레이션 유형</span>
+                <span className="font-medium">{simulationMode === "single" ? "단건" : "반복"}</span>
+              </div>
+            </div>
+          </div>
+          <DialogFooter>
+            <Button variant="outline" onClick={() => setShowSaveDialog(false)}>취소</Button>
+            <Button 
+              onClick={() => {
+                alert(`시나리오가 저장되었습니다.\n\n이름: ${scenarioName}\n설명: ${scenarioDescription}`)
+                setShowSaveDialog(false)
+                router.push("/optimization/what-if/saved")
+              }}
+              disabled={!scenarioName.trim()}
+              className="gap-2"
+            >
+              <Save className="h-4 w-4" />
+              저장
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+      
+      {/* Event Creation Dialog */}
+      <Dialog open={showEventDialog} onOpenChange={setShowEventDialog}>
+        <DialogContent className="max-w-lg">
+          <DialogHeader>
+            <DialogTitle className="flex items-center gap-2">
+              <Plus className="h-5 w-5 text-green-600" />
+              운전 적용 이벤트 생성
+            </DialogTitle>
+          </DialogHeader>
+          <div className="space-y-4 py-4">
+            <div className="p-3 bg-green-50 border border-green-200 rounded-lg">
+              <p className="text-sm text-green-800">
+                시뮬레이션 결과를 실제 운전에 적용하기 위한 이벤트를 생성합니다.
+                생성된 이벤트는 <span className="font-semibold">내 이벤트</span>에서 확인할 수 있습니다.
+              </p>
+            </div>
+            
+            <div className="space-y-2">
+              <Label htmlFor="event-title">이벤트 제목 *</Label>
+              <Input
+                id="event-title"
+                value={eventTitle}
+                onChange={(e) => setEventTitle(e.target.value)}
+                placeholder="이벤트 제목"
+              />
+            </div>
+            
+            <div className="space-y-2">
+              <Label htmlFor="event-desc">이벤트 내용</Label>
+              <Textarea
+                id="event-desc"
+                value={eventDescription}
+                onChange={(e) => setEventDescription(e.target.value)}
+                placeholder="시뮬레이션 결과 및 적용 요청 내용"
+                className="min-h-32"
+              />
+            </div>
+            
+            <div className="grid grid-cols-2 gap-4">
+              <div className="space-y-2">
+                <Label>우선순위</Label>
+                <Select value={eventPriority} onValueChange={setEventPriority}>
+                  <SelectTrigger>
+                    <SelectValue />
+                  </SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="P1">P1 - 긴급</SelectItem>
+                    <SelectItem value="P2">P2 - 높음</SelectItem>
+                    <SelectItem value="P3">P3 - 보통</SelectItem>
+                  </SelectContent>
+                </Select>
+              </div>
+              <div className="space-y-2">
+                <Label>담당자</Label>
+                <Input value={currentUser.name} disabled />
+              </div>
+            </div>
+            
+            <div className="space-y-2">
+              <Label>연결된 시뮬레이션</Label>
+              <div className="p-3 bg-muted/50 rounded-lg text-sm">
+                <div className="flex items-center gap-2">
+                  <Target className="h-4 w-4 text-primary" />
+                  <span className="font-medium">{selectedModel?.name}</span>
+                  <Badge variant="outline" className="ml-auto">{selectedModel?.process}</Badge>
+                </div>
+              </div>
+            </div>
+          </div>
+          <DialogFooter>
+            <Button variant="outline" onClick={() => setShowEventDialog(false)}>취소</Button>
+            <Button 
+              onClick={() => {
+                alert(`이벤트가 생성되었습니다.\n\n제목: ${eventTitle}\n우선순위: ${eventPriority}\n담당자: ${currentUser.name}`)
+                setShowEventDialog(false)
+                router.push("/actions/tickets")
+              }}
+              disabled={!eventTitle.trim()}
+              className="gap-2"
+            >
+              <Plus className="h-4 w-4" />
+              이벤트 생성
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
     </AppShell>
   )
 }

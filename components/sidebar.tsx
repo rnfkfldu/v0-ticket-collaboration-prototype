@@ -49,7 +49,8 @@ import {
   Headset,
   CalendarDays,
   Search,
-  RefreshCw
+  RefreshCw,
+  FolderOpen
 } from "lucide-react"
 import Link from "next/link"
 import { usePathname } from "next/navigation"
@@ -204,7 +205,8 @@ export function Sidebar({ unreadAlerts = 3 }: SidebarProps) {
       label: "What-if 시뮬레이션",
       icon: Target,
       items: [
-        { label: "What-if 시뮬레이션", href: "/optimization/what-if", icon: Target },
+        { label: "시뮬레이션 실행", href: "/optimization/what-if", icon: Target },
+        { label: "저장된 시나리오", href: "/optimization/what-if/saved", icon: FolderOpen },
       ]
     },
     {
