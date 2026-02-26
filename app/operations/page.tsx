@@ -321,7 +321,7 @@ export default function OperationsPage() {
                               <th className="text-left px-4 py-2 text-xs font-medium text-muted-foreground w-20">상태</th>
                               <th className="text-left px-4 py-2 text-xs font-medium text-muted-foreground w-24">공정 No.</th>
                               <th className="text-left px-4 py-2 text-xs font-medium text-muted-foreground">공정 Description</th>
-                              <th className="text-center px-4 py-2 text-xs font-medium text-muted-foreground w-28">처리량 Guide</th>
+                              <th className="text-center px-4 py-2 text-xs font-medium text-muted-foreground w-28">처리�� Guide</th>
                               <th className="text-center px-4 py-2 text-xs font-medium text-muted-foreground w-32">Product Spec Guide</th>
                               <th className="text-center px-4 py-2 text-xs font-medium text-muted-foreground w-28">Operation Guide</th>
                               <th className="text-center px-4 py-2 text-xs font-medium text-muted-foreground w-24">이상징후</th>
@@ -419,7 +419,7 @@ export default function OperationsPage() {
                         >
                           <td className="px-4 py-3">
                             <Badge className="text-xs bg-primary/15 text-primary border-0 font-normal">
-                              {scopeMode === "my-processes" ? "담당" : DIVISION_LABELS[process.division]?.substring(0, 3) || "담당"}
+                              {showMyProcessesOnly ? "담당" : DIVISION_LABELS[process.division]?.substring(0, 3) || "담당"}
                             </Badge>
                           </td>
                           {isTeamLead && (

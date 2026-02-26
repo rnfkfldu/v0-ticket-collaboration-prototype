@@ -80,6 +80,7 @@ export function Sidebar({ unreadAlerts = 3 }: SidebarProps) {
   const [expandedSections, setExpandedSections] = useState<string[]>([])
   const pathname = usePathname()
   const { currentUser } = useUser()
+  const isTeamLead = currentUser.role === "team-lead" || currentUser.role === "division-head" || currentUser.role === "plant-head"
 
   // 현재 상위 메뉴 결정 (URL 기반)
   const currentTopMenu = useMemo(() => {
@@ -159,7 +160,8 @@ export function Sidebar({ unreadAlerts = 3 }: SidebarProps) {
         { label: "내 이벤트", href: "/actions/tickets", icon: Inbox },
       ]
     },
-    {
+    // 팀 대시보드: 팀장에게만 팀 업무 분석 대시보드 표시
+    ...(isTeamLead ? [{
       id: "team-dashboard",
       label: "팀 대시보드",
       icon: BarChart3,
@@ -167,7 +169,14 @@ export function Sidebar({ unreadAlerts = 3 }: SidebarProps) {
         { label: "알람 분석 대시보드", href: "/alerts/dashboard", icon: BarChart3 },
         { label: "팀 업무 분석 대시보드", href: "/dashboard", icon: LayoutDashboard },
       ]
-    },
+    }] : [{
+      id: "team-dashboard",
+      label: "팀 대시보드",
+      icon: BarChart3,
+      items: [
+        { label: "알람 분석 대시보드", href: "/alerts/dashboard", icon: BarChart3 },
+      ]
+    }]),
   ]
 
   // 최적화/인사이트 메뉴 구조
