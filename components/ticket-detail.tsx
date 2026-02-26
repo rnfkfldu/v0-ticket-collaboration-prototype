@@ -1,5 +1,6 @@
 "use client"
 
+import { cn } from "@/lib/utils"
 import { Badge } from "@/components/ui/badge"
 import { Button } from "@/components/ui/button"
 import { Card } from "@/components/ui/card"
@@ -21,7 +22,7 @@ import {
   Calendar, User, Target, AlertCircle, CheckCircle, XCircle, Clock, ArrowRight,
   FileSearch, FileText, Send, Save, PlusCircle, Trash2, FileUp, X, RotateCcw,
   Activity, Gauge, Info, Wrench, FileBarChart, Link2, MessageSquare, ChevronRight,
-  Search, Users, UserPlus, ExternalLink, Boxes
+  Search, Users, UserPlus, ExternalLink, Boxes, ChevronDown
 } from "lucide-react"
 import { useState, useEffect } from "react"
 import { useRouter } from "next/navigation"
@@ -76,54 +77,131 @@ function MiniTrendChart({ values, high, low, color, isAlert }: { values: number[
 
 // --- Process Flow Component ---
 function ProcessFlowBar({ steps, processStatus }: { steps?: EventProcessStep[]; processStatus?: string }) {
+  const [expandedSteps, setExpandedSteps] = useState<Record<number, boolean>>({})
+
   if (!steps || steps.length === 0) return null
 
-  const getStepStyle = (status: string) => {
+  const toggleStep = (idx: number) => {
+    setExpandedSteps(prev => ({ ...prev, [idx]: !prev[idx] }))
+  }
+
+  const getBorderColor = (status: string) => {
     switch (status) {
-      case "completed": return "bg-emerald-600 text-white border-emerald-600"
-      case "current": return "bg-amber-500 text-white border-amber-500 ring-2 ring-amber-200"
-      case "skipped": return "bg-red-100 text-red-600 border-red-300 line-through"
-      default: return "bg-muted text-muted-foreground border-border"
+      case "completed": return "border-l-emerald-500"
+      case "current": return "border-l-amber-500"
+      case "skipped": return "border-l-red-400"
+      default: return "border-l-border"
     }
   }
 
-  const getConnectorStyle = (status: string) => {
+  const getBadgeStyle = (status: string) => {
     switch (status) {
-      case "completed": return "bg-emerald-400"
-      case "current": return "bg-amber-300"
-      default: return "bg-border"
+      case "completed": return "bg-emerald-500 text-white"
+      case "current": return "bg-amber-500 text-white"
+      case "skipped": return "bg-red-400 text-white"
+      default: return "bg-muted text-muted-foreground"
     }
   }
+
+  const getCardBg = (status: string) => {
+    switch (status) {
+      case "completed": return "bg-emerald-50/50"
+      case "current": return "bg-amber-50/50"
+      case "skipped": return "bg-red-50/30"
+      default: return "bg-muted/20"
+    }
+  }
+
+  const hasDetails = (step: EventProcessStep) => !!(step.assignee || step.team || step.timestamp)
 
   return (
-    <Card className="p-6">
-      <h3 className="text-sm font-semibold text-foreground mb-4 flex items-center gap-2">
-        <Activity className="h-4 w-4 text-primary" />
-        업무 프로세스
-      </h3>
-      <div className="flex items-start gap-0 overflow-x-auto pb-2">
-        {steps.map((step, index) => (
-          <div key={step.step + index} className="flex items-start">
-            <div className="flex flex-col items-center min-w-[120px]">
-              <div className={`flex items-center justify-center w-full px-3 py-2 rounded-lg border text-xs font-medium ${getStepStyle(step.status)}`}>
-                {step.label}
-              </div>
-              {(step.assignee || step.team || step.timestamp) && (
-                <div className="mt-2 text-center space-y-0.5">
-                  {step.team && <p className="text-[10px] text-muted-foreground">{step.team}</p>}
-                  {step.assignee && <p className="text-[10px] font-medium text-foreground">{step.assignee}</p>}
-                  {step.timestamp && <p className="text-[10px] text-muted-foreground">{step.timestamp}</p>}
+    <Card className="p-5">
+      <div className="flex items-center justify-between mb-4">
+        <h3 className="text-sm font-semibold text-foreground flex items-center gap-2">
+          <Activity className="h-4 w-4 text-primary" />
+          업무 프로세스
+        </h3>
+        <Badge variant="outline" className="text-[10px] font-medium">
+          {steps.filter(s => s.status === "completed").length} / {steps.length} 완료
+        </Badge>
+      </div>
+      <div className="grid gap-2" style={{ gridTemplateColumns: `repeat(${steps.length}, minmax(0, 1fr))` }}>
+        {steps.map((step, index) => {
+          const isExpanded = expandedSteps[index] !== false
+          const details = hasDetails(step)
+          return (
+            <div
+              key={step.step + index}
+              className={cn(
+                "rounded-lg border border-l-[3px] transition-all",
+                getBorderColor(step.status),
+                getCardBg(step.status),
+                step.status === "current" && "ring-1 ring-amber-200/60",
+              )}
+            >
+              {/* Header */}
+              <button
+                onClick={() => details && toggleStep(index)}
+                className={cn(
+                  "w-full flex items-center justify-between px-3 py-2.5 text-left",
+                  details && "cursor-pointer"
+                )}
+              >
+                <div className="flex items-center gap-2 min-w-0">
+                  <span className={cn(
+                    "shrink-0 flex items-center justify-center w-5 h-5 rounded-full text-[10px] font-bold leading-none",
+                    getBadgeStyle(step.status),
+                  )}>
+                    {step.status === "completed" ? (
+                      <CheckCircle className="h-3 w-3" />
+                    ) : step.status === "skipped" ? (
+                      <XCircle className="h-3 w-3" />
+                    ) : (
+                      index + 1
+                    )}
+                  </span>
+                  <span className={cn(
+                    "text-xs font-semibold truncate",
+                    step.status === "upcoming" ? "text-muted-foreground" : "text-foreground",
+                    step.status === "skipped" && "line-through text-red-500",
+                  )}>
+                    {step.label}
+                  </span>
+                </div>
+                {details && (
+                  <ChevronDown className={cn(
+                    "h-3.5 w-3.5 text-muted-foreground shrink-0 transition-transform duration-200",
+                    isExpanded && "rotate-180"
+                  )} />
+                )}
+              </button>
+
+              {/* Expanded detail */}
+              {details && isExpanded && (
+                <div className="px-3 pb-2.5 pt-0 space-y-1.5 border-t border-border/40">
+                  {step.team && (
+                    <div className="flex items-center gap-1.5 mt-2">
+                      <Users className="h-3 w-3 text-muted-foreground shrink-0" />
+                      <span className="text-[11px] text-muted-foreground">{step.team}</span>
+                    </div>
+                  )}
+                  {step.assignee && (
+                    <div className="flex items-center gap-1.5">
+                      <User className="h-3 w-3 text-muted-foreground shrink-0" />
+                      <span className="text-[11px] font-medium text-foreground">{step.assignee}</span>
+                    </div>
+                  )}
+                  {step.timestamp && (
+                    <div className="flex items-center gap-1.5">
+                      <Clock className="h-3 w-3 text-muted-foreground shrink-0" />
+                      <span className="text-[10px] text-muted-foreground">{step.timestamp}</span>
+                    </div>
+                  )}
                 </div>
               )}
             </div>
-            {index < steps.length - 1 && (
-              <div className="flex items-center pt-3 px-1">
-                <div className={`h-0.5 w-6 ${getConnectorStyle(step.status)}`} />
-                <ChevronRight className={`h-3 w-3 ${step.status === "completed" ? "text-emerald-400" : "text-muted-foreground"}`} />
-              </div>
-            )}
-          </div>
-        ))}
+          )
+        })}
       </div>
     </Card>
   )
