@@ -62,7 +62,10 @@ import {
 import { cn } from "@/lib/utils"
 import { HEALTH_CATEGORIES, PROCESSES, getEquipmentData, type HealthCategory } from "@/lib/health-data"
 import { getPersonalizedAlarms, getCustomKPIs, saveCustomKPI, deleteCustomKPI, getFocusMonitoringItems, type PersonalizedAlarm, type CustomKPI, type FocusMonitoringItem } from "@/lib/personalized-alarms"
+import { useUser, type UserRole } from "@/lib/user-context"
 import Link from "next/link"
+import { Tabs, TabsList, TabsTrigger, TabsContent } from "@/components/ui/tabs"
+import { Progress } from "@/components/ui/progress"
 
 // Alert 타입 정의
 type AlertType = "alert" | "notice" | "event"
@@ -686,7 +689,7 @@ const SAMPLE_ALERTS: AlertItem[] = [
       deadline: "2025-02-15",
       sections: [
         { title: "1. 적용 범위", content: "HCR Unit (Reactor Section, Fractionation Section, H2 System) 비상 상황 발생 시 대응 절차.", hasChange: false },
-        { title: "2. 비상 시나리오별 대응", content: "Scenario A: Reactor Runaway - WABT 급��승 시 Quench Gas 주입 및 Feed Cut 절차. Scenario B: H2 Compressor Trip - 단계별 Reactor Depressuring 절차.", hasChange: true },
+        { title: "2. 비상 시나리오별 대응", content: "Scenario A: Reactor Runaway - WABT 급���승 시 Quench Gas 주입 및 Feed Cut 절차. Scenario B: H2 Compressor Trip - 단계별 Reactor Depressuring 절차.", hasChange: true },
         { title: "3. 운전 조건 변경 반영", content: "2024년 하반기 촉매 교체 후 Max WABT 한계 변경: 405C -> 410C. Quench Gas 주입 기준 WABT 변경: 395C -> 400C.", hasChange: true },
         { title: "4. 비상 연락 체계", content: "1차: 당직 Operation Supervisor → 2차: Process Engineer → 3차: Plant Manager. 외부: 소방서, 환경부 신고 기준 유지.", hasChange: false },
         { title: "5. 훈련 이력", content: "최근 훈련: 2024-11-15 (Reactor Runaway Drill). 참여 인원: 생산팀 A/B조, 공정기술팀. 결과: 양호 (대응시간 12분, 목표 15분 이내).", hasChange: false }
@@ -733,8 +736,39 @@ const SAMPLE_ALERTS: AlertItem[] = [
   }
 ]
 
+// 팀장용 운영 KPI 목업 데이터
+const TEAM_KPI_DATA = {
+  engineers: [
+    { id: "u-engineer-1", name: "김철수", team: "생산팀", processes: ["HCR", "VGOFCC"], dailyMonitoring: 92, weeklyMonitoring: 88, liveDocsUpdated: true, alertsHandled: 12, alertsPending: 2, ticketsActive: 3, avgResponseTime: "2.1h" },
+    { id: "u-engineer-2", name: "박영희", team: "생산팀", processes: ["1CDU", "2CDU", "1VDU"], dailyMonitoring: 85, weeklyMonitoring: 90, liveDocsUpdated: true, alertsHandled: 8, alertsPending: 1, ticketsActive: 2, avgResponseTime: "1.8h" },
+    { id: "u-engineer-3", name: "최진우", team: "생산팀", processes: ["RFCC", "VRHR"], dailyMonitoring: 78, weeklyMonitoring: 82, liveDocsUpdated: false, alertsHandled: 15, alertsPending: 4, ticketsActive: 5, avgResponseTime: "3.2h" },
+    { id: "u-engineer-4", name: "한미영", team: "생산팀", processes: ["1KD", "2KD", "3KD"], dailyMonitoring: 95, weeklyMonitoring: 94, liveDocsUpdated: true, alertsHandled: 10, alertsPending: 0, ticketsActive: 1, avgResponseTime: "1.5h" },
+    { id: "u-engineer-5", name: "송재현", team: "생산팀", processes: ["VBU", "RHDS"], dailyMonitoring: 88, weeklyMonitoring: 85, liveDocsUpdated: true, alertsHandled: 7, alertsPending: 1, ticketsActive: 2, avgResponseTime: "2.4h" },
+  ],
+  teamSummary: {
+    avgDailyMonitoring: 88,
+    avgWeeklyMonitoring: 88,
+    liveDocsComplianceRate: 80,
+    totalAlertsHandled: 52,
+    totalAlertsPending: 8,
+    totalActiveTickets: 13,
+    avgResponseTime: "2.2h"
+  }
+}
+
+// 에스컬레이션된 티켓 목업 (팀장이 확인해야 할 티켓)
+const ESCALATED_TICKETS = [
+  { id: "TKT-2025-0215", title: "HCR Reactor Temp 지속 상승 - 촉매 성능 저하 의심", process: "HCR", engineer: "김철수", priority: "P1", escalationReason: "P1 티켓 - 팀장 검토 필요", status: "진행중", createdAt: "2025-02-15", dueDate: "2025-02-17" },
+  { id: "TKT-2025-0212", title: "E-101 Fouling 가속화 - 세정 시기 결정 필요", process: "CDU", engineer: "박영희", priority: "P2", escalationReason: "기한 초과 임박 (D-1)", status: "진행중", createdAt: "2025-02-12", dueDate: "2025-02-18" },
+  { id: "TKT-2025-0210", title: "RFCC Regenerator 압력 불안정", process: "RFCC", engineer: "최진우", priority: "P2", escalationReason: "3일 이상 미해결", status: "대기", createdAt: "2025-02-10", dueDate: "2025-02-20" },
+  { id: "TKT-2025-0208", title: "VBU Catalyst Deactivation 분석 요청", process: "VBU", engineer: "송재현", priority: "P3", escalationReason: "엔지니어 요청 에스컬레이션", status: "검토중", createdAt: "2025-02-08", dueDate: "2025-02-22" },
+]
+
 export default function AlertsPage() {
   const router = useRouter()
+  const { currentUser, isManagement, visibleProcesses } = useUser()
+  const isTeamLead = currentUser.role === "team-lead" || currentUser.role === "division-head" || currentUser.role === "plant-head"
+  
   const [alerts, setAlerts] = useState<AlertItem[]>(SAMPLE_ALERTS)
   const [selectedAlert, setSelectedAlert] = useState<AlertItem | null>(SAMPLE_ALERTS[0])
   const [showTicketDialog, setShowTicketDialog] = useState(false)
@@ -1311,8 +1345,14 @@ export default function AlertsPage() {
     const orderB = noticeSortOrder[b.subType] ?? 99
     return orderA - orderB
   })
+  
+  // 팀장의 경우 Alert는 "상" 등급만 표시 (전체 담당 공정 기준)
+  const filteredAlerts = isTeamLead 
+    ? alerts.filter(a => a.type === "alert" && a.alertGrade === "high")
+    : alerts.filter(a => a.type === "alert")
+  
   const alertsByType = {
-    alert: alerts.filter(a => a.type === "alert"),
+    alert: filteredAlerts,
     notice: sortedNotices,
     event: alerts.filter(a => a.type === "event")
   }
@@ -1448,7 +1488,7 @@ export default function AlertsPage() {
                 >
                   {expandedSections.alert ? <ChevronDown className="h-4 w-4" /> : <ChevronRight className="h-4 w-4" />}
                   <AlertTriangle className="h-4 w-4 text-red-500" />
-                  <span className="font-medium text-sm">Alert</span>
+                  <span className="font-medium text-sm">{isTeamLead ? "Alert (상 등급)" : "Alert"}</span>
                   {unreadCounts.alert > 0 && (
                     <Badge variant="destructive" className="ml-auto text-xs">{unreadCounts.alert}</Badge>
                   )}
@@ -1524,42 +1564,82 @@ export default function AlertsPage() {
                 )}
               </div>
 
-              {/* Event 섹션 */}
-              <div className="mb-2">
-                <button
-                  onClick={() => toggleSection("event")}
-                  className="w-full flex items-center gap-2 p-2 rounded-lg hover:bg-muted/50 transition-colors"
-                >
-                  {expandedSections.event ? <ChevronDown className="h-4 w-4" /> : <ChevronRight className="h-4 w-4" />}
-                  <Calendar className="h-4 w-4 text-amber-500" />
-                  <span className="font-medium text-sm">Event</span>
-                  {unreadCounts.event > 0 && (
-                    <Badge variant="secondary" className="ml-auto text-xs">{unreadCounts.event}</Badge>
+              {/* Event 섹션 - 팀원만 표시 */}
+              {!isTeamLead && (
+                <div className="mb-2">
+                  <button
+                    onClick={() => toggleSection("event")}
+                    className="w-full flex items-center gap-2 p-2 rounded-lg hover:bg-muted/50 transition-colors"
+                  >
+                    {expandedSections.event ? <ChevronDown className="h-4 w-4" /> : <ChevronRight className="h-4 w-4" />}
+                    <Calendar className="h-4 w-4 text-amber-500" />
+                    <span className="font-medium text-sm">Event</span>
+                    {unreadCounts.event > 0 && (
+                      <Badge variant="secondary" className="ml-auto text-xs">{unreadCounts.event}</Badge>
+                    )}
+                  </button>
+                  {expandedSections.event && (
+                    <div className="ml-2 space-y-1 mt-1">
+                      {alertsByType.event.map(item => (
+                        <button
+                          key={item.id}
+                          onClick={() => handleSelectAlert(item)}
+                          className={cn(
+                            "w-full text-left p-2 rounded-lg transition-colors",
+                            selectedAlert?.id === item.id ? "bg-primary/10 border border-primary/30" : "hover:bg-muted/50",
+                            item.status === "unread" && "border-l-2 border-l-amber-500"
+                          )}
+                        >
+                          <div className="flex items-center gap-2">
+                            {getTypeIcon(item.type, item.subType)}
+                            <Badge variant="outline" className="text-xs">{getSubTypeLabel(item.subType)}</Badge>
+                          </div>
+                          <p className="text-sm font-medium truncate mt-1">{item.title}</p>
+                          <p className="text-xs text-muted-foreground">{item.timestamp}</p>
+                        </button>
+                      ))}
+                    </div>
                   )}
-                </button>
-                {expandedSections.event && (
-                  <div className="ml-2 space-y-1 mt-1">
-                    {alertsByType.event.map(item => (
-                      <button
-                        key={item.id}
-                        onClick={() => handleSelectAlert(item)}
-                        className={cn(
-                          "w-full text-left p-2 rounded-lg transition-colors",
-                          selectedAlert?.id === item.id ? "bg-primary/10 border border-primary/30" : "hover:bg-muted/50",
-                          item.status === "unread" && "border-l-2 border-l-amber-500"
-                        )}
-                      >
-                        <div className="flex items-center gap-2">
-                          {getTypeIcon(item.type, item.subType)}
-                          <Badge variant="outline" className="text-xs">{getSubTypeLabel(item.subType)}</Badge>
-                        </div>
-                        <p className="text-sm font-medium truncate mt-1">{item.title}</p>
-                        <p className="text-xs text-muted-foreground">{item.timestamp}</p>
-                      </button>
-                    ))}
-                  </div>
-                )}
-              </div>
+                </div>
+              )}
+
+              {/* 팀장 전용: 에스컬레이션 티켓 섹션 */}
+              {isTeamLead && (
+                <div className="mb-2">
+                  <button
+                    onClick={() => toggleSection("event")}
+                    className="w-full flex items-center gap-2 p-2 rounded-lg hover:bg-muted/50 transition-colors"
+                  >
+                    {expandedSections.event ? <ChevronDown className="h-4 w-4" /> : <ChevronRight className="h-4 w-4" />}
+                    <AlertCircle className="h-4 w-4 text-orange-500" />
+                    <span className="font-medium text-sm">에스컬레이션 티켓</span>
+                    <Badge variant="destructive" className="ml-auto text-xs">{ESCALATED_TICKETS.length}</Badge>
+                  </button>
+                  {expandedSections.event && (
+                    <div className="ml-2 space-y-1 mt-1">
+                      {ESCALATED_TICKETS.map(ticket => (
+                        <Link
+                          key={ticket.id}
+                          href={`/tickets/${ticket.id.replace("TKT-", "")}`}
+                          className="block w-full text-left p-2 rounded-lg hover:bg-muted/50 transition-colors border-l-2 border-l-orange-500"
+                        >
+                          <div className="flex items-center gap-1.5 flex-wrap">
+                            <Badge className={cn("text-xs px-1.5 py-0", ticket.priority === "P1" ? "bg-red-500 text-white" : "bg-amber-500 text-white")}>{ticket.priority}</Badge>
+                            <span className="text-xs text-muted-foreground">{ticket.process}</span>
+                          </div>
+                          <p className="text-sm font-medium mt-1 line-clamp-2">{ticket.title}</p>
+                          <p className="text-xs text-orange-600 mt-0.5">{ticket.escalationReason}</p>
+                          <div className="flex items-center gap-2 mt-1 text-xs text-muted-foreground">
+                            <span>{ticket.engineer}</span>
+                            <span>|</span>
+                            <span>D-day: {ticket.dueDate}</span>
+                          </div>
+                        </Link>
+                      ))}
+                    </div>
+                  )}
+                </div>
+              )}
             </div>
           </ScrollArea>
         </div>
@@ -4357,7 +4437,7 @@ export default function AlertsPage() {
                     <span className="text-sm text-muted-foreground">이 알람은 Shelved 상태입니다. ({selectedAlert.shelvedUntil}까지)</span>
                   )}
 
-                  {/* Notice 타입 (이상징후/장기/효율성): 엔지니어 의견으로 대체됨 - 위 섹션에서 처리 */}
+                  {/* Notice 타입 (이상징후/장기/효율성): 엔지니어 의견으로 대체됨 - 위 섹션에서 ���리 */}
                   {selectedAlert.type === "notice" && ["anomaly", "long-term", "efficiency"].includes(selectedAlert.subType) && (
                     <span className="text-sm text-muted-foreground">위의 엔지니어 의견 섹션에서 판정을 선택하세요</span>
                   )}
@@ -4515,12 +4595,237 @@ export default function AlertsPage() {
               </div>
             </>
           ) : (
-            <div className="flex-1 flex items-center justify-center text-muted-foreground">
-              <div className="text-center">
-                <Bell className="h-12 w-12 mx-auto mb-4 opacity-50" />
-                <p>알림을 선택하여 상세 정보를 확인하세요.</p>
+            /* 팀장 전용: 운영 KPI 대시보드 (알림 미선택 시) */
+            isTeamLead ? (
+              <div className="flex-1 overflow-auto p-6 bg-background">
+                <Tabs defaultValue="kpi" className="space-y-4">
+                  <div className="flex items-center justify-between">
+                    <h2 className="text-lg font-semibold flex items-center gap-2">
+                      <BarChart3 className="h-5 w-5 text-primary" />
+                      팀 운영 대시보드
+                    </h2>
+                    <TabsList>
+                      <TabsTrigger value="kpi">운영 KPI</TabsTrigger>
+                      <TabsTrigger value="escalation">에스컬레이션</TabsTrigger>
+                      <TabsTrigger value="alerts-summary">Alert 요약</TabsTrigger>
+                    </TabsList>
+                  </div>
+
+                  <TabsContent value="kpi" className="space-y-4 mt-4">
+                    {/* 팀 전체 요약 KPI */}
+                    <div className="grid grid-cols-5 gap-3">
+                      <Card className="bg-primary text-primary-foreground">
+                        <CardContent className="pt-4 pb-4">
+                          <p className="text-xs text-primary-foreground/80">담당 공정 수</p>
+                          <p className="text-2xl font-bold mt-1">{visibleProcesses.length}</p>
+                        </CardContent>
+                      </Card>
+                      <Card>
+                        <CardContent className="pt-4 pb-4">
+                          <p className="text-xs text-muted-foreground">팀 Daily 모니터링</p>
+                          <p className="text-2xl font-bold mt-1">{TEAM_KPI_DATA.teamSummary.avgDailyMonitoring}%</p>
+                          <Progress value={TEAM_KPI_DATA.teamSummary.avgDailyMonitoring} className="h-1.5 mt-2" />
+                        </CardContent>
+                      </Card>
+                      <Card>
+                        <CardContent className="pt-4 pb-4">
+                          <p className="text-xs text-muted-foreground">Live Docs 준수율</p>
+                          <p className="text-2xl font-bold mt-1">{TEAM_KPI_DATA.teamSummary.liveDocsComplianceRate}%</p>
+                          <Progress value={TEAM_KPI_DATA.teamSummary.liveDocsComplianceRate} className="h-1.5 mt-2" />
+                        </CardContent>
+                      </Card>
+                      <Card>
+                        <CardContent className="pt-4 pb-4">
+                          <p className="text-xs text-muted-foreground">Alert 처리</p>
+                          <p className="text-2xl font-bold mt-1">
+                            <span className="text-green-600">{TEAM_KPI_DATA.teamSummary.totalAlertsHandled}</span>
+                            <span className="text-muted-foreground text-sm"> / </span>
+                            <span className="text-amber-600">{TEAM_KPI_DATA.teamSummary.totalAlertsPending}</span>
+                          </p>
+                          <p className="text-xs text-muted-foreground mt-1">완료 / 대기</p>
+                        </CardContent>
+                      </Card>
+                      <Card>
+                        <CardContent className="pt-4 pb-4">
+                          <p className="text-xs text-muted-foreground">평균 응답시간</p>
+                          <p className="text-2xl font-bold mt-1">{TEAM_KPI_DATA.teamSummary.avgResponseTime}</p>
+                          <p className="text-xs text-muted-foreground mt-1">목표: 2h 이내</p>
+                        </CardContent>
+                      </Card>
+                    </div>
+
+                    {/* 개별 엔지니어 KPI 테이블 */}
+                    <Card>
+                      <CardHeader className="pb-2">
+                        <CardTitle className="text-sm flex items-center gap-2">
+                          <Users className="h-4 w-4" />
+                          엔지니어별 운영 현황
+                        </CardTitle>
+                      </CardHeader>
+                      <CardContent>
+                        <table className="w-full text-sm">
+                          <thead>
+                            <tr className="border-b bg-muted/40">
+                              <th className="text-left px-3 py-2 text-xs font-medium text-muted-foreground">엔지니어</th>
+                              <th className="text-left px-3 py-2 text-xs font-medium text-muted-foreground">담당 공정</th>
+                              <th className="text-center px-3 py-2 text-xs font-medium text-muted-foreground">Daily 모니터링</th>
+                              <th className="text-center px-3 py-2 text-xs font-medium text-muted-foreground">Weekly 모니터링</th>
+                              <th className="text-center px-3 py-2 text-xs font-medium text-muted-foreground">Live Docs</th>
+                              <th className="text-center px-3 py-2 text-xs font-medium text-muted-foreground">Alert 처리</th>
+                              <th className="text-center px-3 py-2 text-xs font-medium text-muted-foreground">활성 티켓</th>
+                              <th className="text-center px-3 py-2 text-xs font-medium text-muted-foreground">응답시간</th>
+                            </tr>
+                          </thead>
+                          <tbody>
+                            {TEAM_KPI_DATA.engineers.map((eng) => (
+                              <tr key={eng.id} className="border-b last:border-b-0 hover:bg-muted/30">
+                                <td className="px-3 py-2.5 font-medium">{eng.name}</td>
+                                <td className="px-3 py-2.5 text-xs text-muted-foreground">{eng.processes.join(", ")}</td>
+                                <td className="text-center px-3 py-2.5">
+                                  <div className="flex items-center justify-center gap-2">
+                                    <Progress value={eng.dailyMonitoring} className="h-1.5 w-16" />
+                                    <span className={cn("text-xs font-medium", eng.dailyMonitoring >= 90 ? "text-green-600" : eng.dailyMonitoring >= 80 ? "text-amber-600" : "text-red-600")}>{eng.dailyMonitoring}%</span>
+                                  </div>
+                                </td>
+                                <td className="text-center px-3 py-2.5">
+                                  <div className="flex items-center justify-center gap-2">
+                                    <Progress value={eng.weeklyMonitoring} className="h-1.5 w-16" />
+                                    <span className={cn("text-xs font-medium", eng.weeklyMonitoring >= 90 ? "text-green-600" : eng.weeklyMonitoring >= 80 ? "text-amber-600" : "text-red-600")}>{eng.weeklyMonitoring}%</span>
+                                  </div>
+                                </td>
+                                <td className="text-center px-3 py-2.5">
+                                  {eng.liveDocsUpdated ? (
+                                    <Badge className="bg-green-100 text-green-700 border-0">최신</Badge>
+                                  ) : (
+                                    <Badge variant="destructive" className="text-xs">미갱신</Badge>
+                                  )}
+                                </td>
+                                <td className="text-center px-3 py-2.5">
+                                  <span className="text-green-600 font-medium">{eng.alertsHandled}</span>
+                                  {eng.alertsPending > 0 && (
+                                    <span className="text-amber-600 ml-1">({eng.alertsPending})</span>
+                                  )}
+                                </td>
+                                <td className="text-center px-3 py-2.5">
+                                  <Badge variant="outline" className={cn(eng.ticketsActive > 3 ? "border-amber-400 text-amber-700" : "")}>{eng.ticketsActive}</Badge>
+                                </td>
+                                <td className="text-center px-3 py-2.5 text-xs">{eng.avgResponseTime}</td>
+                              </tr>
+                            ))}
+                          </tbody>
+                        </table>
+                      </CardContent>
+                    </Card>
+                  </TabsContent>
+
+                  <TabsContent value="escalation" className="space-y-4 mt-4">
+                    <Card>
+                      <CardHeader className="pb-2">
+                        <CardTitle className="text-sm flex items-center gap-2">
+                          <AlertCircle className="h-4 w-4 text-orange-500" />
+                          에스컬레이션 티켓 ({ESCALATED_TICKETS.length})
+                        </CardTitle>
+                        <p className="text-xs text-muted-foreground">팀장 확인이 필요한 티켓 목록입니다.</p>
+                      </CardHeader>
+                      <CardContent className="space-y-3">
+                        {ESCALATED_TICKETS.map(ticket => (
+                          <Link 
+                            key={ticket.id}
+                            href={`/tickets/${ticket.id.replace("TKT-", "")}`}
+                            className="block p-4 border rounded-lg hover:bg-muted/30 transition-colors border-l-4 border-l-orange-500"
+                          >
+                            <div className="flex items-start justify-between">
+                              <div className="space-y-1">
+                                <div className="flex items-center gap-2">
+                                  <Badge className={cn("text-xs", ticket.priority === "P1" ? "bg-red-500 text-white" : "bg-amber-500 text-white")}>{ticket.priority}</Badge>
+                                  <Badge variant="outline" className="text-xs">{ticket.process}</Badge>
+                                  <span className="text-xs text-muted-foreground">{ticket.id}</span>
+                                </div>
+                                <p className="font-medium">{ticket.title}</p>
+                                <p className="text-sm text-orange-600">{ticket.escalationReason}</p>
+                                <div className="flex items-center gap-4 text-xs text-muted-foreground mt-2">
+                                  <span>담당: {ticket.engineer}</span>
+                                  <span>상태: {ticket.status}</span>
+                                  <span>마감: {ticket.dueDate}</span>
+                                </div>
+                              </div>
+                              <ChevronRight className="h-5 w-5 text-muted-foreground shrink-0" />
+                            </div>
+                          </Link>
+                        ))}
+                      </CardContent>
+                    </Card>
+                  </TabsContent>
+
+                  <TabsContent value="alerts-summary" className="space-y-4 mt-4">
+                    <div className="grid grid-cols-2 gap-4">
+                      <Card>
+                        <CardHeader className="pb-2">
+                          <CardTitle className="text-sm flex items-center gap-2">
+                            <AlertTriangle className="h-4 w-4 text-red-500" />
+                            High 등급 Alert 요약
+                          </CardTitle>
+                        </CardHeader>
+                        <CardContent>
+                          <div className="space-y-2">
+                            {filteredAlerts.map(alert => (
+                              <button
+                                key={alert.id}
+                                onClick={() => handleSelectAlert(alert)}
+                                className="w-full text-left p-3 border rounded-lg hover:bg-muted/30 transition-colors border-l-4 border-l-red-500"
+                              >
+                                <div className="flex items-center gap-2">
+                                  <Badge className="text-xs bg-red-500 text-white">상</Badge>
+                                  <span className="text-xs text-muted-foreground">{alert.unit}</span>
+                                </div>
+                                <p className="text-sm font-medium mt-1">{alert.title}</p>
+                                <p className="text-xs text-muted-foreground">{alert.timestamp}</p>
+                              </button>
+                            ))}
+                            {filteredAlerts.length === 0 && (
+                              <p className="text-sm text-muted-foreground text-center py-4">High 등급 Alert가 없습니다.</p>
+                            )}
+                          </div>
+                        </CardContent>
+                      </Card>
+
+                      <Card>
+                        <CardHeader className="pb-2">
+                          <CardTitle className="text-sm flex items-center gap-2">
+                            <Activity className="h-4 w-4 text-primary" />
+                            공정별 Alert 현황
+                          </CardTitle>
+                        </CardHeader>
+                        <CardContent>
+                          <div className="space-y-2">
+                            {["HCR", "VGOFCC", "RFCC", "VBU", "CDU"].map(process => {
+                              const count = alerts.filter(a => a.type === "alert" && a.unit === process).length
+                              const highCount = alerts.filter(a => a.type === "alert" && a.unit === process && a.alertGrade === "high").length
+                              return (
+                                <div key={process} className="flex items-center justify-between p-2 bg-muted/30 rounded">
+                                  <span className="text-sm font-medium">{process}</span>
+                                  <div className="flex items-center gap-2">
+                                    {highCount > 0 && <Badge variant="destructive" className="text-xs">상 {highCount}</Badge>}
+                                    <Badge variant="outline" className="text-xs">전체 {count}</Badge>
+                                  </div>
+                                </div>
+                              )
+                            })}
+                          </div>
+                        </CardContent>
+                      </Card>
+                    </div>
+                  </TabsContent>
+                </Tabs>
               </div>
-            </div>
+            ) : (
+              <div className="flex-1 flex items-center justify-center text-muted-foreground">
+                <div className="text-center">
+                  <Bell className="h-12 w-12 mx-auto mb-4 opacity-50" />
+                  <p>알림을 선택하여 상세 정보를 확인하세요.</p>
+                </div>
+              </div>
+            )
           )}
         </div>
 

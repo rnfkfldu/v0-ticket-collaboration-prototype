@@ -2,11 +2,12 @@
 
 import { useMemo, useState } from "react"
 import { AppShell } from "@/components/app-shell"
-import { Card, CardContent } from "@/components/ui/card"
+import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
 import { Badge } from "@/components/ui/badge"
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
+import { Tabs, TabsList, TabsTrigger, TabsContent } from "@/components/ui/tabs"
 import { 
   Activity, 
   AlertTriangle,
@@ -20,10 +21,33 @@ import {
   FileText,
   Cpu,
   Plus,
+  Users,
+  ChevronDown,
+  LayoutGrid,
+  List,
 } from "lucide-react"
 import { cn } from "@/lib/utils"
 import { useUser, getProcessesByDivision, type Division, ALL_PROCESSES } from "@/lib/user-context"
 import Link from "next/link"
+
+// 팀장용: 공정별 담당 엔지니어 매핑 (목업)
+const PROCESS_ENGINEERS: Record<string, { name: string; status: "normal" | "warning" | "attention" }> = {
+  "HCR": { name: "김철수", status: "attention" },
+  "VGOFCC": { name: "김철수", status: "normal" },
+  "RFCC": { name: "최진우", status: "warning" },
+  "VRHR": { name: "최진우", status: "normal" },
+  "1KD": { name: "한미영", status: "normal" },
+  "2KD": { name: "한미영", status: "normal" },
+  "3KD": { name: "한미영", status: "normal" },
+  "4KD": { name: "한미영", status: "normal" },
+  "VBU": { name: "송재현", status: "normal" },
+  "RHDS": { name: "송재현", status: "normal" },
+  "VGHDS": { name: "송재현", status: "warning" },
+  "SRU": { name: "송재현", status: "normal" },
+  "1CDU": { name: "박영희", status: "normal" },
+  "2CDU": { name: "박영희", status: "attention" },
+  "1VDU": { name: "박영희", status: "normal" },
+}
 
 // Generate deterministic mock data for each process
 function generateProcessKpis(id: string) {
@@ -42,11 +66,14 @@ const DIVISION_LABELS: Record<Division, string> = {
 }
 
 export default function OperationsPage() {
-  const { visibleProcesses, scopeMode, currentUser } = useUser()
+  const { visibleProcesses, scopeMode, currentUser, isManagement } = useUser()
+  const isTeamLead = currentUser.role === "team-lead" || currentUser.role === "division-head" || currentUser.role === "plant-head"
+  
   const [search, setSearch] = useState("")
   const [teamFilter, setTeamFilter] = useState("all")
   const [processFilter, setProcessFilter] = useState("all")
   const [page, setPage] = useState(1)
+  const [viewMode, setViewMode] = useState<"list" | "grouped">(isTeamLead ? "grouped" : "list")
   const pageSize = 30
 
   const byDivision = useMemo(() => getProcessesByDivision(visibleProcesses), [visibleProcesses])
@@ -181,8 +208,32 @@ export default function OperationsPage() {
             <div className="flex items-center gap-2">
               <h2 className="text-sm font-semibold text-foreground">공정 리스트</h2>
               <span className="text-xs text-muted-foreground">({filtered.length}건)</span>
+              {isTeamLead && (
+                <Badge variant="outline" className="text-xs ml-2">
+                  <Users className="h-3 w-3 mr-1" />
+                  팀 전체 공정
+                </Badge>
+              )}
             </div>
             <div className="flex items-center gap-2">
+              {isTeamLead && (
+                <div className="flex items-center rounded border overflow-hidden">
+                  <button
+                    onClick={() => setViewMode("list")}
+                    className={cn("p-1.5 transition-colors", viewMode === "list" ? "bg-primary text-primary-foreground" : "bg-card hover:bg-muted")}
+                    title="리스트 뷰"
+                  >
+                    <List className="h-4 w-4" />
+                  </button>
+                  <button
+                    onClick={() => setViewMode("grouped")}
+                    className={cn("p-1.5 transition-colors", viewMode === "grouped" ? "bg-primary text-primary-foreground" : "bg-card hover:bg-muted")}
+                    title="그룹 뷰"
+                  >
+                    <LayoutGrid className="h-4 w-4" />
+                  </button>
+                </div>
+              )}
               <div className="relative">
                 <Search className="absolute left-2.5 top-1/2 -translate-y-1/2 h-3.5 w-3.5 text-muted-foreground" />
                 <Input 
@@ -199,107 +250,240 @@ export default function OperationsPage() {
             </div>
           </div>
 
-          {/* Data Table */}
-          <Card className="overflow-hidden">
-            <div className="overflow-x-auto">
-              <table className="w-full text-sm">
-                <thead>
-                  <tr className="border-b bg-muted/40">
-                    <th className="text-left px-4 py-3 text-xs font-medium text-muted-foreground w-20">구분</th>
-                    <th className="text-left px-4 py-3 text-xs font-medium text-muted-foreground w-24">공정 No.</th>
-                    <th className="text-left px-4 py-3 text-xs font-medium text-muted-foreground">공정 Description</th>
-                    <th className="text-center px-4 py-3 text-xs font-medium text-muted-foreground w-28">처리량 Guide</th>
-                    <th className="text-center px-4 py-3 text-xs font-medium text-muted-foreground w-32">Product Spec Guide</th>
-                    <th className="text-center px-4 py-3 text-xs font-medium text-muted-foreground w-28">Operation Guide</th>
-                    <th className="text-center px-4 py-3 text-xs font-medium text-muted-foreground w-24">이상징후 탐색</th>
-                  </tr>
-                </thead>
-                <tbody>
-                  {paged.map((process) => (
-                    <tr 
-                      key={process.id} 
-                      className="border-b last:border-b-0 hover:bg-muted/30 transition-colors cursor-pointer group"
-                    >
-                      <td className="px-4 py-3">
-                        <Badge className="text-xs bg-primary/15 text-primary border-0 font-normal">
-                          {scopeMode === "my-processes" ? "담당" : DIVISION_LABELS[process.division]?.substring(0, 3) || "담당"}
-                        </Badge>
-                      </td>
-                      <td className="px-4 py-3 text-xs text-muted-foreground font-mono">{process.id}</td>
-                      <td className="px-4 py-3">
-                        <Link 
-                          href={`/operations/unit/${process.id}`}
-                          className="text-sm text-primary hover:underline font-medium"
-                        >
-                          {process.name}
-                        </Link>
-                      </td>
-                      <td className="text-center px-4 py-3 text-xs text-muted-foreground">
-                        {process.throughputCompliance === "(-)" ? (
-                          <span className="text-muted-foreground/50">(-)</span>
-                        ) : (
-                          <span className="text-foreground font-medium">{process.throughputCompliance}</span>
-                        )}
-                      </td>
-                      <td className="text-center px-4 py-3 text-xs">
-                        {process.specCompliance === "(-)" ? (
-                          <span className="text-muted-foreground/50">No Data</span>
-                        ) : (
-                          <span className="text-foreground font-medium">{process.specCompliance}</span>
-                        )}
-                      </td>
-                      <td className="text-center px-4 py-3 text-xs">
-                        {process.opGuide === "(-)" ? (
-                          <span className="text-muted-foreground/50">No Data</span>
-                        ) : (
-                          <span className="text-foreground font-medium">{process.opGuide}</span>
-                        )}
-                      </td>
-                      <td className="text-center px-4 py-3 text-xs">
-                        {process.anomalyCount > 0 ? (
-                          <Badge variant="destructive" className="text-xs">{process.anomalyCount}</Badge>
-                        ) : (
-                          <span className="text-muted-foreground/50">(-)</span>
-                        )}
-                      </td>
+          {/* Data Table - 팀장 그룹 뷰 */}
+          {isTeamLead && viewMode === "grouped" ? (
+            <div className="space-y-4">
+              {/* 엔지니어별 그룹핑 */}
+              {(() => {
+                const engineerGroups: Record<string, typeof filtered> = {}
+                filtered.forEach(p => {
+                  const eng = PROCESS_ENGINEERS[p.id]?.name || "미배정"
+                  if (!engineerGroups[eng]) engineerGroups[eng] = []
+                  engineerGroups[eng].push(p)
+                })
+                
+                return Object.entries(engineerGroups).map(([engineer, processes]) => {
+                  const hasWarning = processes.some(p => PROCESS_ENGINEERS[p.id]?.status === "warning")
+                  const hasAttention = processes.some(p => PROCESS_ENGINEERS[p.id]?.status === "attention")
+                  const anomalyCount = processes.reduce((sum, p) => sum + p.anomalyCount, 0)
+                  
+                  return (
+                    <Card key={engineer} className={cn("overflow-hidden", hasAttention && "border-l-4 border-l-red-500", hasWarning && !hasAttention && "border-l-4 border-l-amber-500")}>
+                      <CardHeader className="py-3 px-4 bg-muted/30">
+                        <div className="flex items-center justify-between">
+                          <CardTitle className="text-sm flex items-center gap-2">
+                            <Users className="h-4 w-4 text-primary" />
+                            {engineer}
+                            <Badge variant="outline" className="text-xs">{processes.length}개 공정</Badge>
+                            {hasAttention && <Badge variant="destructive" className="text-xs">관심 필요</Badge>}
+                            {hasWarning && !hasAttention && <Badge className="text-xs bg-amber-500">주의</Badge>}
+                          </CardTitle>
+                          <div className="flex items-center gap-3 text-xs text-muted-foreground">
+                            {anomalyCount > 0 && (
+                              <span className="flex items-center gap-1">
+                                <AlertTriangle className="h-3.5 w-3.5 text-amber-500" />
+                                이상징후 {anomalyCount}
+                              </span>
+                            )}
+                          </div>
+                        </div>
+                      </CardHeader>
+                      <CardContent className="p-0">
+                        <table className="w-full text-sm">
+                          <thead>
+                            <tr className="border-b bg-muted/20">
+                              <th className="text-left px-4 py-2 text-xs font-medium text-muted-foreground w-20">상태</th>
+                              <th className="text-left px-4 py-2 text-xs font-medium text-muted-foreground w-24">공정 No.</th>
+                              <th className="text-left px-4 py-2 text-xs font-medium text-muted-foreground">공정 Description</th>
+                              <th className="text-center px-4 py-2 text-xs font-medium text-muted-foreground w-28">처리량 Guide</th>
+                              <th className="text-center px-4 py-2 text-xs font-medium text-muted-foreground w-32">Product Spec Guide</th>
+                              <th className="text-center px-4 py-2 text-xs font-medium text-muted-foreground w-28">Operation Guide</th>
+                              <th className="text-center px-4 py-2 text-xs font-medium text-muted-foreground w-24">이상징후</th>
+                            </tr>
+                          </thead>
+                          <tbody>
+                            {processes.map((process) => {
+                              const engStatus = PROCESS_ENGINEERS[process.id]?.status || "normal"
+                              return (
+                                <tr 
+                                  key={process.id} 
+                                  className={cn("border-b last:border-b-0 hover:bg-muted/30 transition-colors cursor-pointer", engStatus === "attention" && "bg-red-50/50", engStatus === "warning" && "bg-amber-50/50")}
+                                >
+                                  <td className="px-4 py-2.5">
+                                    {engStatus === "attention" ? (
+                                      <Badge variant="destructive" className="text-xs">관심</Badge>
+                                    ) : engStatus === "warning" ? (
+                                      <Badge className="text-xs bg-amber-500">주의</Badge>
+                                    ) : (
+                                      <Badge variant="outline" className="text-xs text-green-600 border-green-300">정상</Badge>
+                                    )}
+                                  </td>
+                                  <td className="px-4 py-2.5 text-xs text-muted-foreground font-mono">{process.id}</td>
+                                  <td className="px-4 py-2.5">
+                                    <Link 
+                                      href={`/operations/unit/${process.id}`}
+                                      className="text-sm text-primary hover:underline font-medium"
+                                    >
+                                      {process.name}
+                                    </Link>
+                                  </td>
+                                  <td className="text-center px-4 py-2.5 text-xs">
+                                    {process.throughputCompliance === "(-)" ? (
+                                      <span className="text-muted-foreground/50">(-)</span>
+                                    ) : (
+                                      <span className="text-foreground font-medium">{process.throughputCompliance}</span>
+                                    )}
+                                  </td>
+                                  <td className="text-center px-4 py-2.5 text-xs">
+                                    {process.specCompliance === "(-)" ? (
+                                      <span className="text-muted-foreground/50">(-)</span>
+                                    ) : (
+                                      <span className="text-foreground font-medium">{process.specCompliance}</span>
+                                    )}
+                                  </td>
+                                  <td className="text-center px-4 py-2.5 text-xs">
+                                    {process.opGuide === "(-)" ? (
+                                      <span className="text-muted-foreground/50">(-)</span>
+                                    ) : (
+                                      <span className="text-foreground font-medium">{process.opGuide}</span>
+                                    )}
+                                  </td>
+                                  <td className="text-center px-4 py-2.5 text-xs">
+                                    {process.anomalyCount > 0 ? (
+                                      <Badge variant="destructive" className="text-xs">{process.anomalyCount}</Badge>
+                                    ) : (
+                                      <span className="text-muted-foreground/50">(-)</span>
+                                    )}
+                                  </td>
+                                </tr>
+                              )
+                            })}
+                          </tbody>
+                        </table>
+                      </CardContent>
+                    </Card>
+                  )
+                })
+              })()}
+            </div>
+          ) : (
+            /* 기본 리스트 뷰 */
+            <Card className="overflow-hidden">
+              <div className="overflow-x-auto">
+                <table className="w-full text-sm">
+                  <thead>
+                    <tr className="border-b bg-muted/40">
+                      <th className="text-left px-4 py-3 text-xs font-medium text-muted-foreground w-20">구분</th>
+                      {isTeamLead && <th className="text-left px-4 py-3 text-xs font-medium text-muted-foreground w-20">담당자</th>}
+                      <th className="text-left px-4 py-3 text-xs font-medium text-muted-foreground w-24">공정 No.</th>
+                      <th className="text-left px-4 py-3 text-xs font-medium text-muted-foreground">공정 Description</th>
+                      <th className="text-center px-4 py-3 text-xs font-medium text-muted-foreground w-28">처리량 Guide</th>
+                      <th className="text-center px-4 py-3 text-xs font-medium text-muted-foreground w-32">Product Spec Guide</th>
+                      <th className="text-center px-4 py-3 text-xs font-medium text-muted-foreground w-28">Operation Guide</th>
+                      <th className="text-center px-4 py-3 text-xs font-medium text-muted-foreground w-24">이상징후 탐색</th>
                     </tr>
-                  ))}
-                </tbody>
-              </table>
-            </div>
-
-            {/* Pagination */}
-            <div className="flex items-center justify-center gap-4 py-3 border-t bg-muted/20">
-              <span className="text-xs text-muted-foreground">총 {filtered.length}건</span>
-              <div className="flex items-center gap-1">
-                <Button variant="ghost" size="icon" className="h-7 w-7" disabled={page <= 1} onClick={() => setPage(1)}>
-                  <ChevronsLeft className="h-3.5 w-3.5" />
-                </Button>
-                <Button variant="ghost" size="icon" className="h-7 w-7" disabled={page <= 1} onClick={() => setPage(p => p - 1)}>
-                  <ChevronLeft className="h-3.5 w-3.5" />
-                </Button>
-                <div className="flex items-center gap-1 px-2">
-                  <span className="inline-flex items-center justify-center h-7 w-7 rounded bg-primary text-primary-foreground text-xs font-medium">{page}</span>
-                </div>
-                <Button variant="ghost" size="icon" className="h-7 w-7" disabled={page >= totalPages} onClick={() => setPage(p => p + 1)}>
-                  <ChevronRight className="h-3.5 w-3.5" />
-                </Button>
-                <Button variant="ghost" size="icon" className="h-7 w-7" disabled={page >= totalPages} onClick={() => setPage(totalPages)}>
-                  <ChevronsRight className="h-3.5 w-3.5" />
-                </Button>
+                  </thead>
+                  <tbody>
+                    {paged.map((process) => {
+                      const engInfo = PROCESS_ENGINEERS[process.id]
+                      return (
+                        <tr 
+                          key={process.id} 
+                          className="border-b last:border-b-0 hover:bg-muted/30 transition-colors cursor-pointer group"
+                        >
+                          <td className="px-4 py-3">
+                            <Badge className="text-xs bg-primary/15 text-primary border-0 font-normal">
+                              {scopeMode === "my-processes" ? "담당" : DIVISION_LABELS[process.division]?.substring(0, 3) || "담당"}
+                            </Badge>
+                          </td>
+                          {isTeamLead && (
+                            <td className="px-4 py-3 text-xs">
+                              <span className={cn(
+                                "font-medium",
+                                engInfo?.status === "attention" && "text-red-600",
+                                engInfo?.status === "warning" && "text-amber-600"
+                              )}>
+                                {engInfo?.name || "-"}
+                              </span>
+                            </td>
+                          )}
+                          <td className="px-4 py-3 text-xs text-muted-foreground font-mono">{process.id}</td>
+                          <td className="px-4 py-3">
+                            <Link 
+                              href={`/operations/unit/${process.id}`}
+                              className="text-sm text-primary hover:underline font-medium"
+                            >
+                              {process.name}
+                            </Link>
+                          </td>
+                          <td className="text-center px-4 py-3 text-xs text-muted-foreground">
+                            {process.throughputCompliance === "(-)" ? (
+                              <span className="text-muted-foreground/50">(-)</span>
+                            ) : (
+                              <span className="text-foreground font-medium">{process.throughputCompliance}</span>
+                            )}
+                          </td>
+                          <td className="text-center px-4 py-3 text-xs">
+                            {process.specCompliance === "(-)" ? (
+                              <span className="text-muted-foreground/50">No Data</span>
+                            ) : (
+                              <span className="text-foreground font-medium">{process.specCompliance}</span>
+                            )}
+                          </td>
+                          <td className="text-center px-4 py-3 text-xs">
+                            {process.opGuide === "(-)" ? (
+                              <span className="text-muted-foreground/50">No Data</span>
+                            ) : (
+                              <span className="text-foreground font-medium">{process.opGuide}</span>
+                            )}
+                          </td>
+                          <td className="text-center px-4 py-3 text-xs">
+                            {process.anomalyCount > 0 ? (
+                              <Badge variant="destructive" className="text-xs">{process.anomalyCount}</Badge>
+                            ) : (
+                              <span className="text-muted-foreground/50">(-)</span>
+                            )}
+                          </td>
+                        </tr>
+                      )
+                    })}
+                  </tbody>
+                </table>
               </div>
-              <Select defaultValue="30">
-                <SelectTrigger className="w-20 h-7 text-xs">
-                  <SelectValue />
-                </SelectTrigger>
-                <SelectContent>
-                  <SelectItem value="30">30</SelectItem>
-                  <SelectItem value="50">50</SelectItem>
-                </SelectContent>
-              </Select>
-              <span className="text-xs text-muted-foreground">/page</span>
-            </div>
-          </Card>
+
+              {/* Pagination */}
+              <div className="flex items-center justify-center gap-4 py-3 border-t bg-muted/20">
+                <span className="text-xs text-muted-foreground">총 {filtered.length}건</span>
+                <div className="flex items-center gap-1">
+                  <Button variant="ghost" size="icon" className="h-7 w-7" disabled={page <= 1} onClick={() => setPage(1)}>
+                    <ChevronsLeft className="h-3.5 w-3.5" />
+                  </Button>
+                  <Button variant="ghost" size="icon" className="h-7 w-7" disabled={page <= 1} onClick={() => setPage(p => p - 1)}>
+                    <ChevronLeft className="h-3.5 w-3.5" />
+                  </Button>
+                  <div className="flex items-center gap-1 px-2">
+                    <span className="inline-flex items-center justify-center h-7 w-7 rounded bg-primary text-primary-foreground text-xs font-medium">{page}</span>
+                  </div>
+                  <Button variant="ghost" size="icon" className="h-7 w-7" disabled={page >= totalPages} onClick={() => setPage(p => p + 1)}>
+                    <ChevronRight className="h-3.5 w-3.5" />
+                  </Button>
+                  <Button variant="ghost" size="icon" className="h-7 w-7" disabled={page >= totalPages} onClick={() => setPage(totalPages)}>
+                    <ChevronsRight className="h-3.5 w-3.5" />
+                  </Button>
+                </div>
+                <Select defaultValue="30">
+                  <SelectTrigger className="w-20 h-7 text-xs">
+                    <SelectValue />
+                  </SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="30">30</SelectItem>
+                    <SelectItem value="50">50</SelectItem>
+                  </SelectContent>
+                </Select>
+                <span className="text-xs text-muted-foreground">/page</span>
+              </div>
+            </Card>
+          )}
         </main>
       </div>
     </AppShell>
