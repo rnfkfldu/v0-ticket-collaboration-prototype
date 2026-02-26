@@ -205,7 +205,51 @@ export default function WhatIfSimulationPage() {
   const [iterProgress, setIterProgress] = useState(0)
   const [iterResults, setIterResults] = useState<{x: number; y?: number; z: number}[]>([])
   
+  // 3D visualization mode state
+  const [vizMode, setVizMode] = useState<"heatmap" | "2d-slice">("heatmap")
+  const [sliceVariable, setSliceVariable] = useState<"x" | "y">("x") // which variable to slice by
+  const [sliceValue, setSliceValue] = useState<number | null>(null) // selected slice value
+  
   const selectedModel = MODEL_ARTIFACTS.find(m => m.id === selectedModelId)
+  
+  // Get unique X and Y values for 2D slicing
+  const uniqueXValues = useMemo(() => {
+    return [...new Set(iterResults.map(r => r.x))].sort((a, b) => a - b)
+  }, [iterResults])
+  
+  const uniqueYValues = useMemo(() => {
+    return [...new Set(iterResults.filter(r => r.y !== undefined).map(r => r.y!))].sort((a, b) => a - b)
+  }, [iterResults])
+  
+  // Get sliced data for 2D view
+  const slicedData = useMemo(() => {
+    if (!sliceValue) return []
+    if (sliceVariable === "x") {
+      return iterResults.filter(r => r.x === sliceValue).map(r => ({ x: r.y!, z: r.z }))
+    } else {
+      return iterResults.filter(r => r.y === sliceValue).map(r => ({ x: r.x, z: r.z }))
+    }
+  }, [iterResults, sliceVariable, sliceValue])
+  
+  // Get min/max Z for heatmap color scaling
+  const zRange = useMemo(() => {
+    if (iterResults.length === 0) return { min: 0, max: 100 }
+    const zValues = iterResults.map(r => r.z)
+    return { min: Math.min(...zValues), max: Math.max(...zValues) }
+  }, [iterResults])
+  
+  // Get color for heatmap cell
+  const getHeatmapColor = (z: number) => {
+    const ratio = (z - zRange.min) / (zRange.max - zRange.min || 1)
+    // Blue to Yellow to Red gradient
+    if (ratio < 0.5) {
+      const t = ratio * 2
+      return `rgb(${Math.round(59 + t * 196)}, ${Math.round(130 + t * 75)}, ${Math.round(246 - t * 146)})`
+    } else {
+      const t = (ratio - 0.5) * 2
+      return `rgb(${Math.round(255 - t * 36)}, ${Math.round(205 - t * 135)}, ${Math.round(100 - t * 60)})`
+    }
+  }
   
   // Handlers
   const handleSelectModel = (modelId: string) => {
@@ -947,16 +991,197 @@ export default function WhatIfSimulationPage() {
                                 </ResponsiveContainer>
                               </div>
                             ) : (
-                              // 3D Surface - represented as heatmap-like visualization
-                              <div className="h-80 flex items-center justify-center bg-gradient-to-br from-blue-50 to-purple-50 rounded-lg border">
-                                <div className="text-center">
-                                  <Box className="h-16 w-16 mx-auto text-primary/50 mb-3" />
-                                  <p className="text-sm text-muted-foreground">3D Surface Plot</p>
-                                  <p className="text-xs text-muted-foreground mt-1">
-                                    X: {getVarName(iterInputVar1)} | Y: {getVarName(iterInputVar2)} | Z: {getOutputName(iterOutputVar)}
-                                  </p>
-                                  <p className="text-xs text-primary mt-2">총 {iterResults.length}개 데이터 포인트</p>
+                              // 3D Surface - Heatmap + 2D slice views
+                              <div className="space-y-4">
+                                {/* View Mode Toggle */}
+                                <div className="flex items-center justify-between">
+                                  <div className="flex gap-2">
+                                    <Button
+                                      variant={vizMode === "heatmap" ? "default" : "outline"}
+                                      size="sm"
+                                      onClick={() => setVizMode("heatmap")}
+                                      className="gap-2"
+                                    >
+                                      <Box className="h-4 w-4" /> Heatmap
+                                    </Button>
+                                    <Button
+                                      variant={vizMode === "2d-slice" ? "default" : "outline"}
+                                      size="sm"
+                                      onClick={() => {
+                                        setVizMode("2d-slice")
+                                        if (!sliceValue && uniqueXValues.length > 0) {
+                                          setSliceValue(uniqueXValues[0])
+                                        }
+                                      }}
+                                      className="gap-2"
+                                    >
+                                      <LineChart className="h-4 w-4" /> 2D Slice
+                                    </Button>
+                                  </div>
+                                  <div className="text-xs text-muted-foreground">
+                                    총 {iterResults.length}개 데이터 포인트 ({uniqueXValues.length} x {uniqueYValues.length})
+                                  </div>
                                 </div>
+                                
+                                {vizMode === "heatmap" ? (
+                                  // Heatmap Grid Visualization
+                                  <div className="space-y-3">
+                                    <div className="flex items-center gap-4 text-xs text-muted-foreground">
+                                      <span>X: {getVarName(iterInputVar1)}</span>
+                                      <span>Y: {getVarName(iterInputVar2)}</span>
+                                      <span>Color: {getOutputName(iterOutputVar)}</span>
+                                    </div>
+                                    <div className="overflow-auto">
+                                      <div className="inline-block min-w-full">
+                                        {/* Y-axis label */}
+                                        <div className="flex">
+                                          <div className="w-16" />
+                                          <div className="flex-1 text-center text-xs font-medium text-muted-foreground mb-1">
+                                            {getVarName(iterInputVar1)} ({getVarUnit(iterInputVar1)})
+                                          </div>
+                                        </div>
+                                        {/* Heatmap Grid */}
+                                        <div className="flex">
+                                          {/* Y-axis values */}
+                                          <div className="flex flex-col justify-between w-16 pr-2">
+                                            <div className="text-[10px] text-muted-foreground text-right -rotate-0 transform origin-right">
+                                              {getVarName(iterInputVar2)}
+                                            </div>
+                                            {uniqueYValues.slice().reverse().map((y, i) => (
+                                              <div key={i} className="text-[10px] text-right text-muted-foreground h-8 flex items-center justify-end">
+                                                {y}
+                                              </div>
+                                            ))}
+                                          </div>
+                                          {/* Grid */}
+                                          <div className="flex-1">
+                                            {/* X-axis values at top */}
+                                            <div className="flex">
+                                              {uniqueXValues.map((x, i) => (
+                                                <div key={i} className="flex-1 text-[10px] text-center text-muted-foreground">
+                                                  {x}
+                                                </div>
+                                              ))}
+                                            </div>
+                                            {/* Heatmap cells */}
+                                            {uniqueYValues.slice().reverse().map((y, yi) => (
+                                              <div key={yi} className="flex">
+                                                {uniqueXValues.map((x, xi) => {
+                                                  const point = iterResults.find(r => r.x === x && r.y === y)
+                                                  const z = point?.z ?? 0
+                                                  return (
+                                                    <div
+                                                      key={xi}
+                                                      className="flex-1 h-8 border border-white/50 flex items-center justify-center text-[9px] font-medium cursor-pointer hover:ring-2 hover:ring-primary transition-all"
+                                                      style={{ backgroundColor: getHeatmapColor(z), color: (z - zRange.min) / (zRange.max - zRange.min) > 0.6 ? 'white' : 'black' }}
+                                                      title={`${getVarName(iterInputVar1)}: ${x}, ${getVarName(iterInputVar2)}: ${y}, ${getOutputName(iterOutputVar)}: ${z.toFixed(2)}`}
+                                                      onClick={() => {
+                                                        setVizMode("2d-slice")
+                                                        setSliceVariable("y")
+                                                        setSliceValue(y)
+                                                      }}
+                                                    >
+                                                      {z.toFixed(1)}
+                                                    </div>
+                                                  )
+                                                })}
+                                              </div>
+                                            ))}
+                                          </div>
+                                        </div>
+                                        {/* Color scale legend */}
+                                        <div className="flex items-center gap-2 mt-3 justify-center">
+                                          <span className="text-[10px] text-muted-foreground">{zRange.min.toFixed(1)}</span>
+                                          <div className="w-32 h-3 rounded" style={{
+                                            background: 'linear-gradient(to right, rgb(59, 130, 246), rgb(255, 205, 100), rgb(219, 70, 40))'
+                                          }} />
+                                          <span className="text-[10px] text-muted-foreground">{zRange.max.toFixed(1)}</span>
+                                          <span className="text-[10px] text-muted-foreground ml-2">({getOutputUnit(iterOutputVar)})</span>
+                                        </div>
+                                      </div>
+                                    </div>
+                                  </div>
+                                ) : (
+                                  // 2D Slice View
+                                  <div className="space-y-3">
+                                    <div className="flex items-center gap-4 p-3 bg-muted/50 rounded-lg">
+                                      <div className="flex items-center gap-2">
+                                        <Label className="text-xs">슬라이스 기준:</Label>
+                                        <Select value={sliceVariable} onValueChange={(v: "x" | "y") => {
+                                          setSliceVariable(v)
+                                          setSliceValue(v === "x" ? uniqueXValues[0] : uniqueYValues[0])
+                                        }}>
+                                          <SelectTrigger className="w-40 h-8 text-xs">
+                                            <SelectValue />
+                                          </SelectTrigger>
+                                          <SelectContent>
+                                            <SelectItem value="x">{getVarName(iterInputVar1)} 고정</SelectItem>
+                                            <SelectItem value="y">{getVarName(iterInputVar2)} 고정</SelectItem>
+                                          </SelectContent>
+                                        </Select>
+                                      </div>
+                                      <div className="flex items-center gap-2">
+                                        <Label className="text-xs">값:</Label>
+                                        <Select value={String(sliceValue)} onValueChange={(v) => setSliceValue(Number(v))}>
+                                          <SelectTrigger className="w-24 h-8 text-xs">
+                                            <SelectValue />
+                                          </SelectTrigger>
+                                          <SelectContent>
+                                            {(sliceVariable === "x" ? uniqueXValues : uniqueYValues).map((v) => (
+                                              <SelectItem key={v} value={String(v)}>{v}</SelectItem>
+                                            ))}
+                                          </SelectContent>
+                                        </Select>
+                                        <span className="text-xs text-muted-foreground">
+                                          {sliceVariable === "x" ? getVarUnit(iterInputVar1) : getVarUnit(iterInputVar2)}
+                                        </span>
+                                      </div>
+                                    </div>
+                                    
+                                    <div className="h-72">
+                                      <ResponsiveContainer width="100%" height="100%">
+                                        <RechartsLineChart data={slicedData} margin={{ top: 20, right: 30, left: 20, bottom: 40 }}>
+                                          <CartesianGrid strokeDasharray="3 3" stroke="#e5e7eb" />
+                                          <XAxis 
+                                            dataKey="x" 
+                                            tick={{ fontSize: 11 }} 
+                                            label={{ 
+                                              value: sliceVariable === "x" 
+                                                ? `${getVarName(iterInputVar2)} (${getVarUnit(iterInputVar2)})` 
+                                                : `${getVarName(iterInputVar1)} (${getVarUnit(iterInputVar1)})`, 
+                                              position: 'bottom', 
+                                              offset: 0, 
+                                              fontSize: 11 
+                                            }}
+                                          />
+                                          <YAxis 
+                                            tick={{ fontSize: 11 }} 
+                                            label={{ value: `${getOutputName(iterOutputVar)} (${getOutputUnit(iterOutputVar)})`, angle: -90, position: 'insideLeft', fontSize: 11 }}
+                                          />
+                                          <Tooltip 
+                                            formatter={(value: number) => [value.toFixed(2), getOutputName(iterOutputVar)]}
+                                          />
+                                          <Line 
+                                            type="monotone" 
+                                            dataKey="z" 
+                                            name={getOutputName(iterOutputVar)}
+                                            stroke="#2563eb" 
+                                            strokeWidth={2}
+                                            dot={{ r: 5, fill: "#2563eb" }}
+                                            activeDot={{ r: 7 }}
+                                          />
+                                        </RechartsLineChart>
+                                      </ResponsiveContainer>
+                                    </div>
+                                    
+                                    <div className="text-center text-xs text-muted-foreground">
+                                      {sliceVariable === "x" 
+                                        ? `${getVarName(iterInputVar1)} = ${sliceValue} ${getVarUnit(iterInputVar1)} 고정 시, ${getVarName(iterInputVar2)} 변화에 따른 ${getOutputName(iterOutputVar)} 변화`
+                                        : `${getVarName(iterInputVar2)} = ${sliceValue} ${getVarUnit(iterInputVar2)} 고정 시, ${getVarName(iterInputVar1)} 변화에 따른 ${getOutputName(iterOutputVar)} 변화`
+                                      }
+                                    </div>
+                                  </div>
+                                )}
                               </div>
                             )}
                           </CardContent>
