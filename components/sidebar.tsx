@@ -149,7 +149,6 @@ export function Sidebar({ unreadAlerts = 3 }: SidebarProps) {
       icon: Bell,
       items: [
         { label: "전체 알람", href: "/alerts", icon: Bell, count: 12 },
-        { label: "알람 분석 대시보드", href: "/alerts/dashboard", icon: BarChart3 },
       ]
     },
     {
@@ -158,7 +157,15 @@ export function Sidebar({ unreadAlerts = 3 }: SidebarProps) {
       icon: Inbox,
       items: [
         { label: "내 이벤트", href: "/actions/tickets", icon: Inbox },
-        { label: "대시보드", href: "/dashboard", icon: LayoutDashboard },
+      ]
+    },
+    {
+      id: "team-dashboard",
+      label: "팀 대시보드",
+      icon: BarChart3,
+      items: [
+        { label: "알람 분석 대시보드", href: "/alerts/dashboard", icon: BarChart3 },
+        { label: "팀 업무 분석 대시보드", href: "/dashboard", icon: LayoutDashboard },
       ]
     },
   ]
