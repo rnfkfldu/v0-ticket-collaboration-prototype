@@ -8,11 +8,14 @@ import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
 import { Separator } from "@/components/ui/separator"
+import { Switch } from "@/components/ui/switch"
+import { Label } from "@/components/ui/label"
 import { 
   Activity, TrendingUp, Gauge, Info, RefreshCw, CheckCircle, XCircle,
   Settings, ArrowLeft, Clock, Target, DollarSign
 } from "lucide-react"
 import { cn } from "@/lib/utils"
+import { useUser, ALL_PROCESSES } from "@/lib/user-context"
 
 const RTO_MODELS = [
   { id: "RTO-001", dept: "HOU부문", team: "HCR팀", desc: "[수율 최적화] HCR 공정 Reactor Severity 최적화", mlops: "active" as const, accuracy: 93.1, benefit: 15200, uptime: 97.8, lastRun: "10분 전", process: "HCR", variables: 24, constraints: 18, tags: ["TI-3001","TI-3002","PI-3001","FI-3001","FIC-2001"], unit: "\u00b0C" },
@@ -42,6 +45,12 @@ function generateTrendData(baseValue: number, variance: number, count: number) {
 }
 
 export default function RTOModelsPage() {
+  const { currentUser } = useUser()
+  
+  // 페이지 로컬 스코프 토글 (담당공정/전체공정)
+  const [showMyProcessesOnly, setShowMyProcessesOnly] = useState(true)
+  const myProcessIds = currentUser.assignedProcessIds
+  
   const [view, setView] = useState<"list" | "detail">("list")
   const [selectedModelId, setSelectedModelId] = useState<string | null>(null)
   const [searchQuery, setSearchQuery] = useState("")
@@ -52,13 +61,15 @@ export default function RTOModelsPage() {
 
   const filteredModels = useMemo(() => {
     return RTO_MODELS.filter(m => {
+      // 담당공정 필터링
+      if (showMyProcessesOnly && !myProcessIds.includes(m.process)) return false
       if (searchQuery && !m.desc.toLowerCase().includes(searchQuery.toLowerCase())) return false
       if (deptFilter !== "all" && m.dept !== deptFilter) return false
       if (teamFilter !== "all" && m.team !== teamFilter) return false
       if (processFilter !== "all" && m.process !== processFilter) return false
       return true
     })
-  }, [searchQuery, deptFilter, teamFilter, processFilter])
+  }, [searchQuery, deptFilter, teamFilter, processFilter, showMyProcessesOnly, myProcessIds])
 
   const activeCount = RTO_MODELS.filter(m => m.mlops === "active").length
   const totalBenefit = RTO_MODELS.reduce((s, m) => s + m.benefit, 0)
@@ -74,9 +85,27 @@ export default function RTOModelsPage() {
     <AppShell>
       {view === "list" ? (
         <div className="p-6 space-y-5">
-          <div className="flex items-center gap-3">
-            <h1 className="text-xl font-bold">RTO 모델</h1>
-            <Info className="h-4 w-4 text-muted-foreground" />
+          <div className="flex items-center justify-between">
+            <div className="flex items-center gap-3">
+              <h1 className="text-xl font-bold">RTO 모델</h1>
+              <Info className="h-4 w-4 text-muted-foreground" />
+            </div>
+            {/* Scope Toggle - 담당공정/전체공정 */}
+            <div className="flex items-center gap-3 bg-muted/50 rounded-lg px-3 py-1.5">
+              <Label htmlFor="rto-scope-toggle" className="text-xs text-muted-foreground cursor-pointer">
+                전체공정
+              </Label>
+              <Switch 
+                id="rto-scope-toggle"
+                checked={showMyProcessesOnly}
+                onCheckedChange={setShowMyProcessesOnly}
+              />
+              <Label htmlFor="rto-scope-toggle" className="text-xs cursor-pointer">
+                <span className={showMyProcessesOnly ? "text-primary font-medium" : "text-muted-foreground"}>
+                  담당공정 ({myProcessIds.length})
+                </span>
+              </Label>
+            </div>
           </div>
 
           {/* Filters */}

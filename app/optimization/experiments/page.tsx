@@ -15,8 +15,10 @@ import { Checkbox } from "@/components/ui/checkbox"
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from "@/components/ui/dialog"
 import { ScrollArea } from "@/components/ui/scroll-area"
 import { Separator } from "@/components/ui/separator"
+import { Switch } from "@/components/ui/switch"
 import { AVAILABLE_TAGS, DCS_GRAPHICS } from "@/lib/process-data"
 import { cn } from "@/lib/utils"
+import { useUser } from "@/lib/user-context"
 import {
   Plus, Search, ChevronRight, ChevronLeft, Upload, X, Trash2,
   Send, Link2, CheckCircle, Clock, AlertTriangle, Play,
@@ -278,6 +280,138 @@ const INITIAL_MODELS: ModelEntry[] = [
     trainingPeriod: { from: "2024-01-01", to: "2025-03-31" }, csvFiles: [],
     accuracy: { rmse: 5.12, mae: 4.01, r2: 0.72, mape: 8.5 }, dropReason: "MAPE 8.5%로 목표 정확도(3% 이하) 미달. Feed 품질 변동성이 커 모델 재설계 필요",
   },
+  {
+    id: "MDL-006", name: "HCR Product VI 예측", purpose: "품질 예측",
+    unit: "HCR", equipment: "Product Analyzer", description: "HCR W600N Product Viscosity Index 예측",
+    status: "production", currentStep: 8, createdDate: "2025-09-10", creator: "김철수",
+    endpointUrl: "https://runtime.sagemaker.ap-northeast-2.amazonaws.com/endpoints/hcr-vi-v3",
+    dataSource: "dcs-select", selectedTags: ["TI-3001", "TI-3002", "PI-3001", "FI-3001"],
+    trainingPeriod: { from: "2024-01-01", to: "2025-08-31" }, csvFiles: [],
+    accuracy: { rmse: 1.85, mae: 1.42, r2: 0.96, mape: 0.9 }, dropReason: "",
+  },
+  {
+    id: "MDL-007", name: "VGOFCC Conversion Rate 예측", purpose: "수율 예측",
+    unit: "VGOFCC", equipment: "Reactor", description: "VGOFCC 전환율 실시간 예측",
+    status: "testing", currentStep: 6, createdDate: "2026-01-05", creator: "김철수",
+    endpointUrl: "https://runtime.sagemaker.ap-northeast-2.amazonaws.com/endpoints/fcc-conv-v1",
+    dataSource: "tag-grid", selectedTags: ["TI-4001", "TI-4002", "PI-4001", "FI-4001"],
+    trainingPeriod: { from: "2024-06-01", to: "2025-12-31" }, csvFiles: [],
+    accuracy: { rmse: 2.1, mae: 1.65, r2: 0.93, mape: 1.5 }, dropReason: "",
+  },
+  {
+    id: "MDL-008", name: "CDU Cut Point 예측", purpose: "공정 최적화",
+    unit: "CDU", equipment: "Main Column", description: "CDU 분별증류탑 Cut Point 예측",
+    status: "configured", currentStep: 6, createdDate: "2025-10-20", creator: "박영희",
+    endpointUrl: "https://runtime.sagemaker.ap-northeast-2.amazonaws.com/endpoints/cdu-cut-v2",
+    dataSource: "dcs-select", selectedTags: ["TI-1001", "TI-1002", "PI-1001", "FI-1001"],
+    trainingPeriod: { from: "2024-03-01", to: "2025-09-30" }, csvFiles: [],
+    accuracy: { rmse: 3.2, mae: 2.5, r2: 0.89, mape: 2.1 }, dropReason: "",
+  },
+  {
+    id: "MDL-009", name: "VDU Vacuum Column 압력 예측", purpose: "운전 안정성",
+    unit: "VDU", equipment: "Vacuum System", description: "VDU 진공압력 변동 예측",
+    status: "production", currentStep: 8, createdDate: "2025-07-15", creator: "이수진",
+    endpointUrl: "https://runtime.sagemaker.ap-northeast-2.amazonaws.com/endpoints/vdu-vac-v1",
+    dataSource: "tag-grid", selectedTags: ["PI-2001", "TI-2001", "FI-2001"],
+    trainingPeriod: { from: "2024-01-01", to: "2025-06-30" }, csvFiles: [],
+    accuracy: { rmse: 0.8, mae: 0.6, r2: 0.95, mape: 1.2 }, dropReason: "",
+  },
+  {
+    id: "MDL-010", name: "RFCC Regenerator Temp 예측", purpose: "운전 안정성",
+    unit: "RFCC", equipment: "Regenerator", description: "RFCC Regenerator 온도 이상 예측",
+    status: "endpoint-registered", currentStep: 4, createdDate: "2026-02-01", creator: "최진우",
+    endpointUrl: "https://runtime.sagemaker.ap-northeast-2.amazonaws.com/endpoints/rfcc-regen-v1",
+    dataSource: "csv", selectedTags: [],
+    trainingPeriod: { from: "2024-01-01", to: "2025-12-31" }, csvFiles: ["rfcc_regen_history.csv"],
+    accuracy: { rmse: 4.5, mae: 3.8, r2: 0.87, mape: 2.8 }, dropReason: "",
+  },
+  {
+    id: "MDL-011", name: "HCR H2 Consumption 예측", purpose: "에너지 절감",
+    unit: "HCR", equipment: "H2 System", description: "HCR 수소 소비량 최적화 예측",
+    status: "data-ready", currentStep: 2, createdDate: "2026-02-10", creator: "김철수",
+    endpointUrl: "", dataSource: "dcs-select", selectedTags: ["FIC-2001", "PI-3001", "TI-3001"],
+    trainingPeriod: { from: "2025-01-01", to: "2026-01-31" }, csvFiles: [],
+    accuracy: null, dropReason: "",
+  },
+  {
+    id: "MDL-012", name: "VGOFCC Slurry Yield 예측", purpose: "수율 예측",
+    unit: "VGOFCC", equipment: "Main Fractionator", description: "VGOFCC Slurry 생산량 예측",
+    status: "modeling", currentStep: 3, createdDate: "2026-01-25", creator: "김철수",
+    endpointUrl: "", dataSource: "tag-grid", selectedTags: ["TI-4001", "PI-4001", "FI-4001"],
+    trainingPeriod: { from: "2024-06-01", to: "2025-12-31" }, csvFiles: [],
+    accuracy: null, dropReason: "",
+  },
+  {
+    id: "MDL-013", name: "CCR RON 예측", purpose: "품질 예측",
+    unit: "CCR", equipment: "Product Stream", description: "CCR Reformate RON 실시간 예측",
+    status: "production", currentStep: 8, createdDate: "2025-06-01", creator: "박영호",
+    endpointUrl: "https://runtime.sagemaker.ap-northeast-2.amazonaws.com/endpoints/ccr-ron-v2",
+    dataSource: "dcs-select", selectedTags: ["TI-4001", "TI-4002", "PI-4001", "FI-4001"],
+    trainingPeriod: { from: "2024-01-01", to: "2025-05-31" }, csvFiles: [],
+    accuracy: { rmse: 0.32, mae: 0.25, r2: 0.97, mape: 0.4 }, dropReason: "",
+  },
+  {
+    id: "MDL-014", name: "DHT Product Sulfur 예측", purpose: "품질 예측",
+    unit: "DHT", equipment: "Product Stream", description: "DHT 탈황 제품 Sulfur 함량 예측",
+    status: "testing", currentStep: 6, createdDate: "2026-01-15", creator: "이수진",
+    endpointUrl: "https://runtime.sagemaker.ap-northeast-2.amazonaws.com/endpoints/dht-sulfur-v1",
+    dataSource: "tag-grid", selectedTags: ["TI-5001", "TI-5002", "PI-5001", "FI-5001"],
+    trainingPeriod: { from: "2024-06-01", to: "2025-12-31" }, csvFiles: [],
+    accuracy: { rmse: 1.2, mae: 0.95, r2: 0.92, mape: 1.8 }, dropReason: "",
+  },
+  {
+    id: "MDL-015", name: "VDU HVGO 품질 예측", purpose: "품질 예측",
+    unit: "VDU", equipment: "HVGO Stream", description: "VDU HVGO D86 90% 예측",
+    status: "config-requested", currentStep: 5, createdDate: "2026-02-05", creator: "이수진",
+    endpointUrl: "https://runtime.sagemaker.ap-northeast-2.amazonaws.com/endpoints/vdu-hvgo-v1",
+    dataSource: "dcs-select", selectedTags: ["TI-2001", "TI-2002", "FI-2001"],
+    trainingPeriod: { from: "2024-01-01", to: "2025-12-31" }, csvFiles: [],
+    accuracy: { rmse: 2.8, mae: 2.2, r2: 0.91, mape: 1.6 }, dropReason: "",
+  },
+  {
+    id: "MDL-016", name: "CDU Furnace Efficiency 예측", purpose: "에너지 절감",
+    unit: "CDU", equipment: "Furnace F-1001", description: "CDU Furnace 열효율 예측",
+    status: "draft", currentStep: 1, createdDate: "2026-02-15", creator: "박영희",
+    endpointUrl: "", dataSource: "", selectedTags: [],
+    trainingPeriod: { from: "", to: "" }, csvFiles: [],
+    accuracy: null, dropReason: "",
+  },
+  {
+    id: "MDL-017", name: "RFCC Riser Outlet Temp 예측", purpose: "공정 최적화",
+    unit: "RFCC", equipment: "Riser", description: "RFCC Riser 출구 온도 예측",
+    status: "dropped", currentStep: 0, createdDate: "2025-05-01", creator: "최진우",
+    endpointUrl: "https://runtime.sagemaker.ap-northeast-2.amazonaws.com/endpoints/rfcc-riser-v1",
+    dataSource: "csv", selectedTags: [],
+    trainingPeriod: { from: "2024-01-01", to: "2025-03-31" }, csvFiles: ["rfcc_riser_data.csv"],
+    accuracy: { rmse: 6.8, mae: 5.5, r2: 0.68, mape: 9.2 }, dropReason: "Feed 품질 변동에 따른 모델 불안정. 새로운 접근법 필요",
+  },
+  {
+    id: "MDL-018", name: "HCR Catalyst Activity 예측", purpose: "촉매 성능 예측",
+    unit: "HCR", equipment: "Reactor Bed", description: "HCR 촉매 활성도 예측",
+    status: "production", currentStep: 8, createdDate: "2025-04-01", creator: "김철수",
+    endpointUrl: "https://runtime.sagemaker.ap-northeast-2.amazonaws.com/endpoints/hcr-cat-v3",
+    dataSource: "dcs-select", selectedTags: ["TI-3001", "TI-3002", "PI-3001", "FI-3001", "FIC-2001"],
+    trainingPeriod: { from: "2023-06-01", to: "2025-03-31" }, csvFiles: [],
+    accuracy: { rmse: 0.02, mae: 0.015, r2: 0.98, mape: 0.5 }, dropReason: "",
+  },
+  {
+    id: "MDL-019", name: "VGOFCC Gasoline RON 예측", purpose: "품질 예측",
+    unit: "VGOFCC", equipment: "Gasoline Stream", description: "VGOFCC Gasoline RON 실시간 예측",
+    status: "configured", currentStep: 6, createdDate: "2025-12-01", creator: "김철수",
+    endpointUrl: "https://runtime.sagemaker.ap-northeast-2.amazonaws.com/endpoints/fcc-ron-v1",
+    dataSource: "tag-grid", selectedTags: ["TI-4001", "TI-4002", "PI-4001", "FI-4001", "AI-4001"],
+    trainingPeriod: { from: "2024-01-01", to: "2025-11-30" }, csvFiles: [],
+    accuracy: { rmse: 0.45, mae: 0.35, r2: 0.95, mape: 0.6 }, dropReason: "",
+  },
+  {
+    id: "MDL-020", name: "CCR Coke Yield 예측", purpose: "촉매 성능 예측",
+    unit: "CCR", equipment: "Regenerator", description: "CCR Coke 생성량 예측",
+    status: "testing", currentStep: 6, createdDate: "2026-02-01", creator: "박영호",
+    endpointUrl: "https://runtime.sagemaker.ap-northeast-2.amazonaws.com/endpoints/ccr-coke-v1",
+    dataSource: "dcs-select", selectedTags: ["TI-4001", "TI-4002", "PI-4001"],
+    trainingPeriod: { from: "2024-06-01", to: "2025-12-31" }, csvFiles: [],
+    accuracy: { rmse: 0.08, mae: 0.06, r2: 0.92, mape: 2.5 }, dropReason: "",
+  },
 ]
 
 // --- Helper ---
@@ -297,6 +431,12 @@ function generateValidationData(model: ModelEntry) {
 // MAIN COMPONENT
 // ===================================================
 export default function ModelLabPage() {
+  const { currentUser } = useUser()
+  
+  // 페이지 로컬 스코프 토글 (담당공정/전체공정)
+  const [showMyProcessesOnly, setShowMyProcessesOnly] = useState(true)
+  const myProcessIds = currentUser.assignedProcessIds
+  
   const searchParams = useSearchParams()
   const [workspace, setWorkspace] = useState<"build" | "validate">(
     searchParams.get("tab") === "validate" ? "validate" : "build"
@@ -340,16 +480,23 @@ export default function ModelLabPage() {
   const [isDragging, setIsDragging] = useState(false)
   const [endpointInput, setEndpointInput] = useState("")
 
-  // Derived
-  const selectedModel = useMemo(() => models.find(m => m.id === selectedModelId) || null, [models, selectedModelId])
-  const validationModel = useMemo(() => models.find(m => m.id === validationModelId) || null, [models, validationModelId])
-  const buildModels = useMemo(() => models.filter(m => m.status !== "dropped" || statusFilter === "dropped"), [models, statusFilter])
-  const validateModels = useMemo(() => models.filter(m => ["configured", "testing", "production", "dropped"].includes(m.status)), [models])
+  // Derived - 스코프 토글에 따라 먼저 필터링
+  const scopedModels = useMemo(() => {
+    if (showMyProcessesOnly) {
+      return models.filter(m => myProcessIds.includes(m.unit))
+    }
+    return models
+  }, [models, showMyProcessesOnly, myProcessIds])
+  
+  const selectedModel = useMemo(() => scopedModels.find(m => m.id === selectedModelId) || null, [scopedModels, selectedModelId])
+  const validationModel = useMemo(() => scopedModels.find(m => m.id === validationModelId) || null, [scopedModels, validationModelId])
+  const buildModels = useMemo(() => scopedModels.filter(m => m.status !== "dropped" || statusFilter === "dropped"), [scopedModels, statusFilter])
+  const validateModels = useMemo(() => scopedModels.filter(m => ["configured", "testing", "production", "dropped"].includes(m.status)), [scopedModels])
   const filteredBuildModels = useMemo(() => {
     return buildModels.filter(m => {
-      const matchSearch = m.name.toLowerCase().includes(search.toLowerCase()) || m.unit.toLowerCase().includes(search.toLowerCase())
-      const matchStatus = statusFilter === "all" || m.status === statusFilter
-      return matchSearch && matchStatus
+    const matchSearch = m.name.toLowerCase().includes(search.toLowerCase()) || m.unit.toLowerCase().includes(search.toLowerCase())
+    const matchStatus = statusFilter === "all" || m.status === statusFilter
+    return matchSearch && matchStatus
     })
   }, [buildModels, search, statusFilter])
   const allTags = useMemo(() => Object.values(AVAILABLE_TAGS).flat(), [])
@@ -428,17 +575,33 @@ export default function ModelLabPage() {
   return (
     <AppShell>
       <div className="min-h-screen bg-background">
-        {/* Header */}
-        <header className="border-b border-border bg-card">
-          <div className="px-6 py-4 flex items-center justify-between">
-            <div>
-              <h1 className="text-lg font-semibold flex items-center gap-2">
-                <FlaskConical className="h-5 w-5 text-primary" />
-                모델 실험실
-              </h1>
-              <p className="text-sm text-muted-foreground mt-1">AI 모델 구축부터 운영 검증까지의 전체 파이프라인을 관리합니다</p>
-            </div>
-          </div>
+  {/* Header */}
+  <header className="border-b border-border bg-card">
+  <div className="px-6 py-4 flex items-center justify-between">
+  <div>
+  <h1 className="text-lg font-semibold flex items-center gap-2">
+  <FlaskConical className="h-5 w-5 text-primary" />
+  모델 실험실
+  </h1>
+  <p className="text-sm text-muted-foreground mt-1">AI 모델 구축부터 운영 검증까지의 전체 파이프라인을 관리합니다</p>
+  </div>
+  {/* Scope Toggle - 담당공정/전체공정 */}
+  <div className="flex items-center gap-3 bg-muted/50 rounded-lg px-3 py-1.5">
+    <Label htmlFor="exp-scope-toggle" className="text-xs text-muted-foreground cursor-pointer">
+      전체공정
+    </Label>
+    <Switch 
+      id="exp-scope-toggle"
+      checked={showMyProcessesOnly}
+      onCheckedChange={setShowMyProcessesOnly}
+    />
+    <Label htmlFor="exp-scope-toggle" className="text-xs cursor-pointer">
+      <span className={showMyProcessesOnly ? "text-primary font-medium" : "text-muted-foreground"}>
+        담당공정 ({myProcessIds.length})
+      </span>
+    </Label>
+  </div>
+  </div>
           <div className="px-6">
             <div className="flex gap-1">
               {([
@@ -488,7 +651,7 @@ export default function ModelLabPage() {
             {/* Summary */}
             <div className="grid grid-cols-2 md:grid-cols-4 lg:grid-cols-7 gap-3">
               {PIPELINE_STEPS.map(ps => {
-                const count = models.filter(m => m.currentStep === ps.step && m.status !== "dropped").length
+                const count = scopedModels.filter(m => m.currentStep === ps.step && m.status !== "dropped").length
                 return (
                   <Card key={ps.step} className="relative overflow-hidden">
                     <CardContent className="py-3 px-4">
@@ -1043,7 +1206,7 @@ export default function ModelLabPage() {
                     <div className="flex items-center gap-2 text-sm">
                       <CheckCircle className="h-4 w-4 text-green-600" />
                       <span className="text-green-700 font-medium">구성 요청 전송 완료</span>
-                      <span className="text-xs text-muted-foreground ml-2">DX팀에서 구성 진행 중</span>
+                      <span className="text-xs text-muted-foreground ml-2">DX팀��서 구성 진행 중</span>
                     </div>
                   ) : (
                     <p className="text-sm text-muted-foreground">End Point 등록 후 구성 요청을 진행할 수 있습니다</p>

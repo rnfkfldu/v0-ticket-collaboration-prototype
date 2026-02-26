@@ -8,11 +8,14 @@ import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
 import { Separator } from "@/components/ui/separator"
+import { Switch } from "@/components/ui/switch"
+import { Label } from "@/components/ui/label"
 import { 
   Cpu, Activity, TrendingUp, Gauge, Search, ChevronRight, ArrowLeft,
   Info, RefreshCw, CheckCircle, XCircle, Settings, ExternalLink, Clock
 } from "lucide-react"
 import { cn } from "@/lib/utils"
+import { useUser } from "@/lib/user-context"
 
 // --- Model data ---
 const AI_ML_MODELS = [
@@ -59,6 +62,12 @@ function generateAccuracyBars() {
 }
 
 export default function AIMLModelsPage() {
+  const { currentUser } = useUser()
+  
+  // 페이지 로컬 스코프 토글 (담당공정/전체공정)
+  const [showMyProcessesOnly, setShowMyProcessesOnly] = useState(true)
+  const myProcessIds = currentUser.assignedProcessIds
+  
   const [view, setView] = useState<"list" | "detail">("list")
   const [selectedModelId, setSelectedModelId] = useState<string | null>(null)
   const [searchQuery, setSearchQuery] = useState("")
@@ -73,13 +82,15 @@ export default function AIMLModelsPage() {
 
   const filteredModels = useMemo(() => {
     return AI_ML_MODELS.filter(m => {
+      // 담당공정 필터링
+      if (showMyProcessesOnly && !myProcessIds.includes(m.process)) return false
       if (searchQuery && !m.desc.toLowerCase().includes(searchQuery.toLowerCase()) && !m.id.toLowerCase().includes(searchQuery.toLowerCase())) return false
       if (deptFilter !== "all" && m.dept !== deptFilter) return false
       if (teamFilter !== "all" && m.team !== teamFilter) return false
       if (processFilter !== "all" && m.process !== processFilter) return false
       return true
     })
-  }, [searchQuery, deptFilter, teamFilter, processFilter])
+  }, [searchQuery, deptFilter, teamFilter, processFilter, showMyProcessesOnly, myProcessIds])
 
   const activeCount = AI_ML_MODELS.filter(m => m.mlops === "active").length
   const avgAccuracy = AI_ML_MODELS.filter(m => m.accuracy).reduce((s, m) => s + (m.accuracy || 0), 0) / (AI_ML_MODELS.filter(m => m.accuracy).length || 1)
@@ -100,12 +111,30 @@ export default function AIMLModelsPage() {
   return (
     <AppShell>
       {view === "list" ? (
-        <div className="p-6 space-y-5">
-          {/* Header */}
-          <div className="flex items-center gap-3">
-            <h1 className="text-xl font-bold">AI/ML 모델</h1>
-            <Info className="h-4 w-4 text-muted-foreground" />
-          </div>
+  <div className="p-6 space-y-5">
+  {/* Header */}
+  <div className="flex items-center justify-between">
+    <div className="flex items-center gap-3">
+      <h1 className="text-xl font-bold">AI/ML 모델</h1>
+      <Info className="h-4 w-4 text-muted-foreground" />
+    </div>
+    {/* Scope Toggle - 담당공정/전체공정 */}
+    <div className="flex items-center gap-3 bg-muted/50 rounded-lg px-3 py-1.5">
+      <Label htmlFor="aiml-scope-toggle" className="text-xs text-muted-foreground cursor-pointer">
+        전체공정
+      </Label>
+      <Switch 
+        id="aiml-scope-toggle"
+        checked={showMyProcessesOnly}
+        onCheckedChange={setShowMyProcessesOnly}
+      />
+      <Label htmlFor="aiml-scope-toggle" className="text-xs cursor-pointer">
+        <span className={showMyProcessesOnly ? "text-primary font-medium" : "text-muted-foreground"}>
+          담당공정 ({myProcessIds.length})
+        </span>
+      </Label>
+    </div>
+  </div>
 
           {/* Filters */}
           <Card>
