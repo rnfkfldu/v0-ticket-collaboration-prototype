@@ -22,17 +22,21 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select"
+import { Tabs, TabsList, TabsTrigger, TabsContent } from "@/components/ui/tabs"
 import { cn } from "@/lib/utils"
 import {
   Bell,
   Plus,
   Search,
   AlertTriangle,
+  AlertCircle,
   Clock,
   Download,
   Edit as EditIcon,
   Trash2,
   User,
+  Settings,
+  FileText,
 } from "lucide-react"
 import { ALERT_MASTER_DATA, PERSONAL_ALERT_DATA, ALERT_STATUS_DATA, getGradeColor } from "./alert-data"
 
@@ -41,6 +45,44 @@ export default function AlertListPage() {
   const [filterUnit, setFilterUnit] = useState("all")
   const [filterGrade, setFilterGrade] = useState("all")
   const [showRegisterDialog, setShowRegisterDialog] = useState(false)
+  
+  // 알람 등록 폼 상태
+  const [alarmTagId, setAlarmTagId] = useState("")
+  const [alarmUnit, setAlarmUnit] = useState("")
+  const [alarmDescription, setAlarmDescription] = useState("")
+  const [alarmType, setAlarmType] = useState<"process" | "equipment" | "safety">("process")
+  const [alarmPriority, setAlarmPriority] = useState<"critical" | "high" | "medium" | "low">("medium")
+  const [alarmGrade, setAlarmGrade] = useState<"상" | "중" | "하">("중")
+  const [alarmSetpointHigh, setAlarmSetpointHigh] = useState("")
+  const [alarmSetpointLow, setAlarmSetpointLow] = useState("")
+  const [alarmDeadband, setAlarmDeadband] = useState("")
+  const [alarmDelay, setAlarmDelay] = useState("")
+  const [alarmOnCondition, setAlarmOnCondition] = useState("")
+  const [alarmOffCondition, setAlarmOffCondition] = useState("")
+  const [alarmRationale, setAlarmRationale] = useState("")
+  const [alarmResponseGuide, setAlarmResponseGuide] = useState("")
+  const [alarmUom, setAlarmUom] = useState("degC")
+
+  const handleRegisterAlarm = () => {
+    alert(`알람이 등록되었습니다.\n\nTag ID: ${alarmTagId}\nUnit: ${alarmUnit}\n설명: ${alarmDescription}`)
+    setShowRegisterDialog(false)
+    // Reset form
+    setAlarmTagId("")
+    setAlarmUnit("")
+    setAlarmDescription("")
+    setAlarmType("process")
+    setAlarmPriority("medium")
+    setAlarmGrade("중")
+    setAlarmSetpointHigh("")
+    setAlarmSetpointLow("")
+    setAlarmDeadband("")
+    setAlarmDelay("")
+    setAlarmOnCondition("")
+    setAlarmOffCondition("")
+    setAlarmRationale("")
+    setAlarmResponseGuide("")
+    setAlarmUom("degC")
+  }
 
   const filteredMasterAlerts = ALERT_MASTER_DATA.filter(a => {
     const matchSearch = searchQuery === "" ||
@@ -228,89 +270,281 @@ export default function AlertListPage() {
         </main>
       </div>
 
-      {/* ===== Alert 등록 Dialog ===== */}
+      {/* ===== Alert 등록 Dialog (Enhanced) ===== */}
       <Dialog open={showRegisterDialog} onOpenChange={setShowRegisterDialog}>
-        <DialogContent className="max-w-lg">
+        <DialogContent className="max-w-3xl max-h-[90vh] overflow-y-auto">
           <DialogHeader>
             <DialogTitle className="flex items-center gap-2">
               <Bell className="h-5 w-5" />
               Alert 등록
             </DialogTitle>
           </DialogHeader>
-          <div className="space-y-4 py-2">
-            <div className="grid grid-cols-2 gap-4">
-              <div className="space-y-2">
-                <Label>Tag ID</Label>
-                <Input placeholder="예: TI-2001" />
+          
+          <Tabs defaultValue="basic" className="mt-4">
+            <TabsList className="grid w-full grid-cols-3">
+              <TabsTrigger value="basic">알람 정보</TabsTrigger>
+              <TabsTrigger value="trigger">Trigger 설정</TabsTrigger>
+              <TabsTrigger value="rules">발생/해제 규칙</TabsTrigger>
+            </TabsList>
+
+            <TabsContent value="basic" className="space-y-4 mt-4">
+              <div className="grid grid-cols-2 gap-4">
+                <div className="space-y-2">
+                  <Label htmlFor="tag-id">Tag ID *</Label>
+                  <Input 
+                    id="tag-id"
+                    value={alarmTagId}
+                    onChange={(e) => setAlarmTagId(e.target.value)}
+                    placeholder="예: TI-2001"
+                  />
+                </div>
+                <div className="space-y-2">
+                  <Label>Unit *</Label>
+                  <Select value={alarmUnit} onValueChange={setAlarmUnit}>
+                    <SelectTrigger>
+                      <SelectValue placeholder="Unit 선택" />
+                    </SelectTrigger>
+                    <SelectContent>
+                      {units.map(u => <SelectItem key={u} value={u}>{u}</SelectItem>)}
+                    </SelectContent>
+                  </Select>
+                </div>
               </div>
+
               <div className="space-y-2">
-                <Label>Unit</Label>
-                <Select>
-                  <SelectTrigger><SelectValue placeholder="Unit 선택" /></SelectTrigger>
-                  <SelectContent>
-                    {units.map(u => <SelectItem key={u} value={u}>{u}</SelectItem>)}
-                  </SelectContent>
-                </Select>
+                <Label htmlFor="alarm-desc">Alert 명칭 *</Label>
+                <Input 
+                  id="alarm-desc"
+                  value={alarmDescription}
+                  onChange={(e) => setAlarmDescription(e.target.value)}
+                  placeholder="예: Reactor Inlet Temperature High"
+                />
               </div>
-            </div>
-            <div className="space-y-2">
-              <Label>Alert 명칭</Label>
-              <Input placeholder="Alert 명칭 입력" />
-            </div>
-            <div className="grid grid-cols-3 gap-4">
+
+              <div className="grid grid-cols-3 gap-4">
+                <div className="space-y-2">
+                  <Label>알람 유형</Label>
+                  <Select value={alarmType} onValueChange={(v: typeof alarmType) => setAlarmType(v)}>
+                    <SelectTrigger>
+                      <SelectValue />
+                    </SelectTrigger>
+                    <SelectContent>
+                      <SelectItem value="process">공정 알람</SelectItem>
+                      <SelectItem value="equipment">설비 알람</SelectItem>
+                      <SelectItem value="safety">안전 알람</SelectItem>
+                    </SelectContent>
+                  </Select>
+                </div>
+                <div className="space-y-2">
+                  <Label>등급 *</Label>
+                  <Select value={alarmGrade} onValueChange={(v: typeof alarmGrade) => setAlarmGrade(v)}>
+                    <SelectTrigger>
+                      <SelectValue />
+                    </SelectTrigger>
+                    <SelectContent>
+                      <SelectItem value="상">상 - Critical</SelectItem>
+                      <SelectItem value="중">중 - High</SelectItem>
+                      <SelectItem value="하">하 - Low</SelectItem>
+                    </SelectContent>
+                  </Select>
+                </div>
+                <div className="space-y-2">
+                  <Label>우선순위</Label>
+                  <Select value={alarmPriority} onValueChange={(v: typeof alarmPriority) => setAlarmPriority(v)}>
+                    <SelectTrigger>
+                      <SelectValue />
+                    </SelectTrigger>
+                    <SelectContent>
+                      <SelectItem value="critical">Critical - 즉시 대응</SelectItem>
+                      <SelectItem value="high">High - 10분 내 대응</SelectItem>
+                      <SelectItem value="medium">Medium - 30분 내 대응</SelectItem>
+                      <SelectItem value="low">Low - 정보성</SelectItem>
+                    </SelectContent>
+                  </Select>
+                </div>
+              </div>
+
               <div className="space-y-2">
-                <Label>타입</Label>
-                <Select>
-                  <SelectTrigger><SelectValue placeholder="타입" /></SelectTrigger>
-                  <SelectContent>
-                    <SelectItem value="Process">Process</SelectItem>
-                    <SelectItem value="Health">Health</SelectItem>
-                    <SelectItem value="Quality">Quality</SelectItem>
-                    <SelectItem value="Safety">Safety</SelectItem>
-                    <SelectItem value="Mechanical">Mechanical</SelectItem>
-                  </SelectContent>
-                </Select>
+                <Label htmlFor="rationale">등록 근거</Label>
+                <Textarea
+                  id="rationale"
+                  value={alarmRationale}
+                  onChange={(e) => setAlarmRationale(e.target.value)}
+                  placeholder="알람 등록 근거 및 배경 설명 (예: Safety Study 결과, 과거 사고 사례 등)"
+                  className="min-h-20"
+                />
               </div>
+            </TabsContent>
+
+            <TabsContent value="trigger" className="space-y-4 mt-4">
+              <Card className="bg-muted/30">
+                <CardContent className="pt-4 space-y-4">
+                  <div className="flex items-center gap-2 text-sm font-medium">
+                    <Settings className="h-4 w-4" />
+                    Setpoint 설정
+                  </div>
+                  <div className="grid grid-cols-2 gap-4">
+                    <div className="space-y-2">
+                      <Label htmlFor="setpoint-high">High Setpoint</Label>
+                      <div className="flex gap-2">
+                        <Input 
+                          id="setpoint-high"
+                          value={alarmSetpointHigh}
+                          onChange={(e) => setAlarmSetpointHigh(e.target.value)}
+                          placeholder="예: 400"
+                          type="number"
+                        />
+                        <Select value={alarmUom} onValueChange={setAlarmUom}>
+                          <SelectTrigger className="w-24">
+                            <SelectValue />
+                          </SelectTrigger>
+                          <SelectContent>
+                            <SelectItem value="degC">°C</SelectItem>
+                            <SelectItem value="bar">bar</SelectItem>
+                            <SelectItem value="kgcm2">kg/cm2</SelectItem>
+                            <SelectItem value="percent">%</SelectItem>
+                            <SelectItem value="m3h">m3/h</SelectItem>
+                          </SelectContent>
+                        </Select>
+                      </div>
+                    </div>
+                    <div className="space-y-2">
+                      <Label htmlFor="setpoint-low">Low Setpoint</Label>
+                      <div className="flex gap-2">
+                        <Input 
+                          id="setpoint-low"
+                          value={alarmSetpointLow}
+                          onChange={(e) => setAlarmSetpointLow(e.target.value)}
+                          placeholder="예: 350"
+                          type="number"
+                        />
+                        <Select value={alarmUom} onValueChange={setAlarmUom}>
+                          <SelectTrigger className="w-24">
+                            <SelectValue />
+                          </SelectTrigger>
+                          <SelectContent>
+                            <SelectItem value="degC">°C</SelectItem>
+                            <SelectItem value="bar">bar</SelectItem>
+                            <SelectItem value="kgcm2">kg/cm2</SelectItem>
+                            <SelectItem value="percent">%</SelectItem>
+                            <SelectItem value="m3h">m3/h</SelectItem>
+                          </SelectContent>
+                        </Select>
+                      </div>
+                    </div>
+                  </div>
+
+                  <div className="grid grid-cols-2 gap-4">
+                    <div className="space-y-2">
+                      <Label htmlFor="deadband">Deadband</Label>
+                      <Input 
+                        id="deadband"
+                        value={alarmDeadband}
+                        onChange={(e) => setAlarmDeadband(e.target.value)}
+                        placeholder="예: 2"
+                        type="number"
+                      />
+                      <p className="text-xs text-muted-foreground">알람 해제를 위한 히스테리시스 값</p>
+                    </div>
+                    <div className="space-y-2">
+                      <Label htmlFor="delay">Delay (초)</Label>
+                      <Input 
+                        id="delay"
+                        value={alarmDelay}
+                        onChange={(e) => setAlarmDelay(e.target.value)}
+                        placeholder="예: 5"
+                        type="number"
+                      />
+                      <p className="text-xs text-muted-foreground">알람 발생 전 대기 시간</p>
+                    </div>
+                  </div>
+                </CardContent>
+              </Card>
+
+              <Card className="bg-blue-50/50 border-blue-200">
+                <CardContent className="pt-4">
+                  <div className="flex items-start gap-2">
+                    <AlertCircle className="h-4 w-4 text-blue-600 mt-0.5" />
+                    <div className="text-sm text-blue-700">
+                      <p className="font-medium">Trigger Point 미리보기</p>
+                      <p className="mt-1">
+                        {alarmSetpointHigh && `High: ${alarmSetpointHigh} 초과 시 알람 발생`}
+                        {alarmSetpointHigh && alarmSetpointLow && " | "}
+                        {alarmSetpointLow && `Low: ${alarmSetpointLow} 미만 시 알람 발생`}
+                        {!alarmSetpointHigh && !alarmSetpointLow && "Setpoint를 입력하세요"}
+                      </p>
+                    </div>
+                  </div>
+                </CardContent>
+              </Card>
+            </TabsContent>
+
+            <TabsContent value="rules" className="space-y-4 mt-4">
               <div className="space-y-2">
-                <Label>등급</Label>
-                <Select>
-                  <SelectTrigger><SelectValue placeholder="등급" /></SelectTrigger>
-                  <SelectContent>
-                    <SelectItem value="상">상</SelectItem>
-                    <SelectItem value="중">중</SelectItem>
-                    <SelectItem value="하">하</SelectItem>
-                  </SelectContent>
-                </Select>
+                <Label htmlFor="on-condition">알람 발생 조건 (상세)</Label>
+                <Textarea
+                  id="on-condition"
+                  value={alarmOnCondition}
+                  onChange={(e) => setAlarmOnCondition(e.target.value)}
+                  placeholder="예: TI-2001 > 400°C AND 5초 이상 지속 시 발생"
+                  className="min-h-20 font-mono text-sm"
+                />
               </div>
+
               <div className="space-y-2">
-                <Label>방향</Label>
-                <Select>
-                  <SelectTrigger><SelectValue placeholder="방향" /></SelectTrigger>
-                  <SelectContent>
-                    <SelectItem value="High">High</SelectItem>
-                    <SelectItem value="Low">Low</SelectItem>
-                  </SelectContent>
-                </Select>
+                <Label htmlFor="off-condition">알람 해제 조건</Label>
+                <Textarea
+                  id="off-condition"
+                  value={alarmOffCondition}
+                  onChange={(e) => setAlarmOffCondition(e.target.value)}
+                  placeholder="예: TI-2001 < 398°C (Deadband 적용) 시 해제"
+                  className="min-h-20 font-mono text-sm"
+                />
               </div>
-            </div>
-            <div className="grid grid-cols-2 gap-4">
+
               <div className="space-y-2">
-                <Label>Limit 값</Label>
-                <Input type="number" placeholder="예: 400" />
+                <Label htmlFor="response-guide">
+                  <div className="flex items-center gap-2">
+                    <FileText className="h-4 w-4" />
+                    운전원 응답 가이드
+                  </div>
+                </Label>
+                <Textarea
+                  id="response-guide"
+                  value={alarmResponseGuide}
+                  onChange={(e) => setAlarmResponseGuide(e.target.value)}
+                  placeholder="알람 발생 시 운전원이 취해야 할 조치 사항을 상세히 기술&#10;&#10;1. 즉시 확인 사항&#10;2. 초기 대응 조치&#10;3. 에스컬레이션 기준"
+                  className="min-h-32"
+                />
               </div>
-              <div className="space-y-2">
-                <Label>단위</Label>
-                <Input placeholder="예: \u00b0C, kg/cm2, m3/h" />
-              </div>
-            </div>
-            <div className="space-y-2">
-              <Label>비고</Label>
-              <Textarea placeholder="Alert 배경 및 설명..." className="resize-none" rows={3} />
-            </div>
-          </div>
-          <DialogFooter>
+
+              <Card className="border-amber-200 bg-amber-50/50">
+                <CardContent className="pt-4">
+                  <div className="flex items-start gap-2">
+                    <AlertTriangle className="h-4 w-4 text-amber-600 mt-0.5" />
+                    <div className="text-sm text-amber-700">
+                      <p className="font-medium">알람 등록 검토 사항</p>
+                      <ul className="mt-1 space-y-1 list-disc list-inside">
+                        <li>Nuisance Alarm 가능성 검토 완료 여부</li>
+                        <li>기존 유사 알람과의 중복 여부</li>
+                        <li>응답 가이드의 구체성 및 실행 가능성</li>
+                      </ul>
+                    </div>
+                  </div>
+                </CardContent>
+              </Card>
+            </TabsContent>
+          </Tabs>
+
+          <DialogFooter className="mt-6">
             <Button variant="outline" onClick={() => setShowRegisterDialog(false)}>취소</Button>
-            <Button onClick={() => setShowRegisterDialog(false)}>등록</Button>
+            <Button 
+              onClick={handleRegisterAlarm}
+              disabled={!alarmTagId || !alarmUnit || !alarmDescription}
+            >
+              <Bell className="h-4 w-4 mr-2" />
+              Alert 등록
+            </Button>
           </DialogFooter>
         </DialogContent>
       </Dialog>

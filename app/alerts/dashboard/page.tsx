@@ -187,10 +187,6 @@ export default function AlarmDashboardPage() {
                   <SelectItem value="month">이번 달</SelectItem>
                 </SelectContent>
               </Select>
-              <Button onClick={() => setShowRegisterDialog(true)} className="gap-2">
-                <Plus className="h-4 w-4" />
-                신규 알람 등록
-              </Button>
             </div>
           </div>
         </header>

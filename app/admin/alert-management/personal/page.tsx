@@ -38,6 +38,29 @@ import { PERSONAL_ALERT_DATA, ALERT_MASTER_DATA } from "../alert-data"
 export default function PersonalAlertPage() {
   const [searchQuery, setSearchQuery] = useState("")
   const [showRegisterDialog, setShowRegisterDialog] = useState(false)
+  const [showEditDialog, setShowEditDialog] = useState(false)
+  const [editingAlert, setEditingAlert] = useState<typeof PERSONAL_ALERT_DATA[0] | null>(null)
+  
+  // Edit form state
+  const [editThreshold, setEditThreshold] = useState("")
+  const [editEnabled, setEditEnabled] = useState(true)
+  const [editNotification, setEditNotification] = useState("앱")
+  
+  const handleEditClick = (alert: typeof PERSONAL_ALERT_DATA[0]) => {
+    setEditingAlert(alert)
+    setEditThreshold(String(alert.threshold))
+    setEditEnabled(alert.enabled)
+    setEditNotification(alert.notification)
+    setShowEditDialog(true)
+  }
+  
+  const handleSaveEdit = () => {
+    if (editingAlert) {
+      alert(`개인화 Alert가 수정되었습니다.\n\nTag ID: ${editingAlert.tagId}\nThreshold: ${editThreshold}\n상태: ${editEnabled ? "활성" : "비활성"}\n알림 방식: ${editNotification}`)
+    }
+    setShowEditDialog(false)
+    setEditingAlert(null)
+  }
 
   const filteredAlerts = PERSONAL_ALERT_DATA.filter(a => {
     return searchQuery === "" ||
@@ -168,7 +191,7 @@ export default function PersonalAlertPage() {
                         <td className="px-4 py-3 text-center text-xs text-muted-foreground">{alert.createdAt}</td>
                         <td className="px-4 py-3 text-center">
                           <div className="flex items-center justify-center gap-1">
-                            <Button variant="ghost" size="icon" className="h-7 w-7"><EditIcon className="h-3.5 w-3.5" /></Button>
+                            <Button variant="ghost" size="icon" className="h-7 w-7" onClick={() => handleEditClick(alert)}><EditIcon className="h-3.5 w-3.5" /></Button>
                             <Button variant="ghost" size="icon" className="h-7 w-7 text-red-500 hover:text-red-700"><Trash2 className="h-3.5 w-3.5" /></Button>
                           </div>
                         </td>
@@ -249,6 +272,79 @@ export default function PersonalAlertPage() {
           <DialogFooter>
             <Button variant="outline" onClick={() => setShowRegisterDialog(false)}>취소</Button>
             <Button onClick={() => setShowRegisterDialog(false)}>등록</Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+
+      {/* ===== 개인화 Alert 수정 Dialog ===== */}
+      <Dialog open={showEditDialog} onOpenChange={setShowEditDialog}>
+        <DialogContent className="max-w-md">
+          <DialogHeader>
+            <DialogTitle className="flex items-center gap-2">
+              <EditIcon className="h-5 w-5" />
+              개인화 Alert 수정
+            </DialogTitle>
+          </DialogHeader>
+          {editingAlert && (
+            <div className="space-y-4 py-2">
+              <div className="p-3 bg-muted/30 rounded-lg">
+                <div className="flex items-center gap-2 mb-2">
+                  <span className="font-mono font-semibold">{editingAlert.tagId}</span>
+                  <span className="text-muted-foreground">|</span>
+                  <span className="text-sm">{editingAlert.unit}</span>
+                </div>
+                <p className="text-sm text-muted-foreground">{editingAlert.name}</p>
+              </div>
+              
+              <div className="grid grid-cols-2 gap-4">
+                <div className="space-y-2">
+                  <Label>Threshold</Label>
+                  <div className="flex gap-2">
+                    <Input 
+                      type="number" 
+                      value={editThreshold}
+                      onChange={(e) => setEditThreshold(e.target.value)}
+                    />
+                    <span className="flex items-center text-sm text-muted-foreground">{editingAlert.uom}</span>
+                  </div>
+                </div>
+                <div className="space-y-2">
+                  <Label>방향</Label>
+                  <Input value={editingAlert.direction} disabled className="bg-muted" />
+                </div>
+              </div>
+              
+              <div className="space-y-2">
+                <Label>상태</Label>
+                <Select value={editEnabled ? "active" : "inactive"} onValueChange={(v) => setEditEnabled(v === "active")}>
+                  <SelectTrigger>
+                    <SelectValue />
+                  </SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="active">활성</SelectItem>
+                    <SelectItem value="inactive">비활성</SelectItem>
+                  </SelectContent>
+                </Select>
+              </div>
+              
+              <div className="space-y-2">
+                <Label>알림 방식</Label>
+                <Select value={editNotification} onValueChange={setEditNotification}>
+                  <SelectTrigger>
+                    <SelectValue />
+                  </SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="앱">앱</SelectItem>
+                    <SelectItem value="앱+이메일">앱+이메일</SelectItem>
+                    <SelectItem value="이메일">이메일</SelectItem>
+                  </SelectContent>
+                </Select>
+              </div>
+            </div>
+          )}
+          <DialogFooter>
+            <Button variant="outline" onClick={() => setShowEditDialog(false)}>취소</Button>
+            <Button onClick={handleSaveEdit}>저장</Button>
           </DialogFooter>
         </DialogContent>
       </Dialog>

@@ -218,7 +218,7 @@ const INITIAL_STANDING_ISSUES: StandingIssue[] = [
     status: "watching",
     unit: "CDU",
     linkedTicketId: "2",
-    linkedTicketTitle: "E-101 세정 계획",
+    linkedTicketTitle: "E-101 세정 ���획",
     registeredBy: "u-engineer-1",
     createdDate: "2024-11-20",
     lastUpdated: "2025-01-30",
@@ -468,7 +468,7 @@ const SAMPLE_ALERTS: AlertItem[] = [
     type: "notice",
     subType: "long-term",
     title: "장기 모니터링 리포트 (주간)",
-    description: "촉매 성능 및 열교환기 효율에 대한 장기 트렌드 분석 결과입니다.",
+    description: "촉매 성능 및 열교환기 효율에 대한 장기 ���렌드 분석 결과입니다.",
     timestamp: "2025-02-02 09:00",
     status: "unread",
     severity: "info",
@@ -2092,7 +2092,7 @@ export default function AlertsPage() {
                             </div>
                             <div>
                               <span className="text-[11px] text-muted-foreground">Limit 도달</span>
-                              <p className="text-lg font-bold text-red-600">{hm.projectionWeeks}주</p>
+                              <p className="text-lg font-bold text-red-600">{hm.projectionWeeks}��</p>
                             </div>
                             <div>
                               <span className="text-[11px] text-muted-foreground">Action Window</span>
@@ -2907,48 +2907,6 @@ export default function AlertsPage() {
                         </CardHeader>
                         <CardContent>
                           <div className="space-y-4">
-                            {/* Custom Alarms - from personalized alarm storage */}
-                            <div>
-                              <p className="text-xs font-medium mb-2 flex items-center gap-1.5">
-                                <Bell className="h-3.5 w-3.5 text-amber-500" />Custom 알람 목록
-                                <Badge variant="secondary" className="text-[8px] h-4">{personalizedAlarms.filter(a => a.active).length + 2}</Badge>
-                              </p>
-                              <div className="space-y-1.5">
-                                {/* Default custom alarms */}
-                                {[
-                                  { tag: "AI-1752", name: "AR Flash Point < 65\u00b0C", current: "69.5\u00b0C", ok: true },
-                                  { tag: "TI-1352", name: "Furnace Outlet > 370\u00b0C", current: "363.2\u00b0C", ok: true },
-                                ].map(item => (
-                                  <div key={item.tag} className="flex items-center gap-2 p-2 border rounded text-xs">
-                                    <span className={cn("w-2 h-2 rounded-full shrink-0", item.ok ? "bg-green-500" : "bg-red-500")} />
-                                    <div className="flex-1 min-w-0"><p className="truncate">{item.name}</p></div>
-                                    <span className="font-mono shrink-0">{item.current}</span>
-                                  </div>
-                                ))}
-                                {/* Personalized alarms from floating button registration */}
-                                {personalizedAlarms.filter(a => a.active).map(alarm => {
-                                  const currentVal = (parseFloat(alarm.tagId.replace(/\D/g, "")) % 100 + 50).toFixed(1)
-                                  const violated = (alarm.min !== undefined && parseFloat(currentVal) < alarm.min) || (alarm.max !== undefined && parseFloat(currentVal) > alarm.max)
-                                  return (
-                                    <div key={alarm.id} className={cn("flex items-center gap-2 p-2 border rounded text-xs", violated && "border-red-200 bg-red-50/30")}>
-                                      <span className={cn("w-2 h-2 rounded-full shrink-0", violated ? "bg-red-500" : "bg-green-500")} />
-                                      <div className="flex-1 min-w-0">
-                                        <p className="truncate">{alarm.tagId}: {alarm.min !== undefined ? `Min ${alarm.min}` : ""}{alarm.min !== undefined && alarm.max !== undefined ? " ~ " : ""}{alarm.max !== undefined ? `Max ${alarm.max}` : ""} {alarm.unit}</p>
-                                        {alarm.tagDescription && <p className="text-[10px] text-muted-foreground truncate">{alarm.tagDescription}</p>}
-                                      </div>
-                                      <span className="font-mono shrink-0">{currentVal} {alarm.unit}</span>
-                                    </div>
-                                  )
-                                })}
-                                {personalizedAlarms.filter(a => a.active).length === 0 && (
-                                  <p className="text-[10px] text-muted-foreground py-1">��측 하단 플로팅 버튼에서 개인화 알림을 등록하세요.</p>
-                                )}
-                              </div>
-                            </div>
-
-                            {/* Separator */}
-                            <div className="border-t" />
-
                             {/* 장기 건전성 집중 모니터링 - Detailed trend cards */}
                             <div>
                               <p className="text-xs font-medium mb-3 flex items-center gap-1.5">
@@ -5421,7 +5379,7 @@ export default function AlertsPage() {
                   id="csr-desc"
                   value={csrDescription}
                   onChange={(e) => setCsrDescription(e.target.value)}
-                  placeholder="수정이 필요한 DCS 화면, 파라미터, 변경 내용 등을 상세히 기재하세요..."
+                  placeholder="수정이 필요한 DCS 화면, 파라미터, 변경 내용 등을 상세히 ���재하세요..."
                   className="min-h-32"
                 />
               </div>
