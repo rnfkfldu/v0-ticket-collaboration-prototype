@@ -218,7 +218,7 @@ const INITIAL_STANDING_ISSUES: StandingIssue[] = [
     status: "watching",
     unit: "CDU",
     linkedTicketId: "2",
-    linkedTicketTitle: "E-101 세정 ���획",
+    linkedTicketTitle: "E-101 세정 �����획",
     registeredBy: "u-engineer-1",
     createdDate: "2024-11-20",
     lastUpdated: "2025-01-30",
@@ -542,7 +542,7 @@ const SAMPLE_ALERTS: AlertItem[] = [
     id: "NTC-007",
     type: "notice",
     subType: "auto-calc",
-    title: "자동 계산 완료: 월간 Operation Cost",
+    title: "자동 계산 완료: 월��� Operation Cost",
     description: "2025년 1월 운영비용 자동 계산이 완료되었습니다. 데이터 정합성 검토가 필요합니다.",
     timestamp: "2025-02-01 08:00",
     status: "unread",
@@ -736,7 +736,7 @@ const SAMPLE_ALERTS: AlertItem[] = [
   }
 ]
 
-// 팀장용 운영 KPI 목업 데이터
+// 팀장용 운영 KPI 목��� 데이터
 const TEAM_KPI_DATA = {
   engineers: [
     { id: "u-engineer-1", name: "김철수", team: "생산팀", processes: ["HCR", "VGOFCC"], dailyMonitoring: 92, weeklyMonitoring: 88, liveDocsUpdated: true, alertsHandled: 12, alertsPending: 2, ticketsActive: 3, avgResponseTime: "2.1h" },
@@ -756,12 +756,117 @@ const TEAM_KPI_DATA = {
   }
 }
 
-// 에스컬레이션된 티켓 목업 (팀장이 확인해야 할 티켓)
-const ESCALATED_TICKETS = [
-  { id: "TKT-2025-0215", title: "HCR Reactor Temp 지속 상승 - 촉매 성능 저하 의심", process: "HCR", engineer: "김철수", priority: "P1", escalationReason: "P1 티켓 - 팀장 검토 필요", status: "진행중", createdAt: "2025-02-15", dueDate: "2025-02-17" },
-  { id: "TKT-2025-0212", title: "E-101 Fouling 가속화 - 세정 시기 결정 필요", process: "CDU", engineer: "박영희", priority: "P2", escalationReason: "기한 초과 임박 (D-1)", status: "진행중", createdAt: "2025-02-12", dueDate: "2025-02-18" },
-  { id: "TKT-2025-0210", title: "RFCC Regenerator 압력 불안정", process: "RFCC", engineer: "최진우", priority: "P2", escalationReason: "3일 이상 미해결", status: "대기", createdAt: "2025-02-10", dueDate: "2025-02-20" },
-  { id: "TKT-2025-0208", title: "VBU Catalyst Deactivation 분석 요청", process: "VBU", engineer: "송재현", priority: "P3", escalationReason: "엔지니어 요청 에스컬레이션", status: "검토중", createdAt: "2025-02-08", dueDate: "2025-02-22" },
+// 팀장 전용 Notice 데이터 (에스컬레이션, 완료 승인 요청)
+type TeamLeadNoticeType = "escalation-new" | "escalation-upgraded" | "completion-approval"
+interface TeamLeadNotice {
+  id: string
+  type: TeamLeadNoticeType
+  title: string
+  description: string
+  timestamp: string
+  status: "unread" | "read"
+  ticketId?: string
+  process: string
+  engineer: string
+  priority: string
+  // 에스컬레이션 상세
+  escalationReason?: string
+  previousPriority?: string
+  // 완료 승인 상세
+  completionReport?: {
+    summary: string
+    rootCause: string
+    actions: string[]
+    preventiveMeasures: string[]
+    attachments: string[]
+  }
+}
+
+const TEAM_LEAD_NOTICES: TeamLeadNotice[] = [
+  // 신규 중요 이벤트 (팀원에게 P1 이벤트 생성)
+  { 
+    id: "TLN-001", 
+    type: "escalation-new", 
+    title: "HCR Reactor Temp 지속 상승 - 촉매 성능 저하 의심", 
+    description: "김철수님에게 P1 이벤트가 신규 생성되었습니다.",
+    timestamp: "2025-02-17 09:30",
+    status: "unread",
+    ticketId: "TKT-2025-0215",
+    process: "HCR",
+    engineer: "김철수",
+    priority: "P1",
+    escalationReason: "신규 P1 이벤트 생성"
+  },
+  // 우선순위 상향 에스컬레이션
+  { 
+    id: "TLN-002", 
+    type: "escalation-upgraded", 
+    title: "E-101 Fouling 가속화 - 세정 시기 결정 필요", 
+    description: "박영희님의 이벤트가 P3 → P2로 상향되었습니다.",
+    timestamp: "2025-02-16 14:20",
+    status: "unread",
+    ticketId: "TKT-2025-0212",
+    process: "CDU",
+    engineer: "박영희",
+    priority: "P2",
+    previousPriority: "P3",
+    escalationReason: "상황 악화로 우선순위 상향"
+  },
+  // 완료 승인 요청
+  { 
+    id: "TLN-003", 
+    type: "completion-approval", 
+    title: "RFCC Regenerator 압력 안정화 작업 완료", 
+    description: "최진우님이 이벤트 종결을 위해 팀장 승인을 요청했습니다.",
+    timestamp: "2025-02-15 16:45",
+    status: "unread",
+    ticketId: "TKT-2025-0210",
+    process: "RFCC",
+    engineer: "최진우",
+    priority: "P2",
+    completionReport: {
+      summary: "Regenerator 압력 변동 문제 해결 완료. 제어 밸브 튜닝 및 모니터링 로직 개선으로 안정화 달성.",
+      rootCause: "PIC-1501 제어기 게인 값이 공정 변화에 따라 부적절해진 것으로 확인됨. 촉매 활성도 변화로 인한 반응 dynamics 변화가 주요 원인.",
+      actions: [
+        "PIC-1501 게인값 재튜닝 (Kp: 1.2→0.8, Ti: 120s→180s)",
+        "압력 변동 감지 로직 추가 (±0.3 kg/cm2 이상 시 알람)",
+        "Regenerator 온도-압력 상관관계 모니터링 강화"
+      ],
+      preventiveMeasures: [
+        "분기별 제어기 성능 검토 일정 추가",
+        "촉매 교체 시 제어기 파라미터 재검토 절차 수립",
+        "압력 변동 트렌드 일일 모니터링 항목 추가"
+      ],
+      attachments: ["튜닝_결과_리포트.pdf", "압력_안정화_트렌드.xlsx"]
+    }
+  },
+  // 추가 완료 승인 요청
+  { 
+    id: "TLN-004", 
+    type: "completion-approval", 
+    title: "VBU Catalyst 성능 저하 분석 및 대응 완료", 
+    description: "송재현님이 이벤트 종결을 위해 팀장 승인을 요청했습니다.",
+    timestamp: "2025-02-14 11:30",
+    status: "read",
+    ticketId: "TKT-2025-0208",
+    process: "VBU",
+    engineer: "송재현",
+    priority: "P3",
+    completionReport: {
+      summary: "VBU 촉매 활성도 저하 원인 분석 완료. 피드 중 금속 성분 증가가 원인으로 확인됨.",
+      rootCause: "최근 원유 블렌딩 비율 변경으로 피드 내 Ni, V 함량이 증가하여 촉매 피독 가속화.",
+      actions: [
+        "피드 금속 함량 모니터링 강화",
+        "Guard bed 교체 주기 단축 (6개월→4개월)",
+        "촉매 활성도 예측 모델 업데이트"
+      ],
+      preventiveMeasures: [
+        "원유 블렌딩 변경 시 사전 영향 평가 절차 추가",
+        "월별 촉매 성능 리뷰 미팅 정례화"
+      ],
+      attachments: ["촉매_분석_리포트.pdf", "금속함량_추이.xlsx", "Guard_bed_교체_계획.docx"]
+    }
+  },
 ]
 
 export default function AlertsPage() {
@@ -769,8 +874,12 @@ export default function AlertsPage() {
   const { currentUser, isManagement, visibleProcesses } = useUser()
   const isTeamLead = currentUser.role === "team-lead" || currentUser.role === "division-head" || currentUser.role === "plant-head"
   
-  const [alerts, setAlerts] = useState<AlertItem[]>(SAMPLE_ALERTS)
-  const [selectedAlert, setSelectedAlert] = useState<AlertItem | null>(SAMPLE_ALERTS[0])
+const [alerts, setAlerts] = useState<AlertItem[]>(SAMPLE_ALERTS)
+const [selectedAlert, setSelectedAlert] = useState<AlertItem | null>(SAMPLE_ALERTS[0])
+// 팀장 전용 Notice 선택 상태
+const [selectedTeamLeadNotice, setSelectedTeamLeadNotice] = useState<TeamLeadNotice | null>(null)
+const [showApprovalDialog, setShowApprovalDialog] = useState(false)
+const [approvalComment, setApprovalComment] = useState("")
   const [showTicketDialog, setShowTicketDialog] = useState(false)
   const [ticketTitle, setTicketTitle] = useState("")
   const [ticketDescription, setTicketDescription] = useState("")
@@ -1296,10 +1405,11 @@ export default function AlertsPage() {
     setIssueUpdateContent("")
   }
 
-  // 알림 선택 시 리뷰 상태 초기화
-  const handleSelectAlert = (alert: AlertItem) => {
-    setSelectedAlert(alert)
-    setDocReviewComment("")
+// 알림 선택 시 리뷰 상태 초기화
+const handleSelectAlert = (alert: AlertItem) => {
+  setSelectedAlert(alert)
+  setSelectedTeamLeadNotice(null) // 팀장 Notice 선택 해제
+  setDocReviewComment("")
     setDocReviewConfirmed(false)
     setExpandedReviewSections([])
     setActiveDcsScreen(0)
@@ -1508,17 +1618,17 @@ export default function AlertsPage() {
                             item.alertState === "new" && "border-l-2 border-l-red-500"
                           )}
                         >
-                          <div className="flex items-center gap-1.5 flex-wrap">
+                          <div className="flex items-center gap-1.5">
                             <Badge className={cn("text-xs px-1.5 py-0 shrink-0", gradeInfo.color)}>{gradeInfo.label}</Badge>
                             <Badge variant="outline" className={cn("text-xs px-1.5 py-0 shrink-0", stateInfo.color)}>{stateInfo.label}</Badge>
-                            <span className="text-xs text-muted-foreground ml-auto shrink-0">{item.unit}</span>
+                            <span className="text-xs text-muted-foreground shrink-0">{item.unit}</span>
                             {item.alertState === "new" && item.occurrenceHistory && item.occurrenceHistory.length > 1 && (
                               <span className="flex items-center justify-center h-5 min-w-5 px-1 rounded-full bg-red-500 text-white text-[10px] font-bold shrink-0" title={`${item.occurrenceHistory.length}회 발생`}>
                                 {item.occurrenceHistory.length}
                               </span>
                             )}
                           </div>
-                          <p className={cn("text-sm mt-1 break-words", item.alertState === "new" ? "font-bold" : "font-medium")}>{item.title}</p>
+                          <p className={cn("text-sm mt-1", item.alertState === "new" ? "font-bold" : "font-medium")}>{item.title}</p>
                           <p className="text-xs text-muted-foreground">{item.timestamp}</p>
                         </button>
                       )
@@ -1605,38 +1715,39 @@ export default function AlertsPage() {
                 </div>
               )}
 
-              {/* 팀장 전용: 에스컬레이션 티켓 섹션 */}
+              {/* 팀장 전용: Notice 섹션 (에스컬레이션, 완료 승인 요청) */}
               {isTeamLead && (
                 <div className="mb-2">
                   <button
-                    onClick={() => toggleSection("event")}
+                    onClick={() => toggleSection("notice")}
                     className="w-full flex items-center gap-2 p-2 rounded-lg hover:bg-muted/50 transition-colors"
                   >
-                    {expandedSections.event ? <ChevronDown className="h-4 w-4" /> : <ChevronRight className="h-4 w-4" />}
-                    <AlertCircle className="h-4 w-4 text-orange-500" />
-                    <span className="font-medium text-sm">에스컬레이션 티켓</span>
-                    <Badge variant="destructive" className="ml-auto text-xs">{ESCALATED_TICKETS.length}</Badge>
+                    {expandedSections.notice ? <ChevronDown className="h-4 w-4" /> : <ChevronRight className="h-4 w-4" />}
+                    <Info className="h-4 w-4 text-blue-500" />
+                    <span className="font-medium text-sm">Notice</span>
+                    <Badge variant="secondary" className="ml-auto text-xs">{TEAM_LEAD_NOTICES.filter(n => n.status === "unread").length}</Badge>
                   </button>
-                  {expandedSections.event && (
+                  {expandedSections.notice && (
                     <div className="ml-2 space-y-1 mt-1">
-                      {ESCALATED_TICKETS.map(ticket => (
-                        <Link
-                          key={ticket.id}
-                          href={`/tickets/${ticket.id.replace("TKT-", "")}`}
-                          className="block w-full text-left p-2 rounded-lg hover:bg-muted/50 transition-colors border-l-2 border-l-orange-500"
+                      {TEAM_LEAD_NOTICES.map(notice => (
+                        <button
+                          key={notice.id}
+                          onClick={() => { setSelectedTeamLeadNotice(notice); setSelectedAlert(null); }}
+                          className={cn(
+                            "w-full text-left p-2 rounded-lg hover:bg-muted/50 transition-colors",
+                            selectedTeamLeadNotice?.id === notice.id ? "bg-primary/10 border border-primary/30" : "",
+                            notice.status === "unread" && "border-l-2 border-l-blue-500"
+                          )}
                         >
-                          <div className="flex items-center gap-1.5 flex-wrap">
-                            <Badge className={cn("text-xs px-1.5 py-0", ticket.priority === "P1" ? "bg-red-500 text-white" : "bg-amber-500 text-white")}>{ticket.priority}</Badge>
-                            <span className="text-xs text-muted-foreground">{ticket.process}</span>
+                          <div className="flex items-center gap-1.5">
+                            {notice.type === "escalation-new" && <Badge className="text-xs px-1.5 py-0 bg-red-500 text-white">신규 P1</Badge>}
+                            {notice.type === "escalation-upgraded" && <Badge className="text-xs px-1.5 py-0 bg-orange-500 text-white">에스컬레이션</Badge>}
+                            {notice.type === "completion-approval" && <Badge className="text-xs px-1.5 py-0 bg-green-600 text-white">승인 요청</Badge>}
+                            <span className="text-xs text-muted-foreground">{notice.process}</span>
                           </div>
-                          <p className="text-sm font-medium mt-1 line-clamp-2">{ticket.title}</p>
-                          <p className="text-xs text-orange-600 mt-0.5">{ticket.escalationReason}</p>
-                          <div className="flex items-center gap-2 mt-1 text-xs text-muted-foreground">
-                            <span>{ticket.engineer}</span>
-                            <span>|</span>
-                            <span>D-day: {ticket.dueDate}</span>
-                          </div>
-                        </Link>
+                          <p className={cn("text-sm mt-1", notice.status === "unread" ? "font-bold" : "font-medium")}>{notice.title}</p>
+                          <p className="text-xs text-muted-foreground mt-0.5">{notice.engineer} | {notice.timestamp}</p>
+                        </button>
                       ))}
                     </div>
                   )}
@@ -1648,7 +1759,189 @@ export default function AlertsPage() {
 
         {/* 우측 세부 화면 */}
         <div className="flex-1 flex flex-col">
-          {selectedAlert ? (
+          {/* 팀장 전용 Notice 상세 화면 */}
+          {isTeamLead && selectedTeamLeadNotice ? (
+            <>
+              {/* Notice 헤더 */}
+              <div className="p-6 border-b border-border bg-card">
+                <div className="flex items-center gap-3 mb-3">
+                  <div className={cn(
+                    "p-2 rounded-full text-white",
+                    selectedTeamLeadNotice.type === "escalation-new" ? "bg-red-500" :
+                    selectedTeamLeadNotice.type === "escalation-upgraded" ? "bg-orange-500" : "bg-green-600"
+                  )}>
+                    {selectedTeamLeadNotice.type === "completion-approval" ? <CheckCircle className="h-5 w-5" /> : <AlertCircle className="h-5 w-5" />}
+                  </div>
+                  <div>
+                    <div className="flex items-center gap-2">
+                      {selectedTeamLeadNotice.type === "escalation-new" && <Badge className="bg-red-500 text-white">신규 중요 이벤트</Badge>}
+                      {selectedTeamLeadNotice.type === "escalation-upgraded" && <Badge className="bg-orange-500 text-white">우선순위 에스컬레이션</Badge>}
+                      {selectedTeamLeadNotice.type === "completion-approval" && <Badge className="bg-green-600 text-white">완료 승인 요청</Badge>}
+                      <Badge variant="outline">{selectedTeamLeadNotice.process}</Badge>
+                      <Badge variant="secondary">{selectedTeamLeadNotice.priority}</Badge>
+                    </div>
+                  </div>
+                </div>
+                <h2 className="text-xl font-semibold">{selectedTeamLeadNotice.title}</h2>
+                <div className="flex items-center gap-4 mt-2 text-sm text-muted-foreground">
+                  <span className="flex items-center gap-1"><Users className="h-4 w-4" />{selectedTeamLeadNotice.engineer}</span>
+                  <span className="flex items-center gap-1"><Clock className="h-4 w-4" />{selectedTeamLeadNotice.timestamp}</span>
+                </div>
+              </div>
+
+              {/* Notice 콘텐츠 */}
+              <ScrollArea className="flex-1 p-6">
+                <div className="space-y-6">
+                  <p className="text-muted-foreground">{selectedTeamLeadNotice.description}</p>
+
+                  {/* 에스컬레이션 상세 */}
+                  {(selectedTeamLeadNotice.type === "escalation-new" || selectedTeamLeadNotice.type === "escalation-upgraded") && (
+                    <Card className="border-orange-200 bg-orange-50/30">
+                      <CardHeader className="pb-2">
+                        <CardTitle className="text-sm flex items-center gap-2">
+                          <AlertCircle className="h-4 w-4 text-orange-500" />
+                          에스컬레이션 정보
+                        </CardTitle>
+                      </CardHeader>
+                      <CardContent className="space-y-3">
+                        <div className="grid grid-cols-2 gap-4">
+                          <div>
+                            <p className="text-xs text-muted-foreground">사유</p>
+                            <p className="text-sm font-medium">{selectedTeamLeadNotice.escalationReason}</p>
+                          </div>
+                          {selectedTeamLeadNotice.previousPriority && (
+                            <div>
+                              <p className="text-xs text-muted-foreground">우선순위 변경</p>
+                              <p className="text-sm font-medium">{selectedTeamLeadNotice.previousPriority} → {selectedTeamLeadNotice.priority}</p>
+                            </div>
+                          )}
+                        </div>
+                        {selectedTeamLeadNotice.ticketId && (
+                          <Link href={`/tickets/${selectedTeamLeadNotice.ticketId.replace("TKT-", "")}`}>
+                            <Button variant="outline" size="sm" className="gap-2">
+                              <ExternalLink className="h-4 w-4" />
+                              이벤트 상세 보기
+                            </Button>
+                          </Link>
+                        )}
+                      </CardContent>
+                    </Card>
+                  )}
+
+                  {/* 완료 승인 요청 상세 */}
+                  {selectedTeamLeadNotice.type === "completion-approval" && selectedTeamLeadNotice.completionReport && (
+                    <>
+                      <Card>
+                        <CardHeader className="pb-2">
+                          <CardTitle className="text-sm flex items-center gap-2">
+                            <FileText className="h-4 w-4" />
+                            완료 보고서 요약
+                          </CardTitle>
+                        </CardHeader>
+                        <CardContent>
+                          <p className="text-sm">{selectedTeamLeadNotice.completionReport.summary}</p>
+                        </CardContent>
+                      </Card>
+
+                      <Card>
+                        <CardHeader className="pb-2">
+                          <CardTitle className="text-sm flex items-center gap-2">
+                            <Target className="h-4 w-4 text-red-500" />
+                            근본 원인 (Root Cause)
+                          </CardTitle>
+                        </CardHeader>
+                        <CardContent>
+                          <p className="text-sm">{selectedTeamLeadNotice.completionReport.rootCause}</p>
+                        </CardContent>
+                      </Card>
+
+                      <Card>
+                        <CardHeader className="pb-2">
+                          <CardTitle className="text-sm flex items-center gap-2">
+                            <Wrench className="h-4 w-4 text-blue-500" />
+                            수행 조치
+                          </CardTitle>
+                        </CardHeader>
+                        <CardContent>
+                          <ul className="space-y-2">
+                            {selectedTeamLeadNotice.completionReport.actions.map((action, i) => (
+                              <li key={i} className="flex items-start gap-2 text-sm">
+                                <CheckCircle className="h-4 w-4 text-green-500 mt-0.5 shrink-0" />
+                                <span>{action}</span>
+                              </li>
+                            ))}
+                          </ul>
+                        </CardContent>
+                      </Card>
+
+                      <Card>
+                        <CardHeader className="pb-2">
+                          <CardTitle className="text-sm flex items-center gap-2">
+                            <ShieldCheck className="h-4 w-4 text-green-600" />
+                            재발 방지 대책
+                          </CardTitle>
+                        </CardHeader>
+                        <CardContent>
+                          <ul className="space-y-2">
+                            {selectedTeamLeadNotice.completionReport.preventiveMeasures.map((measure, i) => (
+                              <li key={i} className="flex items-start gap-2 text-sm">
+                                <span className="w-5 h-5 rounded-full bg-green-100 text-green-700 flex items-center justify-center text-xs font-medium shrink-0">{i + 1}</span>
+                                <span>{measure}</span>
+                              </li>
+                            ))}
+                          </ul>
+                        </CardContent>
+                      </Card>
+
+                      {selectedTeamLeadNotice.completionReport.attachments.length > 0 && (
+                        <Card>
+                          <CardHeader className="pb-2">
+                            <CardTitle className="text-sm flex items-center gap-2">
+                              <FileImage className="h-4 w-4" />
+                              첨부 파일
+                            </CardTitle>
+                          </CardHeader>
+                          <CardContent>
+                            <div className="flex flex-wrap gap-2">
+                              {selectedTeamLeadNotice.completionReport.attachments.map((file, i) => (
+                                <Badge key={i} variant="secondary" className="gap-1">
+                                  <FileText className="h-3 w-3" />
+                                  {file}
+                                </Badge>
+                              ))}
+                            </div>
+                          </CardContent>
+                        </Card>
+                      )}
+
+                      {/* 승인 버튼 */}
+                      <div className="flex gap-3 pt-4 border-t">
+                        <Button 
+                          className="flex-1 gap-2" 
+                          onClick={() => setShowApprovalDialog(true)}
+                        >
+                          <CheckCircle className="h-4 w-4" />
+                          승인하기
+                        </Button>
+                        <Button variant="outline" className="gap-2">
+                          <MessageSquare className="h-4 w-4" />
+                          코멘트 추가
+                        </Button>
+                        {selectedTeamLeadNotice.ticketId && (
+                          <Link href={`/tickets/${selectedTeamLeadNotice.ticketId.replace("TKT-", "")}`}>
+                            <Button variant="outline" className="gap-2">
+                              <ExternalLink className="h-4 w-4" />
+                              이벤트 상세
+                            </Button>
+                          </Link>
+                        )}
+                      </div>
+                    </>
+                  )}
+                </div>
+              </ScrollArea>
+            </>
+          ) : selectedAlert ? (
             <>
               {/* 헤더 */}
               <div className="p-6 border-b border-border bg-card">
@@ -3345,7 +3638,7 @@ export default function AlertsPage() {
                                 </div>
                                 <div className="p-3 bg-muted/40 rounded-lg mb-3">
                                   <p className="text-xs leading-relaxed">
-                                    {"금주(2025년 5주차) 전반적인 공정 운전은 안정적으로 유지되었으나, 장기 건전성 관점에서 일부 주의가 필요합니다. 전체 118개 모니터링 항목 중 Red 46건(39%)으로 전주 대비 3건 증가하였으며, 특히 Fouling 카테고리에서 F-E101A, F-E102A의 열교환 성능 저하가 가속화되고 있습니다.\n\n이상징후 탐지에서는 총 28건이 감지되었으며 Danger 8건 중 FV-2001 Control Valve Sticking 의심 건과 E-101 UA Value 지속 하락이 중점 관리 대상입니다. DR 데이터 대비 Drift 감지에서 FI-1501 Flow Meter 교정 필요성이 재확인되었습니다.\n\n종합 판정: 전주 대비 건전성 지표 소폭 악화. F-E101A 세정 일정 검토 및 FV-2001 정비 점검 권장."}
+                                    {"금주(2025년 5주차) 전반적인 공정 운전은 안정적으로 유지되었으나, 장기 건전성 관점에서 일부 주의가 필요합니다. 전체 118개 모��터링 항목 중 Red 46건(39%)으로 전주 대비 3건 증가하였으며, 특히 Fouling 카테고리에서 F-E101A, F-E102A의 열교환 성능 저하가 가속화되고 있습니다.\n\n이상징후 탐지에서는 총 28건이 감지되었으며 Danger 8건 중 FV-2001 Control Valve Sticking 의심 건과 E-101 UA Value 지속 하락이 중점 관리 대상입니다. DR 데이터 대비 Drift 감지에서 FI-1501 Flow Meter 교정 필요성이 재확인되었습니다.\n\n종합 판정: 전주 대비 건전성 지표 소폭 악화. F-E101A 세정 일정 검토 및 FV-2001 정비 점검 권장."}
                                   </p>
                                 </div>
                                 <div className="p-3 bg-muted/40 rounded-lg">
@@ -6131,6 +6424,51 @@ export default function AlertsPage() {
                 )
               })()}
             </ScrollArea>
+          </DialogContent>
+        </Dialog>
+
+        {/* 팀장 승인 다이얼로그 */}
+        <Dialog open={showApprovalDialog} onOpenChange={setShowApprovalDialog}>
+          <DialogContent className="max-w-md">
+            <DialogHeader>
+              <DialogTitle className="flex items-center gap-2">
+                <CheckCircle className="h-5 w-5 text-green-600" />
+                완료 보고서 승인
+              </DialogTitle>
+            </DialogHeader>
+            <div className="space-y-4 py-4">
+              <div className="p-3 bg-green-50 border border-green-200 rounded-lg">
+                <p className="text-sm text-green-800">
+                  <span className="font-semibold">{selectedTeamLeadNotice?.engineer}</span>님의 
+                  <span className="font-semibold"> {selectedTeamLeadNotice?.title}</span> 이벤트 완료 보고서를 승인합니다.
+                </p>
+              </div>
+              <div className="space-y-2">
+                <Label htmlFor="approval-comment">승인 코멘트 (선택)</Label>
+                <Textarea
+                  id="approval-comment"
+                  placeholder="팀원에게 전달할 피드백이나 코멘트를 입력하세요..."
+                  value={approvalComment}
+                  onChange={(e) => setApprovalComment(e.target.value)}
+                  className="min-h-24"
+                />
+              </div>
+            </div>
+            <DialogFooter>
+              <Button variant="outline" onClick={() => setShowApprovalDialog(false)}>취소</Button>
+              <Button 
+                className="gap-2"
+                onClick={() => {
+                  alert(`승인이 완료되었습니다.\n\n이벤트: ${selectedTeamLeadNotice?.title}\n담당자: ${selectedTeamLeadNotice?.engineer}\n코멘트: ${approvalComment || "(없음)"}`)
+                  setShowApprovalDialog(false)
+                  setApprovalComment("")
+                  setSelectedTeamLeadNotice(null)
+                }}
+              >
+                <CheckCircle className="h-4 w-4" />
+                승인 완료
+              </Button>
+            </DialogFooter>
           </DialogContent>
         </Dialog>
       </div>
