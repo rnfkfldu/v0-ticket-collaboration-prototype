@@ -8,7 +8,6 @@ import { Label } from "@/components/ui/label"
 import { Input } from "@/components/ui/input"
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
 import { Slider } from "@/components/ui/slider"
-import { Tabs, TabsList, TabsTrigger, TabsContent } from "@/components/ui/tabs"
 import { RadioGroup, RadioGroupItem } from "@/components/ui/radio-group"
 import { Separator } from "@/components/ui/separator"
 import { Progress } from "@/components/ui/progress"
@@ -20,6 +19,16 @@ import {
 } from "lucide-react"
 import { useState, useMemo } from "react"
 import { cn } from "@/lib/utils"
+import {
+  LineChart as RechartsLineChart,
+  Line,
+  XAxis,
+  YAxis,
+  CartesianGrid,
+  Tooltip,
+  ResponsiveContainer,
+  Legend,
+} from "recharts"
 
 interface Variable {
   id: string
@@ -151,46 +160,55 @@ const STEPS = [
 ]
 
 export default function WhatIfSimulationPage() {
-  // Mode: basic or advanced
-  const [mode, setMode] = useState<"basic" | "advanced">("basic")
-  
-  // Basic simulation state
+  // Step state
   const [currentStep, setCurrentStep] = useState(1)
   const [selectedModelId, setSelectedModelId] = useState<string | null>(null)
   const [baselineType, setBaselineType] = useState<string>("current")
   const [baselineDate, setBaselineDate] = useState("2026-02-27")
   const [variables, setVariables] = useState<Variable[]>([])
+  
+  // Simulation mode: single (단건) or iteration (심화)
+  const [simulationMode, setSimulationMode] = useState<"single" | "iteration">("single")
+  
+  // Single mode state
   const [isSimulating, setIsSimulating] = useState(false)
   const [isSimulated, setIsSimulated] = useState(false)
   const [simulationResults, setSimulationResults] = useState<{name: string; unit: string; base: number; simulated: number; diff: number; diffPct: number}[]>([])
   
-  // Advanced simulation state
-  const [advSelectedModelId, setAdvSelectedModelId] = useState<string | null>(null)
-  const [advBaselineType, setAdvBaselineType] = useState<string>("current")
-  const [advInputVar1, setAdvInputVar1] = useState<string>("")
-  const [advInputVar2, setAdvInputVar2] = useState<string>("")
-  const [advOutputVar, setAdvOutputVar] = useState<string>("")
-  const [advVar1Start, setAdvVar1Start] = useState<number>(0)
-  const [advVar1End, setAdvVar1End] = useState<number>(100)
-  const [advVar1Step, setAdvVar1Step] = useState<number>(5)
-  const [advVar2Start, setAdvVar2Start] = useState<number>(0)
-  const [advVar2End, setAdvVar2End] = useState<number>(100)
-  const [advVar2Step, setAdvVar2Step] = useState<number>(5)
-  const [advIsSimulating, setAdvIsSimulating] = useState(false)
-  const [advIsSimulated, setAdvIsSimulated] = useState(false)
-  const [advProgress, setAdvProgress] = useState(0)
-  const [advResults, setAdvResults] = useState<{x: number; y?: number; z: number}[]>([])
+  // Iteration mode state
+  const [iterInputVar1, setIterInputVar1] = useState<string>("")
+  const [iterInputVar2, setIterInputVar2] = useState<string>("__none__")
+  const [iterOutputVar, setIterOutputVar] = useState<string>("")
+  const [iterVar1Start, setIterVar1Start] = useState<number>(0)
+  const [iterVar1End, setIterVar1End] = useState<number>(100)
+  const [iterVar1Step, setIterVar1Step] = useState<number>(5)
+  const [iterVar2Start, setIterVar2Start] = useState<number>(0)
+  const [iterVar2End, setIterVar2End] = useState<number>(100)
+  const [iterVar2Step, setIterVar2Step] = useState<number>(5)
+  const [iterProgress, setIterProgress] = useState(0)
+  const [iterResults, setIterResults] = useState<{x: number; y?: number; z: number}[]>([])
   
   const selectedModel = MODEL_ARTIFACTS.find(m => m.id === selectedModelId)
-  const advSelectedModel = MODEL_ARTIFACTS.find(m => m.id === advSelectedModelId)
   
-  // Basic simulation handlers
+  // Handlers
   const handleSelectModel = (modelId: string) => {
     const model = MODEL_ARTIFACTS.find(m => m.id === modelId)!
     setSelectedModelId(modelId)
     setVariables(model.variables.map(v => ({ ...v })))
     setIsSimulated(false)
     setSimulationResults([])
+    setIterResults([])
+    // Initialize iteration settings
+    if (model.variables.length > 0) {
+      const firstVar = model.variables[0]
+      setIterInputVar1(firstVar.id)
+      setIterVar1Start(firstVar.min)
+      setIterVar1End(firstVar.max)
+      setIterVar1Step(Math.round((firstVar.max - firstVar.min) / 10))
+    }
+    if (model.outputs.length > 0) {
+      setIterOutputVar(model.outputs[0].id)
+    }
   }
   
   const handleVariableChange = (id: string, value: number) => {
@@ -203,14 +221,37 @@ export default function WhatIfSimulationPage() {
     }
   }
   
-  const handleSimulate = async () => {
+  const handleInputVar1Change = (varId: string) => {
+    setIterInputVar1(varId)
+    if (selectedModel) {
+      const v = selectedModel.variables.find(v => v.id === varId)
+      if (v) {
+        setIterVar1Start(v.min)
+        setIterVar1End(v.max)
+        setIterVar1Step(Math.round((v.max - v.min) / 10))
+      }
+    }
+  }
+  
+  const handleInputVar2Change = (varId: string) => {
+    setIterInputVar2(varId)
+    if (selectedModel && varId !== "__none__") {
+      const v = selectedModel.variables.find(v => v.id === varId)
+      if (v) {
+        setIterVar2Start(v.min)
+        setIterVar2End(v.max)
+        setIterVar2Step(Math.round((v.max - v.min) / 5))
+      }
+    }
+  }
+  
+  // Single simulation
+  const handleSimulateSingle = async () => {
     setIsSimulating(true)
-    // Simulate processing time
     await new Promise(resolve => setTimeout(resolve, 1500))
     
     if (selectedModel) {
       const results = selectedModel.outputs.map(out => {
-        // Mock simulation - apply some random variation based on variable changes
         const varianceFromChanges = variables.reduce((acc, v) => {
           const changePct = (v.current - v.base) / v.base
           return acc + changePct * (Math.random() * 0.5)
@@ -234,6 +275,55 @@ export default function WhatIfSimulationPage() {
     setIsSimulated(true)
   }
   
+  // Iteration simulation
+  const handleSimulateIteration = async () => {
+    if (!selectedModel) return
+    
+    setIsSimulating(true)
+    setIterProgress(0)
+    
+    const results: {x: number; y?: number; z: number}[] = []
+    const var1Steps = Math.ceil((iterVar1End - iterVar1Start) / iterVar1Step) + 1
+    const useVar2 = iterInputVar2 !== "__none__"
+    const var2Steps = useVar2 ? Math.ceil((iterVar2End - iterVar2Start) / iterVar2Step) + 1 : 1
+    const totalIterations = var1Steps * var2Steps
+    let currentIteration = 0
+    
+    for (let x = iterVar1Start; x <= iterVar1End; x += iterVar1Step) {
+      if (useVar2) {
+        for (let y = iterVar2Start; y <= iterVar2End; y += iterVar2Step) {
+          const outputVar = selectedModel.outputs.find(o => o.id === iterOutputVar)
+          const baseValue = outputVar?.base || 50
+          const z = baseValue * (1 + (x - iterVar1Start) / (iterVar1End - iterVar1Start) * 0.1 - (y - iterVar2Start) / (iterVar2End - iterVar2Start) * 0.05 + Math.random() * 0.02)
+          results.push({ x, y, z: Math.round(z * 100) / 100 })
+          currentIteration++
+          setIterProgress(Math.round((currentIteration / totalIterations) * 100))
+          await new Promise(resolve => setTimeout(resolve, 15))
+        }
+      } else {
+        const outputVar = selectedModel.outputs.find(o => o.id === iterOutputVar)
+        const baseValue = outputVar?.base || 50
+        const z = baseValue * (1 + (x - iterVar1Start) / (iterVar1End - iterVar1Start) * 0.15 + Math.random() * 0.02 - 0.01)
+        results.push({ x, z: Math.round(z * 100) / 100 })
+        currentIteration++
+        setIterProgress(Math.round((currentIteration / totalIterations) * 100))
+        await new Promise(resolve => setTimeout(resolve, 25))
+      }
+    }
+    
+    setIterResults(results)
+    setIsSimulating(false)
+    setIsSimulated(true)
+  }
+  
+  const handleSimulate = async () => {
+    if (simulationMode === "single") {
+      await handleSimulateSingle()
+    } else {
+      await handleSimulateIteration()
+    }
+  }
+  
   const handleNextStep = () => {
     if (currentStep < 5) setCurrentStep(currentStep + 1)
   }
@@ -242,287 +332,231 @@ export default function WhatIfSimulationPage() {
     if (currentStep > 1) setCurrentStep(currentStep - 1)
   }
   
-  // Advanced simulation handlers
-  const handleAdvSelectModel = (modelId: string) => {
-    const model = MODEL_ARTIFACTS.find(m => m.id === modelId)!
-    setAdvSelectedModelId(modelId)
-    setAdvInputVar1(model.variables[0]?.id || "")
-    setAdvInputVar2("")
-    setAdvOutputVar(model.outputs[0]?.id || "")
-    const firstVar = model.variables[0]
-    if (firstVar) {
-      setAdvVar1Start(firstVar.min)
-      setAdvVar1End(firstVar.max)
-      setAdvVar1Step(Math.round((firstVar.max - firstVar.min) / 10))
-    }
-    setAdvIsSimulated(false)
-    setAdvResults([])
-  }
-  
-  const handleAdvInputVar1Change = (varId: string) => {
-    setAdvInputVar1(varId)
-    const model = advSelectedModel
-    if (model) {
-      const v = model.variables.find(v => v.id === varId)
-      if (v) {
-        setAdvVar1Start(v.min)
-        setAdvVar1End(v.max)
-        setAdvVar1Step(Math.round((v.max - v.min) / 10))
-      }
-    }
-  }
-  
-  const handleAdvInputVar2Change = (varId: string) => {
-    setAdvInputVar2(varId)
-    const model = advSelectedModel
-    if (model && varId) {
-      const v = model.variables.find(v => v.id === varId)
-      if (v) {
-        setAdvVar2Start(v.min)
-        setAdvVar2End(v.max)
-        setAdvVar2Step(Math.round((v.max - v.min) / 5))
-      }
-    }
-  }
-  
-  const handleAdvSimulate = async () => {
-    if (!advSelectedModel) return
-    
-    setAdvIsSimulating(true)
-    setAdvProgress(0)
-    
-    const results: {x: number; y?: number; z: number}[] = []
-    const var1Steps = Math.ceil((advVar1End - advVar1Start) / advVar1Step) + 1
-    const var2Steps = advInputVar2 ? Math.ceil((advVar2End - advVar2Start) / advVar2Step) + 1 : 1
-    const totalIterations = var1Steps * var2Steps
-    let currentIteration = 0
-    
-    for (let x = advVar1Start; x <= advVar1End; x += advVar1Step) {
-      if (advInputVar2) {
-        for (let y = advVar2Start; y <= advVar2End; y += advVar2Step) {
-          // Mock output calculation
-          const outputVar = advSelectedModel.outputs.find(o => o.id === advOutputVar)
-          const baseValue = outputVar?.base || 50
-          const z = baseValue * (1 + (x - advVar1Start) / (advVar1End - advVar1Start) * 0.1 - (y - advVar2Start) / (advVar2End - advVar2Start) * 0.05 + Math.random() * 0.02)
-          results.push({ x, y, z: Math.round(z * 100) / 100 })
-          currentIteration++
-          setAdvProgress(Math.round((currentIteration / totalIterations) * 100))
-          await new Promise(resolve => setTimeout(resolve, 20))
-        }
-      } else {
-        const outputVar = advSelectedModel.outputs.find(o => o.id === advOutputVar)
-        const baseValue = outputVar?.base || 50
-        const z = baseValue * (1 + (x - advVar1Start) / (advVar1End - advVar1Start) * 0.15 + Math.random() * 0.02 - 0.01)
-        results.push({ x, z: Math.round(z * 100) / 100 })
-        currentIteration++
-        setAdvProgress(Math.round((currentIteration / totalIterations) * 100))
-        await new Promise(resolve => setTimeout(resolve, 30))
-      }
-    }
-    
-    setAdvResults(results)
-    setAdvIsSimulating(false)
-    setAdvIsSimulated(true)
-  }
-  
-  // Calculate iteration count for advanced mode
-  const advIterationCount = useMemo(() => {
-    const var1Steps = Math.ceil((advVar1End - advVar1Start) / advVar1Step) + 1
-    const var2Steps = advInputVar2 ? Math.ceil((advVar2End - advVar2Start) / advVar2Step) + 1 : 1
+  // Calculate iteration count
+  const iterationCount = useMemo(() => {
+    const var1Steps = Math.ceil((iterVar1End - iterVar1Start) / iterVar1Step) + 1
+    const useVar2 = iterInputVar2 !== "__none__"
+    const var2Steps = useVar2 ? Math.ceil((iterVar2End - iterVar2Start) / iterVar2Step) + 1 : 1
     return var1Steps * var2Steps
-  }, [advVar1Start, advVar1End, advVar1Step, advInputVar2, advVar2Start, advVar2End, advVar2Step])
+  }, [iterVar1Start, iterVar1End, iterVar1Step, iterInputVar2, iterVar2Start, iterVar2End, iterVar2Step])
+
+  // Get variable/output names for labels
+  const getVarName = (varId: string) => selectedModel?.variables.find(v => v.id === varId)?.name || ""
+  const getVarUnit = (varId: string) => selectedModel?.variables.find(v => v.id === varId)?.unit || ""
+  const getOutputName = (outId: string) => selectedModel?.outputs.find(o => o.id === outId)?.name || ""
+  const getOutputUnit = (outId: string) => selectedModel?.outputs.find(o => o.id === outId)?.unit || ""
   
   return (
     <AppShell>
       <div className="min-h-screen bg-background">
-        {/* Header with mode tabs */}
+        {/* Header */}
         <header className="border-b border-border bg-card">
           <div className="px-6 py-4">
-            <div className="flex items-center justify-between">
-              <div>
-                <h1 className="text-lg font-semibold flex items-center gap-2">
-                  <Target className="h-5 w-5 text-primary" />
-                  What-if Simulation
-                </h1>
-                <p className="text-sm text-muted-foreground mt-1">모델 기반 시뮬레이션으로 다양한 운전 시나리오를 분석합니다</p>
-              </div>
-              <Tabs value={mode} onValueChange={(v) => setMode(v as "basic" | "advanced")}>
-                <TabsList>
-                  <TabsTrigger value="basic" className="gap-2">
-                    <Play className="h-4 w-4" />
-                    기본 시뮬레이션
-                  </TabsTrigger>
-                  <TabsTrigger value="advanced" className="gap-2">
-                    <Layers className="h-4 w-4" />
-                    심화 시뮬레이션
-                  </TabsTrigger>
-                </TabsList>
-              </Tabs>
-            </div>
+            <h1 className="text-lg font-semibold flex items-center gap-2">
+              <Target className="h-5 w-5 text-primary" />
+              What-if Simulation
+            </h1>
+            <p className="text-sm text-muted-foreground mt-1">모델 기반 시뮬레이션으로 다양한 운전 시나리오를 분석합니다</p>
           </div>
         </header>
         
-        {mode === "basic" ? (
-          /* ===================== BASIC SIMULATION ===================== */
-          <div className="p-6">
-            {/* Step indicator */}
-            <div className="mb-8">
-              <div className="flex items-center justify-between max-w-3xl mx-auto">
-                {STEPS.map((step, i) => {
-                  const StepIcon = step.icon
-                  const isCompleted = currentStep > step.id
-                  const isCurrent = currentStep === step.id
-                  return (
-                    <div key={step.id} className="flex items-center">
-                      <div className="flex flex-col items-center">
-                        <div className={cn(
-                          "w-10 h-10 rounded-full flex items-center justify-center border-2 transition-colors",
-                          isCompleted ? "bg-primary border-primary text-primary-foreground" :
-                          isCurrent ? "border-primary text-primary bg-primary/10" :
-                          "border-muted-foreground/30 text-muted-foreground"
-                        )}>
-                          {isCompleted ? <CheckCircle className="h-5 w-5" /> : <StepIcon className="h-5 w-5" />}
-                        </div>
-                        <span className={cn(
-                          "text-xs mt-2 font-medium",
-                          isCurrent ? "text-primary" : isCompleted ? "text-foreground" : "text-muted-foreground"
-                        )}>{step.label}</span>
+        <div className="p-6">
+          {/* Step indicator */}
+          <div className="mb-8">
+            <div className="flex items-center justify-between max-w-3xl mx-auto">
+              {STEPS.map((step, i) => {
+                const StepIcon = step.icon
+                const isCompleted = currentStep > step.id
+                const isCurrent = currentStep === step.id
+                return (
+                  <div key={step.id} className="flex items-center">
+                    <div className="flex flex-col items-center">
+                      <div className={cn(
+                        "w-10 h-10 rounded-full flex items-center justify-center border-2 transition-colors",
+                        isCompleted ? "bg-primary border-primary text-primary-foreground" :
+                        isCurrent ? "border-primary text-primary bg-primary/10" :
+                        "border-muted-foreground/30 text-muted-foreground"
+                      )}>
+                        {isCompleted ? <CheckCircle className="h-5 w-5" /> : <StepIcon className="h-5 w-5" />}
                       </div>
-                      {i < STEPS.length - 1 && (
-                        <div className={cn(
-                          "w-20 h-0.5 mx-2",
-                          currentStep > step.id ? "bg-primary" : "bg-muted-foreground/20"
-                        )} />
-                      )}
+                      <span className={cn(
+                        "text-xs mt-2 font-medium",
+                        isCurrent ? "text-primary" : isCompleted ? "text-foreground" : "text-muted-foreground"
+                      )}>{step.label}</span>
                     </div>
-                  )
-                })}
-              </div>
+                    {i < STEPS.length - 1 && (
+                      <div className={cn(
+                        "w-20 h-0.5 mx-2",
+                        currentStep > step.id ? "bg-primary" : "bg-muted-foreground/20"
+                      )} />
+                    )}
+                  </div>
+                )
+              })}
             </div>
+          </div>
+          
+          {/* Step content */}
+          <div className="max-w-4xl mx-auto">
+            {/* Step 1: Model Selection */}
+            {currentStep === 1 && (
+              <div className="space-y-4">
+                <div className="text-center mb-6">
+                  <h2 className="text-xl font-semibold">Step 1. 시뮬레이션 모델 선택</h2>
+                  <p className="text-sm text-muted-foreground mt-1">시뮬레이션에 사용할 모델 아티팩트를 선택하세요</p>
+                </div>
+                <div className="grid grid-cols-2 gap-4">
+                  {MODEL_ARTIFACTS.map(model => (
+                    <button
+                      key={model.id}
+                      className={cn(
+                        "text-left p-5 border rounded-xl transition-all group",
+                        selectedModelId === model.id
+                          ? "border-primary bg-primary/5 ring-2 ring-primary/20"
+                          : "hover:border-primary/50 hover:bg-primary/5"
+                      )}
+                      onClick={() => handleSelectModel(model.id)}
+                    >
+                      <div className="flex items-center gap-3 mb-3">
+                        <div className="p-2 rounded-lg bg-muted">
+                          {model.type === "RTO" ? <Cpu className="h-5 w-5 text-blue-600" /> :
+                           model.type === "ML" ? <Box className="h-5 w-5 text-purple-600" /> :
+                           <BarChart3 className="h-5 w-5 text-teal-600" />}
+                        </div>
+                        <div className="flex-1">
+                          <div className="flex items-center gap-2">
+                            <h3 className="font-semibold text-sm">{model.name}</h3>
+                            <Badge variant="outline" className={cn("text-xs", TYPE_COLORS[model.type])}>{model.type}</Badge>
+                          </div>
+                          <Badge variant="secondary" className="text-xs mt-0.5">{model.process}</Badge>
+                        </div>
+                        {selectedModelId === model.id && <CheckCircle className="h-5 w-5 text-primary" />}
+                      </div>
+                      <p className="text-xs text-muted-foreground mb-3">{model.description}</p>
+                      <div className="flex items-center gap-4 text-xs text-muted-foreground">
+                        <span className="flex items-center gap-1"><CheckCircle className="h-3 w-3 text-green-500" />정확도 {model.accuracy}%</span>
+                        <span>{model.variables.length}개 변수</span>
+                      </div>
+                    </button>
+                  ))}
+                </div>
+                <div className="flex justify-end pt-4">
+                  <Button onClick={handleNextStep} disabled={!selectedModelId} className="gap-2">
+                    다음 단계 <ChevronRight className="h-4 w-4" />
+                  </Button>
+                </div>
+              </div>
+            )}
             
-            {/* Step content */}
-            <div className="max-w-4xl mx-auto">
-              {/* Step 1: Model Selection */}
-              {currentStep === 1 && (
-                <div className="space-y-4">
-                  <div className="text-center mb-6">
-                    <h2 className="text-xl font-semibold">Step 1. 시뮬레이션 모델 선택</h2>
-                    <p className="text-sm text-muted-foreground mt-1">시뮬레이션에 사용할 모델 아티팩트를 선택하세요</p>
-                  </div>
-                  <div className="grid grid-cols-2 gap-4">
-                    {MODEL_ARTIFACTS.map(model => (
-                      <button
-                        key={model.id}
-                        className={cn(
-                          "text-left p-5 border rounded-xl transition-all group",
-                          selectedModelId === model.id
-                            ? "border-primary bg-primary/5 ring-2 ring-primary/20"
-                            : "hover:border-primary/50 hover:bg-primary/5"
-                        )}
-                        onClick={() => handleSelectModel(model.id)}
-                      >
-                        <div className="flex items-center gap-3 mb-3">
-                          <div className="p-2 rounded-lg bg-muted">
-                            {model.type === "RTO" ? <Cpu className="h-5 w-5 text-blue-600" /> :
-                             model.type === "ML" ? <Box className="h-5 w-5 text-purple-600" /> :
-                             <BarChart3 className="h-5 w-5 text-teal-600" />}
-                          </div>
+            {/* Step 2: Baseline Selection */}
+            {currentStep === 2 && (
+              <div className="space-y-6">
+                <div className="text-center mb-6">
+                  <h2 className="text-xl font-semibold">Step 2. 베이스라인 조건 선택</h2>
+                  <p className="text-sm text-muted-foreground mt-1">시뮬레이션의 기준이 될 베이스라인을 선택하세요</p>
+                </div>
+                <Card>
+                  <CardContent className="pt-6">
+                    <RadioGroup value={baselineType} onValueChange={setBaselineType} className="space-y-4">
+                      {BASELINE_OPTIONS.map(opt => (
+                        <div key={opt.id} className={cn(
+                          "flex items-center space-x-4 p-4 rounded-lg border transition-colors cursor-pointer",
+                          baselineType === opt.id ? "border-primary bg-primary/5" : "hover:bg-muted/50"
+                        )} onClick={() => setBaselineType(opt.id)}>
+                          <RadioGroupItem value={opt.id} id={opt.id} />
                           <div className="flex-1">
-                            <div className="flex items-center gap-2">
-                              <h3 className="font-semibold text-sm">{model.name}</h3>
-                              <Badge variant="outline" className={cn("text-xs", TYPE_COLORS[model.type])}>{model.type}</Badge>
-                            </div>
-                            <Badge variant="secondary" className="text-xs mt-0.5">{model.process}</Badge>
+                            <Label htmlFor={opt.id} className="font-medium cursor-pointer">{opt.label}</Label>
+                            <p className="text-sm text-muted-foreground">{opt.description}</p>
                           </div>
-                          {selectedModelId === model.id && <CheckCircle className="h-5 w-5 text-primary" />}
+                          {opt.id === "current" && <Badge variant="secondary">권장</Badge>}
                         </div>
-                        <p className="text-xs text-muted-foreground mb-3">{model.description}</p>
-                        <div className="flex items-center gap-4 text-xs text-muted-foreground">
-                          <span className="flex items-center gap-1"><CheckCircle className="h-3 w-3 text-green-500" />정확도 {model.accuracy}%</span>
-                          <span>{model.variables.length}개 변수</span>
-                        </div>
-                      </button>
-                    ))}
-                  </div>
-                  <div className="flex justify-end pt-4">
-                    <Button onClick={handleNextStep} disabled={!selectedModelId} className="gap-2">
-                      다음 단계 <ChevronRight className="h-4 w-4" />
-                    </Button>
-                  </div>
+                      ))}
+                    </RadioGroup>
+                    
+                    {baselineType === "date" && (
+                      <div className="mt-4 p-4 bg-muted/30 rounded-lg">
+                        <Label className="text-sm">기준 날짜 선택</Label>
+                        <Input
+                          type="date"
+                          value={baselineDate}
+                          onChange={(e) => setBaselineDate(e.target.value)}
+                          className="mt-2 max-w-xs"
+                        />
+                      </div>
+                    )}
+                    
+                    {baselineType === "plan" && (
+                      <div className="mt-4 p-4 bg-muted/30 rounded-lg">
+                        <Label className="text-sm">운영 계획 선택</Label>
+                        <Select defaultValue="weekly">
+                          <SelectTrigger className="mt-2 max-w-xs">
+                            <SelectValue />
+                          </SelectTrigger>
+                          <SelectContent>
+                            <SelectItem value="weekly">주간 운영계획 (2026-W09)</SelectItem>
+                            <SelectItem value="monthly">월간 운영계획 (2026-02)</SelectItem>
+                          </SelectContent>
+                        </Select>
+                      </div>
+                    )}
+                  </CardContent>
+                </Card>
+                <div className="flex justify-between pt-4">
+                  <Button variant="outline" onClick={handlePrevStep} className="gap-2">
+                    <ChevronLeft className="h-4 w-4" /> 이전 단계
+                  </Button>
+                  <Button onClick={handleNextStep} className="gap-2">
+                    다음 단계 <ChevronRight className="h-4 w-4" />
+                  </Button>
                 </div>
-              )}
-              
-              {/* Step 2: Baseline Selection */}
-              {currentStep === 2 && (
-                <div className="space-y-6">
-                  <div className="text-center mb-6">
-                    <h2 className="text-xl font-semibold">Step 2. 베이스라인 조건 선택</h2>
-                    <p className="text-sm text-muted-foreground mt-1">시뮬레이션의 기준이 될 베이스라인을 선택하세요</p>
-                  </div>
-                  <Card>
-                    <CardContent className="pt-6">
-                      <RadioGroup value={baselineType} onValueChange={setBaselineType} className="space-y-4">
-                        {BASELINE_OPTIONS.map(opt => (
-                          <div key={opt.id} className={cn(
-                            "flex items-center space-x-4 p-4 rounded-lg border transition-colors cursor-pointer",
-                            baselineType === opt.id ? "border-primary bg-primary/5" : "hover:bg-muted/50"
-                          )} onClick={() => setBaselineType(opt.id)}>
-                            <RadioGroupItem value={opt.id} id={opt.id} />
-                            <div className="flex-1">
-                              <Label htmlFor={opt.id} className="font-medium cursor-pointer">{opt.label}</Label>
-                              <p className="text-sm text-muted-foreground">{opt.description}</p>
-                            </div>
-                            {opt.id === "current" && <Badge variant="secondary">권장</Badge>}
-                          </div>
-                        ))}
-                      </RadioGroup>
-                      
-                      {baselineType === "date" && (
-                        <div className="mt-4 p-4 bg-muted/30 rounded-lg">
-                          <Label className="text-sm">기준 날짜 선택</Label>
-                          <Input
-                            type="date"
-                            value={baselineDate}
-                            onChange={(e) => setBaselineDate(e.target.value)}
-                            className="mt-2 max-w-xs"
-                          />
-                        </div>
-                      )}
-                      
-                      {baselineType === "plan" && (
-                        <div className="mt-4 p-4 bg-muted/30 rounded-lg">
-                          <Label className="text-sm">운영 계획 선택</Label>
-                          <Select defaultValue="weekly">
-                            <SelectTrigger className="mt-2 max-w-xs">
-                              <SelectValue />
-                            </SelectTrigger>
-                            <SelectContent>
-                              <SelectItem value="weekly">주간 운영계획 (2026-W09)</SelectItem>
-                              <SelectItem value="monthly">월간 운영계획 (2026-02)</SelectItem>
-                            </SelectContent>
-                          </Select>
-                        </div>
-                      )}
-                    </CardContent>
-                  </Card>
-                  <div className="flex justify-between pt-4">
-                    <Button variant="outline" onClick={handlePrevStep} className="gap-2">
-                      <ChevronLeft className="h-4 w-4" /> 이전 단계
-                    </Button>
-                    <Button onClick={handleNextStep} className="gap-2">
-                      다음 단계 <ChevronRight className="h-4 w-4" />
-                    </Button>
-                  </div>
+              </div>
+            )}
+            
+            {/* Step 3: Variable Adjustment - with mode selection */}
+            {currentStep === 3 && selectedModel && (
+              <div className="space-y-6">
+                <div className="text-center mb-6">
+                  <h2 className="text-xl font-semibold">Step 3. 시뮬레이션 변수 조절</h2>
+                  <p className="text-sm text-muted-foreground mt-1">시뮬레이션할 운전 조건을 조정하세요</p>
                 </div>
-              )}
-              
-              {/* Step 3: Variable Adjustment */}
-              {currentStep === 3 && selectedModel && (
-                <div className="space-y-6">
-                  <div className="text-center mb-6">
-                    <h2 className="text-xl font-semibold">Step 3. 시뮬레이션 변수 조절</h2>
-                    <p className="text-sm text-muted-foreground mt-1">시뮬레이션할 운전 조건을 조정하세요</p>
-                  </div>
+                
+                {/* Mode Selection */}
+                <Card>
+                  <CardContent className="pt-6">
+                    <Label className="text-sm font-medium mb-3 block">시뮬레이션 모드 선택</Label>
+                    <RadioGroup value={simulationMode} onValueChange={(v) => setSimulationMode(v as "single" | "iteration")} className="grid grid-cols-2 gap-4">
+                      <div className={cn(
+                        "flex items-start space-x-3 p-4 rounded-lg border transition-colors cursor-pointer",
+                        simulationMode === "single" ? "border-primary bg-primary/5" : "hover:bg-muted/50"
+                      )} onClick={() => setSimulationMode("single")}>
+                        <RadioGroupItem value="single" id="mode-single" className="mt-1" />
+                        <div className="flex-1">
+                          <Label htmlFor="mode-single" className="font-medium cursor-pointer flex items-center gap-2">
+                            <Settings2 className="h-4 w-4" />
+                            단건 시뮬레이션
+                          </Label>
+                          <p className="text-xs text-muted-foreground mt-1">각 변수를 수동으로 조절하여 단일 케이스 시뮬레이션</p>
+                        </div>
+                      </div>
+                      <div className={cn(
+                        "flex items-start space-x-3 p-4 rounded-lg border transition-colors cursor-pointer",
+                        simulationMode === "iteration" ? "border-primary bg-primary/5" : "hover:bg-muted/50"
+                      )} onClick={() => setSimulationMode("iteration")}>
+                        <RadioGroupItem value="iteration" id="mode-iteration" className="mt-1" />
+                        <div className="flex-1">
+                          <Label htmlFor="mode-iteration" className="font-medium cursor-pointer flex items-center gap-2">
+                            <Layers className="h-4 w-4" />
+                            심화 시뮬레이션 (반복)
+                          </Label>
+                          <p className="text-xs text-muted-foreground mt-1">변수를 범위로 설정하여 다중 케이스 반복 시뮬레이션</p>
+                        </div>
+                      </div>
+                    </RadioGroup>
+                  </CardContent>
+                </Card>
+                
+                {/* Single Mode: Variable Sliders */}
+                {simulationMode === "single" && (
                   <Card>
                     <CardHeader className="pb-3">
                       <div className="flex items-center justify-between">
@@ -569,254 +603,26 @@ export default function WhatIfSimulationPage() {
                       })}
                     </CardContent>
                   </Card>
-                  <div className="flex justify-between pt-4">
-                    <Button variant="outline" onClick={handlePrevStep} className="gap-2">
-                      <ChevronLeft className="h-4 w-4" /> 이전 단계
-                    </Button>
-                    <Button onClick={() => { handleSimulate(); handleNextStep(); }} className="gap-2">
-                      <Play className="h-4 w-4" /> 시뮬레이션 실행
-                    </Button>
-                  </div>
-                </div>
-              )}
-              
-              {/* Step 4: Results */}
-              {currentStep === 4 && selectedModel && (
-                <div className="space-y-6">
-                  <div className="text-center mb-6">
-                    <h2 className="text-xl font-semibold">Step 4. 실행 및 결과 확인</h2>
-                    <p className="text-sm text-muted-foreground mt-1">시뮬레이션 결과를 확인하세요</p>
-                  </div>
-                  
-                  {isSimulating ? (
-                    <Card className="py-16">
-                      <CardContent className="text-center">
-                        <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-primary mx-auto mb-4" />
-                        <p className="text-muted-foreground">시뮬레이션 실행 중...</p>
-                      </CardContent>
-                    </Card>
-                  ) : isSimulated ? (
-                    <>
-                      {/* KPI Cards */}
-                      <div className="grid grid-cols-3 gap-4">
-                        {simulationResults.map(r => (
-                          <Card key={r.name} className={cn(
-                            "border",
-                            r.diffPct >= 0 ? "border-green-200 bg-green-50/50" : "border-red-200 bg-red-50/50"
-                          )}>
-                            <CardContent className="pt-4 pb-4">
-                              <p className="text-xs text-muted-foreground mb-1">{r.name}</p>
-                              <div className="flex items-end justify-between">
-                                <p className="text-2xl font-bold">{r.simulated}<span className="text-sm font-normal text-muted-foreground ml-1">{r.unit}</span></p>
-                                <div className={cn("flex items-center text-sm font-medium", r.diffPct >= 0 ? "text-green-600" : "text-red-600")}>
-                                  {r.diffPct >= 0 ? <TrendingUp className="h-4 w-4 mr-1" /> : <TrendingDown className="h-4 w-4 mr-1" />}
-                                  {r.diffPct >= 0 ? "+" : ""}{r.diffPct}%
-                                </div>
-                              </div>
-                            </CardContent>
-                          </Card>
-                        ))}
-                      </div>
-                      
-                      {/* Comparison Table */}
-                      <Card>
-                        <CardHeader className="pb-3">
-                          <CardTitle className="text-sm">Base Case vs Simulation 비교</CardTitle>
-                        </CardHeader>
-                        <CardContent>
-                          <table className="w-full text-sm">
-                            <thead>
-                              <tr className="border-b">
-                                <th className="text-left py-2 font-medium text-muted-foreground">항목</th>
-                                <th className="text-right py-2 font-medium text-muted-foreground">Base</th>
-                                <th className="text-right py-2 font-medium text-muted-foreground">Simulation</th>
-                                <th className="text-right py-2 font-medium text-muted-foreground">차이</th>
-                              </tr>
-                            </thead>
-                            <tbody>
-                              {simulationResults.map(r => (
-                                <tr key={r.name} className="border-b last:border-0">
-                                  <td className="py-2.5 font-medium">{r.name}</td>
-                                  <td className="text-right font-mono">{r.base} {r.unit}</td>
-                                  <td className="text-right font-mono font-medium">{r.simulated} {r.unit}</td>
-                                  <td className={cn("text-right font-mono font-medium", r.diff >= 0 ? "text-green-600" : "text-red-600")}>
-                                    {r.diff >= 0 ? "+" : ""}{r.diff} ({r.diffPct}%)
-                                  </td>
-                                </tr>
-                              ))}
-                              <tr className="border-t-2">
-                                <td colSpan={4} className="py-2 text-xs text-muted-foreground font-medium">입력 변수 변경사항</td>
-                              </tr>
-                              {variables.filter(v => v.current !== v.base).map(v => (
-                                <tr key={v.id} className="text-muted-foreground">
-                                  <td className="py-1.5 text-xs">{v.name}</td>
-                                  <td className="text-right font-mono text-xs">{v.base} {v.unit}</td>
-                                  <td className="text-right font-mono text-xs">{v.current} {v.unit}</td>
-                                  <td className={cn("text-right font-mono text-xs", v.current > v.base ? "text-red-500" : "text-blue-500")}>
-                                    {v.current > v.base ? "+" : ""}{(v.current - v.base).toFixed(2)}
-                                  </td>
-                                </tr>
-                              ))}
-                            </tbody>
-                          </table>
-                        </CardContent>
-                      </Card>
-                    </>
-                  ) : (
-                    <Card className="py-16">
-                      <CardContent className="text-center">
-                        <Target className="h-12 w-12 text-muted-foreground/30 mx-auto mb-4" />
-                        <p className="text-muted-foreground">시뮬레이션을 실행해주세요</p>
-                      </CardContent>
-                    </Card>
-                  )}
-                  
-                  <div className="flex justify-between pt-4">
-                    <Button variant="outline" onClick={handlePrevStep} className="gap-2">
-                      <ChevronLeft className="h-4 w-4" /> 이전 단계
-                    </Button>
-                    <Button onClick={handleNextStep} disabled={!isSimulated} className="gap-2">
-                      다음 단계 <ChevronRight className="h-4 w-4" />
-                    </Button>
-                  </div>
-                </div>
-              )}
-              
-              {/* Step 5: Save & Export */}
-              {currentStep === 5 && (
-                <div className="space-y-6">
-                  <div className="text-center mb-6">
-                    <h2 className="text-xl font-semibold">Step 5. 결과 저장 및 내보내기</h2>
-                    <p className="text-sm text-muted-foreground mt-1">시뮬레이션 결과를 저장하거나 내보내세요</p>
-                  </div>
-                  
+                )}
+                
+                {/* Iteration Mode: Variable Range Settings */}
+                {simulationMode === "iteration" && (
                   <div className="grid grid-cols-2 gap-4">
-                    <Card className="p-6 hover:border-primary/50 transition-colors cursor-pointer">
-                      <div className="flex items-center gap-4">
-                        <div className="p-3 rounded-lg bg-primary/10">
-                          <Save className="h-6 w-6 text-primary" />
-                        </div>
-                        <div>
-                          <h3 className="font-semibold">시나리오 저장</h3>
-                          <p className="text-sm text-muted-foreground">시뮬레이션 조건과 결과를 저장합니다</p>
-                        </div>
-                      </div>
-                    </Card>
-                    
-                    <Card className="p-6 hover:border-primary/50 transition-colors cursor-pointer">
-                      <div className="flex items-center gap-4">
-                        <div className="p-3 rounded-lg bg-blue-500/10">
-                          <Download className="h-6 w-6 text-blue-600" />
-                        </div>
-                        <div>
-                          <h3 className="font-semibold">Excel 내보내기</h3>
-                          <p className="text-sm text-muted-foreground">결과를 Excel 파일로 다운로드합니다</p>
-                        </div>
-                      </div>
-                    </Card>
-                    
-                    <Card className="p-6 hover:border-primary/50 transition-colors cursor-pointer">
-                      <div className="flex items-center gap-4">
-                        <div className="p-3 rounded-lg bg-purple-500/10">
-                          <FileText className="h-6 w-6 text-purple-600" />
-                        </div>
-                        <div>
-                          <h3 className="font-semibold">보고서 생성</h3>
-                          <p className="text-sm text-muted-foreground">PDF 형식의 분석 보고서를 생성합니다</p>
-                        </div>
-                      </div>
-                    </Card>
-                    
-                    <Card className="p-6 hover:border-primary/50 transition-colors cursor-pointer">
-                      <div className="flex items-center gap-4">
-                        <div className="p-3 rounded-lg bg-green-500/10">
-                          <Zap className="h-6 w-6 text-green-600" />
-                        </div>
-                        <div>
-                          <h3 className="font-semibold">운전 적용 요청</h3>
-                          <p className="text-sm text-muted-foreground">시뮬레이션 결과를 실제 운전에 반영 요청합니다</p>
-                        </div>
-                      </div>
-                    </Card>
-                  </div>
-                  
-                  <Separator />
-                  
-                  <div className="flex justify-between pt-4">
-                    <Button variant="outline" onClick={handlePrevStep} className="gap-2">
-                      <ChevronLeft className="h-4 w-4" /> 이전 단계
-                    </Button>
-                    <Button onClick={() => { setCurrentStep(1); setSelectedModelId(null); setIsSimulated(false); }} className="gap-2">
-                      새 시뮬레이션 시작 <ArrowRight className="h-4 w-4" />
-                    </Button>
-                  </div>
-                </div>
-              )}
-            </div>
-          </div>
-        ) : (
-          /* ===================== ADVANCED SIMULATION ===================== */
-          <div className="p-6">
-            <div className="grid grid-cols-3 gap-6">
-              {/* Left Panel: Configuration */}
-              <div className="space-y-4">
-                <Card>
-                  <CardHeader className="pb-3">
-                    <CardTitle className="text-sm">1. 모델 선택</CardTitle>
-                  </CardHeader>
-                  <CardContent>
-                    <Select value={advSelectedModelId || ""} onValueChange={handleAdvSelectModel}>
-                      <SelectTrigger>
-                        <SelectValue placeholder="모델 선택..." />
-                      </SelectTrigger>
-                      <SelectContent>
-                        {MODEL_ARTIFACTS.map(m => (
-                          <SelectItem key={m.id} value={m.id}>
-                            <span className="flex items-center gap-2">
-                              {m.name}
-                              <Badge variant="outline" className="text-xs">{m.process}</Badge>
-                            </span>
-                          </SelectItem>
-                        ))}
-                      </SelectContent>
-                    </Select>
-                  </CardContent>
-                </Card>
-                
-                <Card>
-                  <CardHeader className="pb-3">
-                    <CardTitle className="text-sm">2. 베이스라인 선택</CardTitle>
-                  </CardHeader>
-                  <CardContent>
-                    <Select value={advBaselineType} onValueChange={setAdvBaselineType}>
-                      <SelectTrigger>
-                        <SelectValue />
-                      </SelectTrigger>
-                      <SelectContent>
-                        {BASELINE_OPTIONS.map(o => (
-                          <SelectItem key={o.id} value={o.id}>{o.label}</SelectItem>
-                        ))}
-                      </SelectContent>
-                    </Select>
-                  </CardContent>
-                </Card>
-                
-                {advSelectedModel && (
-                  <>
+                    {/* Input/Output Selection */}
                     <Card>
                       <CardHeader className="pb-3">
-                        <CardTitle className="text-sm">3. 입력/출력 변수 설정</CardTitle>
+                        <CardTitle className="text-sm">입력/출력 변수 설정</CardTitle>
                       </CardHeader>
                       <CardContent className="space-y-4">
                         <div>
                           <Label className="text-xs text-muted-foreground">입력 변수 1 (필수)</Label>
-                          <Select value={advInputVar1} onValueChange={handleAdvInputVar1Change}>
+                          <Select value={iterInputVar1} onValueChange={handleInputVar1Change}>
                             <SelectTrigger className="mt-1">
                               <SelectValue placeholder="선택..." />
                             </SelectTrigger>
                             <SelectContent>
-                              {advSelectedModel.variables.map(v => (
-                                <SelectItem key={v.id} value={v.id} disabled={v.id === advInputVar2}>
+                              {selectedModel.variables.map(v => (
+                                <SelectItem key={v.id} value={v.id} disabled={v.id === iterInputVar2}>
                                   {v.name} ({v.unit})
                                 </SelectItem>
                               ))}
@@ -826,13 +632,13 @@ export default function WhatIfSimulationPage() {
                         
                         <div>
                           <Label className="text-xs text-muted-foreground">입력 변수 2 (선택 - 3D 분석)</Label>
-                          <Select value={advInputVar2} onValueChange={handleAdvInputVar2Change}>
+                          <Select value={iterInputVar2} onValueChange={handleInputVar2Change}>
                             <SelectTrigger className="mt-1">
                               <SelectValue placeholder="없음" />
                             </SelectTrigger>
                             <SelectContent>
-                              <SelectItem value="">없음 (2D 분석)</SelectItem>
-                              {advSelectedModel.variables.filter(v => v.id !== advInputVar1).map(v => (
+                              <SelectItem value="__none__">없음 (2D 분석)</SelectItem>
+                              {selectedModel.variables.filter(v => v.id !== iterInputVar1).map(v => (
                                 <SelectItem key={v.id} value={v.id}>
                                   {v.name} ({v.unit})
                                 </SelectItem>
@@ -845,12 +651,12 @@ export default function WhatIfSimulationPage() {
                         
                         <div>
                           <Label className="text-xs text-muted-foreground">출력 변수</Label>
-                          <Select value={advOutputVar} onValueChange={setAdvOutputVar}>
+                          <Select value={iterOutputVar} onValueChange={setIterOutputVar}>
                             <SelectTrigger className="mt-1">
                               <SelectValue placeholder="선택..." />
                             </SelectTrigger>
                             <SelectContent>
-                              {advSelectedModel.outputs.map(o => (
+                              {selectedModel.outputs.map(o => (
                                 <SelectItem key={o.id} value={o.id}>
                                   {o.name} ({o.unit})
                                 </SelectItem>
@@ -861,23 +667,24 @@ export default function WhatIfSimulationPage() {
                       </CardContent>
                     </Card>
                     
+                    {/* Iteration Settings */}
                     <Card>
                       <CardHeader className="pb-3">
-                        <CardTitle className="text-sm">4. 이터레이션 조건 설정</CardTitle>
+                        <CardTitle className="text-sm">이터레이션 조건 설정</CardTitle>
                       </CardHeader>
                       <CardContent className="space-y-4">
-                        {advInputVar1 && (
+                        {iterInputVar1 && (
                           <div className="p-3 bg-muted/30 rounded-lg space-y-3">
                             <Label className="text-xs font-medium">
-                              {advSelectedModel.variables.find(v => v.id === advInputVar1)?.name}
+                              {getVarName(iterInputVar1)} ({getVarUnit(iterInputVar1)})
                             </Label>
                             <div className="grid grid-cols-3 gap-2">
                               <div>
                                 <Label className="text-xs text-muted-foreground">시작</Label>
                                 <Input
                                   type="number"
-                                  value={advVar1Start}
-                                  onChange={(e) => setAdvVar1Start(Number(e.target.value))}
+                                  value={iterVar1Start}
+                                  onChange={(e) => setIterVar1Start(Number(e.target.value))}
                                   className="mt-1 h-8"
                                 />
                               </div>
@@ -885,8 +692,8 @@ export default function WhatIfSimulationPage() {
                                 <Label className="text-xs text-muted-foreground">종료</Label>
                                 <Input
                                   type="number"
-                                  value={advVar1End}
-                                  onChange={(e) => setAdvVar1End(Number(e.target.value))}
+                                  value={iterVar1End}
+                                  onChange={(e) => setIterVar1End(Number(e.target.value))}
                                   className="mt-1 h-8"
                                 />
                               </div>
@@ -894,8 +701,8 @@ export default function WhatIfSimulationPage() {
                                 <Label className="text-xs text-muted-foreground">간격</Label>
                                 <Input
                                   type="number"
-                                  value={advVar1Step}
-                                  onChange={(e) => setAdvVar1Step(Number(e.target.value))}
+                                  value={iterVar1Step}
+                                  onChange={(e) => setIterVar1Step(Number(e.target.value))}
                                   className="mt-1 h-8"
                                 />
                               </div>
@@ -903,18 +710,18 @@ export default function WhatIfSimulationPage() {
                           </div>
                         )}
                         
-                        {advInputVar2 && (
+                        {iterInputVar2 !== "__none__" && (
                           <div className="p-3 bg-muted/30 rounded-lg space-y-3">
                             <Label className="text-xs font-medium">
-                              {advSelectedModel.variables.find(v => v.id === advInputVar2)?.name}
+                              {getVarName(iterInputVar2)} ({getVarUnit(iterInputVar2)})
                             </Label>
                             <div className="grid grid-cols-3 gap-2">
                               <div>
                                 <Label className="text-xs text-muted-foreground">시작</Label>
                                 <Input
                                   type="number"
-                                  value={advVar2Start}
-                                  onChange={(e) => setAdvVar2Start(Number(e.target.value))}
+                                  value={iterVar2Start}
+                                  onChange={(e) => setIterVar2Start(Number(e.target.value))}
                                   className="mt-1 h-8"
                                 />
                               </div>
@@ -922,8 +729,8 @@ export default function WhatIfSimulationPage() {
                                 <Label className="text-xs text-muted-foreground">종료</Label>
                                 <Input
                                   type="number"
-                                  value={advVar2End}
-                                  onChange={(e) => setAdvVar2End(Number(e.target.value))}
+                                  value={iterVar2End}
+                                  onChange={(e) => setIterVar2End(Number(e.target.value))}
                                   className="mt-1 h-8"
                                 />
                               </div>
@@ -931,8 +738,8 @@ export default function WhatIfSimulationPage() {
                                 <Label className="text-xs text-muted-foreground">간격</Label>
                                 <Input
                                   type="number"
-                                  value={advVar2Step}
-                                  onChange={(e) => setAdvVar2Step(Number(e.target.value))}
+                                  value={iterVar2Step}
+                                  onChange={(e) => setIterVar2Step(Number(e.target.value))}
                                   className="mt-1 h-8"
                                 />
                               </div>
@@ -940,250 +747,338 @@ export default function WhatIfSimulationPage() {
                           </div>
                         )}
                         
-                        <div className="flex items-center justify-between text-sm">
+                        <div className="flex items-center justify-between text-sm p-3 bg-primary/5 rounded-lg">
                           <span className="text-muted-foreground">총 이터레이션:</span>
-                          <Badge variant="secondary">{advIterationCount}회</Badge>
+                          <Badge variant="secondary" className="text-primary">{iterationCount}회</Badge>
                         </div>
                       </CardContent>
                     </Card>
-                    
-                    <Button 
-                      className="w-full gap-2" 
-                      size="lg" 
-                      onClick={handleAdvSimulate}
-                      disabled={advIsSimulating || !advInputVar1 || !advOutputVar}
-                    >
-                      {advIsSimulating ? (
+                  </div>
+                )}
+                
+                <div className="flex justify-between pt-4">
+                  <Button variant="outline" onClick={handlePrevStep} className="gap-2">
+                    <ChevronLeft className="h-4 w-4" /> 이전 단계
+                  </Button>
+                  <Button 
+                    onClick={() => { handleSimulate(); handleNextStep(); }} 
+                    className="gap-2"
+                    disabled={simulationMode === "iteration" && (!iterInputVar1 || !iterOutputVar)}
+                  >
+                    <Play className="h-4 w-4" /> 
+                    {simulationMode === "single" ? "시뮬레이션 실행" : `시뮬레이션 실행 (${iterationCount}회)`}
+                  </Button>
+                </div>
+              </div>
+            )}
+            
+            {/* Step 4: Results */}
+            {currentStep === 4 && selectedModel && (
+              <div className="space-y-6">
+                <div className="text-center mb-6">
+                  <h2 className="text-xl font-semibold">Step 4. 실행 및 결과 확인</h2>
+                  <p className="text-sm text-muted-foreground mt-1">
+                    {simulationMode === "single" ? "시뮬레이션 결과를 확인하세요" : "반복 시뮬레이션 결과를 확인하세요"}
+                  </p>
+                </div>
+                
+                {isSimulating ? (
+                  <Card className="py-16">
+                    <CardContent className="text-center">
+                      {simulationMode === "single" ? (
                         <>
-                          <div className="animate-spin rounded-full h-4 w-4 border-b-2 border-white" />
-                          시뮬레이션 진행 중... ({advProgress}%)
+                          <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-primary mx-auto mb-4" />
+                          <p className="text-muted-foreground">시뮬레이션 실행 중...</p>
                         </>
                       ) : (
-                        <>
-                          <Play className="h-4 w-4" />
-                          시뮬레이션 실행 ({advIterationCount}회)
-                        </>
+                        <div className="space-y-4 max-w-md mx-auto">
+                          <div className="flex items-center justify-between text-sm">
+                            <span>반복 시뮬레이션 진행 중...</span>
+                            <span className="font-medium">{iterProgress}%</span>
+                          </div>
+                          <Progress value={iterProgress} className="h-2" />
+                          <p className="text-xs text-muted-foreground">
+                            {Math.round(iterationCount * iterProgress / 100)} / {iterationCount} 이터레이션 완료
+                          </p>
+                        </div>
                       )}
-                    </Button>
-                  </>
-                )}
-              </div>
-              
-              {/* Right Panel: Results */}
-              <div className="col-span-2 space-y-4">
-                {advIsSimulating && (
-                  <Card>
-                    <CardContent className="py-6">
-                      <div className="space-y-3">
-                        <div className="flex items-center justify-between text-sm">
-                          <span>시뮬레이션 진행 중...</span>
-                          <span className="font-medium">{advProgress}%</span>
-                        </div>
-                        <Progress value={advProgress} className="h-2" />
-                        <p className="text-xs text-muted-foreground text-center">
-                          {Math.round(advIterationCount * advProgress / 100)} / {advIterationCount} 이터레이션 완료
-                        </p>
-                      </div>
                     </CardContent>
                   </Card>
-                )}
-                
-                {advIsSimulated && advSelectedModel && (
+                ) : isSimulated ? (
                   <>
-                    {/* Visualization */}
-                    <Card>
-                      <CardHeader className="pb-3">
-                        <div className="flex items-center justify-between">
-                          <CardTitle className="text-sm flex items-center gap-2">
-                            {advInputVar2 ? (
-                              <>
-                                <Layers className="h-4 w-4" />
-                                3D Surface Plot
-                              </>
-                            ) : (
-                              <>
-                                <LineChart className="h-4 w-4" />
-                                2D Line Chart
-                              </>
-                            )}
-                          </CardTitle>
-                          <Badge variant="outline">
-                            {advSelectedModel.variables.find(v => v.id === advInputVar1)?.name}
-                            {advInputVar2 && ` × ${advSelectedModel.variables.find(v => v.id === advInputVar2)?.name}`}
-                            {` → ${advSelectedModel.outputs.find(o => o.id === advOutputVar)?.name}`}
-                          </Badge>
+                    {/* Single Mode Results */}
+                    {simulationMode === "single" && (
+                      <>
+                        {/* KPI Cards */}
+                        <div className="grid grid-cols-3 gap-4">
+                          {simulationResults.map(r => (
+                            <Card key={r.name} className={cn(
+                              "border",
+                              r.diffPct >= 0 ? "border-green-200 bg-green-50/50" : "border-red-200 bg-red-50/50"
+                            )}>
+                              <CardContent className="pt-4 pb-4">
+                                <p className="text-xs text-muted-foreground mb-1">{r.name}</p>
+                                <div className="flex items-end justify-between">
+                                  <p className="text-2xl font-bold">{r.simulated}<span className="text-sm font-normal text-muted-foreground ml-1">{r.unit}</span></p>
+                                  <div className={cn("flex items-center text-sm font-medium", r.diffPct >= 0 ? "text-green-600" : "text-red-600")}>
+                                    {r.diffPct >= 0 ? <TrendingUp className="h-4 w-4 mr-1" /> : <TrendingDown className="h-4 w-4 mr-1" />}
+                                    {r.diffPct >= 0 ? "+" : ""}{r.diffPct}%
+                                  </div>
+                                </div>
+                              </CardContent>
+                            </Card>
+                          ))}
                         </div>
-                      </CardHeader>
-                      <CardContent>
-                        {advInputVar2 ? (
-                          /* 3D Surface Plot Placeholder */
-                          <div className="h-80 bg-gradient-to-br from-blue-50 to-purple-50 rounded-lg flex items-center justify-center relative overflow-hidden">
-                            <div className="absolute inset-0 opacity-20">
-                              {/* Grid lines for 3D effect */}
-                              <svg className="w-full h-full">
-                                {Array.from({ length: 10 }).map((_, i) => (
-                                  <line key={`h${i}`} x1="0" y1={`${i * 10}%`} x2="100%" y2={`${i * 10}%`} stroke="currentColor" strokeWidth="0.5" />
+                        
+                        {/* Comparison Table */}
+                        <Card>
+                          <CardHeader className="pb-3">
+                            <CardTitle className="text-sm">Base Case vs Simulation 비교</CardTitle>
+                          </CardHeader>
+                          <CardContent>
+                            <table className="w-full text-sm">
+                              <thead>
+                                <tr className="border-b">
+                                  <th className="text-left py-2 font-medium text-muted-foreground">항목</th>
+                                  <th className="text-right py-2 font-medium text-muted-foreground">Base</th>
+                                  <th className="text-right py-2 font-medium text-muted-foreground">Simulation</th>
+                                  <th className="text-right py-2 font-medium text-muted-foreground">차이</th>
+                                </tr>
+                              </thead>
+                              <tbody>
+                                {simulationResults.map(r => (
+                                  <tr key={r.name} className="border-b last:border-0">
+                                    <td className="py-2.5 font-medium">{r.name}</td>
+                                    <td className="text-right font-mono">{r.base} {r.unit}</td>
+                                    <td className="text-right font-mono font-medium">{r.simulated} {r.unit}</td>
+                                    <td className={cn("text-right font-mono font-medium", r.diff >= 0 ? "text-green-600" : "text-red-600")}>
+                                      {r.diff >= 0 ? "+" : ""}{r.diff} ({r.diffPct}%)
+                                    </td>
+                                  </tr>
                                 ))}
-                                {Array.from({ length: 10 }).map((_, i) => (
-                                  <line key={`v${i}`} x1={`${i * 10}%`} y1="0" x2={`${i * 10}%`} y2="100%" stroke="currentColor" strokeWidth="0.5" />
+                                <tr className="border-t-2">
+                                  <td colSpan={4} className="py-2 text-xs text-muted-foreground font-medium">입력 변수 변경사항</td>
+                                </tr>
+                                {variables.filter(v => v.current !== v.base).map(v => (
+                                  <tr key={v.id} className="text-muted-foreground">
+                                    <td className="py-1.5 text-xs">{v.name}</td>
+                                    <td className="text-right font-mono text-xs">{v.base} {v.unit}</td>
+                                    <td className="text-right font-mono text-xs">{v.current} {v.unit}</td>
+                                    <td className={cn("text-right font-mono text-xs", v.current > v.base ? "text-red-500" : "text-blue-500")}>
+                                      {v.current > v.base ? "+" : ""}{(v.current - v.base).toFixed(2)}
+                                    </td>
+                                  </tr>
                                 ))}
-                              </svg>
-                            </div>
-                            <div className="text-center z-10">
-                              <Layers className="h-16 w-16 mx-auto mb-3 text-purple-400" />
-                              <p className="font-medium text-purple-700">3D Surface Plot</p>
-                              <p className="text-sm text-purple-600 mt-1">
-                                X: {advSelectedModel.variables.find(v => v.id === advInputVar1)?.name}<br />
-                                Y: {advSelectedModel.variables.find(v => v.id === advInputVar2)?.name}<br />
-                                Z: {advSelectedModel.outputs.find(o => o.id === advOutputVar)?.name}
-                              </p>
-                              <p className="text-xs text-muted-foreground mt-2">{advResults.length}개 데이터 포인트</p>
-                            </div>
-                          </div>
-                        ) : (
-                          /* 2D Line Chart */
-                          <div className="h-80 relative">
-                            <svg className="w-full h-full">
-                              {/* Axes */}
-                              <line x1="50" y1="20" x2="50" y2="280" stroke="currentColor" strokeWidth="1" className="text-muted-foreground" />
-                              <line x1="50" y1="280" x2="580" y2="280" stroke="currentColor" strokeWidth="1" className="text-muted-foreground" />
-                              
-                              {/* Y-axis labels */}
-                              {Array.from({ length: 5 }).map((_, i) => {
-                                const minZ = Math.min(...advResults.map(r => r.z))
-                                const maxZ = Math.max(...advResults.map(r => r.z))
-                                const val = minZ + (maxZ - minZ) * (4 - i) / 4
-                                return (
-                                  <text key={i} x="45" y={50 + i * 57.5} textAnchor="end" className="text-xs fill-muted-foreground">
-                                    {val.toFixed(1)}
-                                  </text>
-                                )
-                              })}
-                              
-                              {/* X-axis labels */}
-                              {Array.from({ length: 5 }).map((_, i) => {
-                                const val = advVar1Start + (advVar1End - advVar1Start) * i / 4
-                                return (
-                                  <text key={i} x={50 + i * 132.5} y="300" textAnchor="middle" className="text-xs fill-muted-foreground">
-                                    {val.toFixed(0)}
-                                  </text>
-                                )
-                              })}
-                              
-                              {/* Line path */}
-                              <path
-                                d={advResults.map((r, i) => {
-                                  const x = 50 + ((r.x - advVar1Start) / (advVar1End - advVar1Start)) * 530
-                                  const minZ = Math.min(...advResults.map(r => r.z))
-                                  const maxZ = Math.max(...advResults.map(r => r.z))
-                                  const y = 280 - ((r.z - minZ) / (maxZ - minZ)) * 260
-                                  return `${i === 0 ? 'M' : 'L'} ${x} ${y}`
-                                }).join(' ')}
-                                fill="none"
-                                stroke="hsl(var(--primary))"
-                                strokeWidth="2"
-                              />
-                              
-                              {/* Data points */}
-                              {advResults.map((r, i) => {
-                                const x = 50 + ((r.x - advVar1Start) / (advVar1End - advVar1Start)) * 530
-                                const minZ = Math.min(...advResults.map(r => r.z))
-                                const maxZ = Math.max(...advResults.map(r => r.z))
-                                const y = 280 - ((r.z - minZ) / (maxZ - minZ)) * 260
-                                return (
-                                  <circle key={i} cx={x} cy={y} r="4" fill="hsl(var(--primary))" />
-                                )
-                              })}
-                              
-                              {/* Axis labels */}
-                              <text x="315" y="320" textAnchor="middle" className="text-xs fill-muted-foreground font-medium">
-                                {advSelectedModel.variables.find(v => v.id === advInputVar1)?.name} ({advSelectedModel.variables.find(v => v.id === advInputVar1)?.unit})
-                              </text>
-                              <text x="20" y="150" textAnchor="middle" transform="rotate(-90, 20, 150)" className="text-xs fill-muted-foreground font-medium">
-                                {advSelectedModel.outputs.find(o => o.id === advOutputVar)?.name}
-                              </text>
-                            </svg>
-                          </div>
-                        )}
-                      </CardContent>
-                    </Card>
+                              </tbody>
+                            </table>
+                          </CardContent>
+                        </Card>
+                      </>
+                    )}
                     
-                    {/* Data Table */}
-                    <Card>
-                      <CardHeader className="pb-3">
-                        <div className="flex items-center justify-between">
-                          <CardTitle className="text-sm">시뮬레이션 데이터</CardTitle>
-                          <div className="flex gap-2">
-                            <Button variant="outline" size="sm" className="gap-2">
-                              <Download className="h-4 w-4" />
-                              Excel
-                            </Button>
-                            <Button variant="outline" size="sm" className="gap-2">
-                              <Save className="h-4 w-4" />
-                              저장
-                            </Button>
-                          </div>
-                        </div>
-                      </CardHeader>
-                      <CardContent>
-                        <ScrollArea className="h-48">
-                          <table className="w-full text-sm">
-                            <thead className="sticky top-0 bg-card">
-                              <tr className="border-b">
-                                <th className="text-left py-2 px-2 font-medium text-muted-foreground">#</th>
-                                <th className="text-right py-2 px-2 font-medium text-muted-foreground">
-                                  {advSelectedModel.variables.find(v => v.id === advInputVar1)?.name}
-                                </th>
-                                {advInputVar2 && (
-                                  <th className="text-right py-2 px-2 font-medium text-muted-foreground">
-                                    {advSelectedModel.variables.find(v => v.id === advInputVar2)?.name}
-                                  </th>
+                    {/* Iteration Mode Results */}
+                    {simulationMode === "iteration" && (
+                      <>
+                        {/* Chart */}
+                        <Card>
+                          <CardHeader className="pb-3">
+                            <div className="flex items-center justify-between">
+                              <CardTitle className="text-sm flex items-center gap-2">
+                                {iterInputVar2 !== "__none__" ? (
+                                  <><Box className="h-4 w-4" /> 3D Surface Plot</>
+                                ) : (
+                                  <><LineChart className="h-4 w-4" /> 2D 분석 그래프</>
                                 )}
-                                <th className="text-right py-2 px-2 font-medium text-muted-foreground">
-                                  {advSelectedModel.outputs.find(o => o.id === advOutputVar)?.name}
-                                </th>
-                              </tr>
-                            </thead>
-                            <tbody>
-                              {advResults.slice(0, 50).map((r, i) => (
-                                <tr key={i} className="border-b last:border-0 hover:bg-muted/50">
-                                  <td className="py-1.5 px-2 text-muted-foreground">{i + 1}</td>
-                                  <td className="text-right py-1.5 px-2 font-mono">{r.x}</td>
-                                  {advInputVar2 && <td className="text-right py-1.5 px-2 font-mono">{r.y}</td>}
-                                  <td className="text-right py-1.5 px-2 font-mono font-medium">{r.z}</td>
-                                </tr>
-                              ))}
-                              {advResults.length > 50 && (
-                                <tr>
-                                  <td colSpan={advInputVar2 ? 4 : 3} className="text-center py-2 text-xs text-muted-foreground">
-                                    ... 외 {advResults.length - 50}개 데이터 (전체 데이터는 Excel 내보내기로 확인)
-                                  </td>
-                                </tr>
-                              )}
-                            </tbody>
-                          </table>
-                        </ScrollArea>
-                      </CardContent>
-                    </Card>
+                              </CardTitle>
+                              <Badge variant="outline">
+                                {getVarName(iterInputVar1)} vs {getOutputName(iterOutputVar)}
+                                {iterInputVar2 !== "__none__" && ` vs ${getVarName(iterInputVar2)}`}
+                              </Badge>
+                            </div>
+                          </CardHeader>
+                          <CardContent>
+                            {iterInputVar2 === "__none__" ? (
+                              // 2D Line Chart
+                              <div className="h-80">
+                                <ResponsiveContainer width="100%" height="100%">
+                                  <RechartsLineChart data={iterResults} margin={{ top: 20, right: 30, left: 20, bottom: 20 }}>
+                                    <CartesianGrid strokeDasharray="3 3" stroke="#e5e7eb" />
+                                    <XAxis 
+                                      dataKey="x" 
+                                      tick={{ fontSize: 12 }} 
+                                      label={{ value: `${getVarName(iterInputVar1)} (${getVarUnit(iterInputVar1)})`, position: 'bottom', offset: 0, fontSize: 12 }}
+                                    />
+                                    <YAxis 
+                                      tick={{ fontSize: 12 }} 
+                                      label={{ value: `${getOutputName(iterOutputVar)} (${getOutputUnit(iterOutputVar)})`, angle: -90, position: 'insideLeft', fontSize: 12 }}
+                                    />
+                                    <Tooltip 
+                                      formatter={(value: number) => [value.toFixed(2), getOutputName(iterOutputVar)]}
+                                      labelFormatter={(label) => `${getVarName(iterInputVar1)}: ${label}`}
+                                    />
+                                    <Legend />
+                                    <Line 
+                                      type="monotone" 
+                                      dataKey="z" 
+                                      name={getOutputName(iterOutputVar)}
+                                      stroke="#2563eb" 
+                                      strokeWidth={2}
+                                      dot={{ r: 4 }}
+                                      activeDot={{ r: 6 }}
+                                    />
+                                  </RechartsLineChart>
+                                </ResponsiveContainer>
+                              </div>
+                            ) : (
+                              // 3D Surface - represented as heatmap-like visualization
+                              <div className="h-80 flex items-center justify-center bg-gradient-to-br from-blue-50 to-purple-50 rounded-lg border">
+                                <div className="text-center">
+                                  <Box className="h-16 w-16 mx-auto text-primary/50 mb-3" />
+                                  <p className="text-sm text-muted-foreground">3D Surface Plot</p>
+                                  <p className="text-xs text-muted-foreground mt-1">
+                                    X: {getVarName(iterInputVar1)} | Y: {getVarName(iterInputVar2)} | Z: {getOutputName(iterOutputVar)}
+                                  </p>
+                                  <p className="text-xs text-primary mt-2">총 {iterResults.length}개 데이터 포인트</p>
+                                </div>
+                              </div>
+                            )}
+                          </CardContent>
+                        </Card>
+                        
+                        {/* Data Table */}
+                        <Card>
+                          <CardHeader className="pb-3">
+                            <div className="flex items-center justify-between">
+                              <CardTitle className="text-sm">시뮬레이션 결과 데이터</CardTitle>
+                              <Button variant="outline" size="sm" className="gap-2">
+                                <Download className="h-4 w-4" /> Excel 저장
+                              </Button>
+                            </div>
+                          </CardHeader>
+                          <CardContent>
+                            <ScrollArea className="h-64">
+                              <table className="w-full text-sm">
+                                <thead>
+                                  <tr className="border-b bg-muted/50 sticky top-0">
+                                    <th className="text-left py-2 px-3 font-medium">#</th>
+                                    <th className="text-right py-2 px-3 font-medium">{getVarName(iterInputVar1)} ({getVarUnit(iterInputVar1)})</th>
+                                    {iterInputVar2 !== "__none__" && (
+                                      <th className="text-right py-2 px-3 font-medium">{getVarName(iterInputVar2)} ({getVarUnit(iterInputVar2)})</th>
+                                    )}
+                                    <th className="text-right py-2 px-3 font-medium">{getOutputName(iterOutputVar)} ({getOutputUnit(iterOutputVar)})</th>
+                                  </tr>
+                                </thead>
+                                <tbody>
+                                  {iterResults.map((r, i) => (
+                                    <tr key={i} className="border-b last:border-0 hover:bg-muted/30">
+                                      <td className="py-2 px-3 text-muted-foreground">{i + 1}</td>
+                                      <td className="text-right py-2 px-3 font-mono">{r.x}</td>
+                                      {iterInputVar2 !== "__none__" && (
+                                        <td className="text-right py-2 px-3 font-mono">{r.y}</td>
+                                      )}
+                                      <td className="text-right py-2 px-3 font-mono font-medium">{r.z}</td>
+                                    </tr>
+                                  ))}
+                                </tbody>
+                              </table>
+                            </ScrollArea>
+                          </CardContent>
+                        </Card>
+                      </>
+                    )}
                   </>
-                )}
-                
-                {!advIsSimulated && !advIsSimulating && (
-                  <Card className="h-[500px] flex items-center justify-center">
-                    <CardContent className="text-center">
-                      <Layers className="h-16 w-16 text-muted-foreground/30 mx-auto mb-4" />
-                      <h3 className="text-lg font-medium text-muted-foreground">심화 시뮬레이션</h3>
-                      <p className="text-sm text-muted-foreground/70 mt-2 max-w-sm">
-                        입력 변수를 범위로 설정하여 여러 시나리오를 한번에 분석합니다.<br />
-                        입력 변수 1개: 2D 차트, 2개: 3D Surface Plot
-                      </p>
+                ) : (
+                  <Card className="py-16">
+                    <CardContent className="text-center text-muted-foreground">
+                      <Play className="h-12 w-12 mx-auto mb-3 opacity-30" />
+                      <p>시뮬레이션 실행 대기 중...</p>
                     </CardContent>
                   </Card>
                 )}
+                
+                <div className="flex justify-between pt-4">
+                  <Button variant="outline" onClick={handlePrevStep} className="gap-2">
+                    <ChevronLeft className="h-4 w-4" /> 이전 단계
+                  </Button>
+                  <Button onClick={handleNextStep} disabled={!isSimulated} className="gap-2">
+                    다음 단계 <ChevronRight className="h-4 w-4" />
+                  </Button>
+                </div>
               </div>
-            </div>
+            )}
+            
+            {/* Step 5: Save & Export */}
+            {currentStep === 5 && (
+              <div className="space-y-6">
+                <div className="text-center mb-6">
+                  <h2 className="text-xl font-semibold">Step 5. 결과 저장 및 내보내기</h2>
+                  <p className="text-sm text-muted-foreground mt-1">시뮬레이션 결과를 저장하거나 내보내세요</p>
+                </div>
+                
+                <div className="grid grid-cols-2 gap-4">
+                  <Card className="p-6 hover:border-primary/50 transition-colors cursor-pointer">
+                    <div className="flex items-center gap-4">
+                      <div className="p-3 rounded-lg bg-primary/10">
+                        <Save className="h-6 w-6 text-primary" />
+                      </div>
+                      <div>
+                        <h3 className="font-semibold">시나리오 저장</h3>
+                        <p className="text-sm text-muted-foreground">시뮬레이션 조건과 결과를 저장합니다</p>
+                      </div>
+                    </div>
+                  </Card>
+                  
+                  <Card className="p-6 hover:border-primary/50 transition-colors cursor-pointer">
+                    <div className="flex items-center gap-4">
+                      <div className="p-3 rounded-lg bg-blue-500/10">
+                        <Download className="h-6 w-6 text-blue-600" />
+                      </div>
+                      <div>
+                        <h3 className="font-semibold">Excel 내보내기</h3>
+                        <p className="text-sm text-muted-foreground">결과를 Excel 파일로 다운로드합니다</p>
+                      </div>
+                    </div>
+                  </Card>
+                  
+                  <Card className="p-6 hover:border-primary/50 transition-colors cursor-pointer">
+                    <div className="flex items-center gap-4">
+                      <div className="p-3 rounded-lg bg-purple-500/10">
+                        <FileText className="h-6 w-6 text-purple-600" />
+                      </div>
+                      <div>
+                        <h3 className="font-semibold">보고서 생성</h3>
+                        <p className="text-sm text-muted-foreground">PDF 형식의 분석 보고서를 생성합니다</p>
+                      </div>
+                    </div>
+                  </Card>
+                  
+                  <Card className="p-6 hover:border-primary/50 transition-colors cursor-pointer">
+                    <div className="flex items-center gap-4">
+                      <div className="p-3 rounded-lg bg-green-500/10">
+                        <Zap className="h-6 w-6 text-green-600" />
+                      </div>
+                      <div>
+                        <h3 className="font-semibold">운전 적용 요청</h3>
+                        <p className="text-sm text-muted-foreground">시뮬레이션 결과를 실제 운전에 반영 요청합니다</p>
+                      </div>
+                    </div>
+                  </Card>
+                </div>
+                
+                <Separator />
+                
+                <div className="flex justify-between pt-4">
+                  <Button variant="outline" onClick={handlePrevStep} className="gap-2">
+                    <ChevronLeft className="h-4 w-4" /> 이전 단계
+                  </Button>
+                  <Button onClick={() => { setCurrentStep(1); setSelectedModelId(null); setIsSimulated(false); setIterResults([]); setSimulationResults([]); }} className="gap-2">
+                    새 시뮬레이션 시작 <ArrowRight className="h-4 w-4" />
+                  </Button>
+                </div>
+              </div>
+            )}
           </div>
-        )}
+        </div>
       </div>
     </AppShell>
   )
