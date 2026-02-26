@@ -8,6 +8,8 @@ import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
 import { Tabs, TabsList, TabsTrigger, TabsContent } from "@/components/ui/tabs"
+import { Switch } from "@/components/ui/switch"
+import { Label } from "@/components/ui/label"
 import { 
   Activity, 
   AlertTriangle,
@@ -66,8 +68,11 @@ const DIVISION_LABELS: Record<Division, string> = {
 }
 
 export default function OperationsPage() {
-  const { visibleProcesses, scopeMode, currentUser, isManagement } = useUser()
+  const { currentUser, isManagement } = useUser()
   const isTeamLead = currentUser.role === "team-lead" || currentUser.role === "division-head" || currentUser.role === "plant-head"
+  
+  // 페이지 로컬 스코프 토글 (담당공정/전체공정)
+  const [showMyProcessesOnly, setShowMyProcessesOnly] = useState(true)
   
   const [search, setSearch] = useState("")
   const [teamFilter, setTeamFilter] = useState("all")
@@ -75,6 +80,11 @@ export default function OperationsPage() {
   const [page, setPage] = useState(1)
   const [viewMode, setViewMode] = useState<"list" | "grouped">(isTeamLead ? "grouped" : "list")
   const pageSize = 30
+
+  // 토글에 따라 표시할 공정 결정
+  const visibleProcesses = showMyProcessesOnly 
+    ? ALL_PROCESSES.filter(p => currentUser.assignedProcessIds.includes(p.id))
+    : ALL_PROCESSES
 
   const byDivision = useMemo(() => getProcessesByDivision(visibleProcesses), [visibleProcesses])
 
@@ -117,6 +127,22 @@ export default function OperationsPage() {
           <div className="flex items-center justify-between mb-4">
             <div>
               <h1 className="text-xl font-bold text-foreground">Daily Monitoring</h1>
+            </div>
+            {/* Scope Toggle - 담당공정/전체공정 */}
+            <div className="flex items-center gap-3 bg-muted/50 rounded-lg px-3 py-1.5">
+              <Label htmlFor="scope-toggle" className="text-xs text-muted-foreground cursor-pointer">
+                전체공정
+              </Label>
+              <Switch 
+                id="scope-toggle"
+                checked={showMyProcessesOnly}
+                onCheckedChange={setShowMyProcessesOnly}
+              />
+              <Label htmlFor="scope-toggle" className="text-xs cursor-pointer">
+                <span className={showMyProcessesOnly ? "text-primary font-medium" : "text-muted-foreground"}>
+                  담당공정 ({currentUser.assignedProcessIds.length})
+                </span>
+              </Label>
             </div>
           </div>
 

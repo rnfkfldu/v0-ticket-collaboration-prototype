@@ -27,6 +27,7 @@ import {
 import { saveFocusMonitoringItem } from "@/lib/personalized-alarms"
 import { AppShell } from "@/components/app-shell"
 import { useRouter } from "next/navigation"
+import { useUser, ALL_PROCESSES } from "@/lib/user-context"
 
 // ---- Traffic Light Dot ----
 function TrafficLightDot({ light, size = "md" }: { light: TrafficLight; size?: "sm" | "md" }) {
@@ -189,8 +190,24 @@ function ProjectionTrendChart({ eq, category, showPrevTa, projectionMode, onAiMo
 // =========================================
 export function HealthCategoryPage({ category }: { category: HealthCategory }) {
   const router = useRouter()
+  const { currentUser } = useUser()
   const config = HEALTH_CATEGORIES[category]
-  const allEquipment = useMemo(() => getEquipmentData(category), [category])
+  
+  // 페이지 로컬 스코프 토글 (담당공정/전체공정)
+  const [showMyProcessesOnly, setShowMyProcessesOnly] = useState(true)
+  
+  // 담당 공정 ID 목록
+  const myProcessIds = currentUser.assignedProcessIds
+  
+  // 전체 장비 데이터 (스코프 토글에 따라 필터링)
+  const allEquipment = useMemo(() => {
+    const data = getEquipmentData(category)
+    if (showMyProcessesOnly) {
+      // 담당 공정에 속한 장비만 표시
+      return data.filter(eq => myProcessIds.includes(eq.process))
+    }
+    return data
+  }, [category, showMyProcessesOnly, myProcessIds])
 
   // Filters
   const [processFilter, setProcessFilter] = useState<string>("all")
@@ -272,7 +289,23 @@ export function HealthCategoryPage({ category }: { category: HealthCategory }) {
             <h1 className="text-xl font-bold text-foreground">{config.label} 관리</h1>
             <p className="text-sm text-muted-foreground mt-1">{config.description}</p>
           </div>
-          <div className="flex items-center gap-2 shrink-0">
+          <div className="flex items-center gap-3 shrink-0">
+            {/* Scope Toggle - 담당공정/전체공정 */}
+            <div className="flex items-center gap-2 bg-muted/50 rounded-lg px-3 py-1.5 mr-2">
+              <Label htmlFor="health-scope-toggle" className="text-xs text-muted-foreground cursor-pointer">
+                전체공정
+              </Label>
+              <Switch 
+                id="health-scope-toggle"
+                checked={showMyProcessesOnly}
+                onCheckedChange={setShowMyProcessesOnly}
+              />
+              <Label htmlFor="health-scope-toggle" className="text-xs cursor-pointer">
+                <span className={showMyProcessesOnly ? "text-primary font-medium" : "text-muted-foreground"}>
+                  담당공정 ({myProcessIds.length})
+                </span>
+              </Label>
+            </div>
             {counts.immediate > 0 && (
               <Badge variant="destructive" className="gap-1">
                 <AlertTriangle className="h-3 w-3" /> 즉시 조치 {counts.immediate}

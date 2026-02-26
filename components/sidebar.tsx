@@ -54,7 +54,7 @@ import {
 import Link from "next/link"
 import { usePathname } from "next/navigation"
 import { cn } from "@/lib/utils"
-import { useUser, type ScopeMode } from "@/lib/user-context"
+import { useUser } from "@/lib/user-context"
 
 interface SidebarProps {
   unreadAlerts?: number
@@ -79,7 +79,7 @@ export function Sidebar({ unreadAlerts = 3 }: SidebarProps) {
   const [isCollapsed, setIsCollapsed] = useState(false)
   const [expandedSections, setExpandedSections] = useState<string[]>([])
   const pathname = usePathname()
-  const { currentUser, scopeMode, setScopeMode, visibleProcesses } = useUser()
+  const { currentUser } = useUser()
 
   // 현재 상위 메뉴 결정 (URL 기반)
   const currentTopMenu = useMemo(() => {
@@ -130,7 +130,6 @@ export function Sidebar({ unreadAlerts = 3 }: SidebarProps) {
       label: "장기 건전성 관리",
       icon: TrendingUp,
       items: [
-        { label: "건전성 현황", href: "/operations/health/overview", icon: LayoutDashboard },
         { label: "Fouling", href: "/operations/health/fouling", icon: Flame },
         { label: "Coking", href: "/operations/health/coking", icon: Flame },
         { label: "촉매 Aging", href: "/operations/health/catalyst-aging", icon: Activity },
@@ -491,59 +490,6 @@ export function Sidebar({ unreadAlerts = 3 }: SidebarProps) {
           {isCollapsed ? <ChevronRight className="h-4 w-4" /> : <ChevronLeft className="h-4 w-4" />}
         </Button>
       </div>
-
-      {/* Scope Toggle - 담당공정 / 전체공정 (Operations Live Monitoring, Long-Term Health, Optimization Model/Experiment 에서만 표시) */}
-      {!isCollapsed && (() => {
-        const showScopeToggle = 
-          // Operations: Live Monitoring (/, /operations, /operations/monitoring/*) 
-          (currentTopMenu === "operations" && (
-            pathname === "/operations" ||
-            pathname.startsWith("/operations/monitoring") ||
-            pathname.startsWith("/operations/unit") ||
-            // Long-Term Health
-            pathname.startsWith("/operations/health")
-          )) ||
-          // Optimization: Model-Based Optimization & Experiments
-          (currentTopMenu === "optimization" && (
-            pathname.startsWith("/optimization/ai-ml") ||
-            pathname.startsWith("/optimization/rto") ||
-            pathname.startsWith("/optimization/experiments")
-          ))
-        
-        return showScopeToggle ? (
-          <div className="px-3 py-2 border-b border-border">
-            <div className="flex items-center rounded-md bg-muted p-0.5">
-              <button
-                className={cn(
-                  "flex-1 text-xs py-1.5 px-2 rounded-sm font-medium text-center",
-                  scopeMode === "my-processes"
-                    ? "bg-background text-foreground shadow-sm"
-                    : "text-muted-foreground hover:text-foreground"
-                )}
-                onClick={() => setScopeMode("my-processes")}
-              >
-                담당공정 ({currentUser.assignedProcessIds.length})
-              </button>
-              <button
-                className={cn(
-                  "flex-1 text-xs py-1.5 px-2 rounded-sm font-medium text-center",
-                  scopeMode === "all-processes"
-                    ? "bg-background text-foreground shadow-sm"
-                    : "text-muted-foreground hover:text-foreground"
-                )}
-                onClick={() => setScopeMode("all-processes")}
-              >
-                전체공정 (50)
-              </button>
-            </div>
-            {scopeMode === "my-processes" && (
-              <p className="text-xs text-muted-foreground mt-1.5 px-1">
-                {currentUser.roleLabel} {currentUser.name}
-              </p>
-            )}
-          </div>
-        ) : null
-      })()}
 
       {/* Navigation */}
       <nav className="flex-1 overflow-y-auto py-2">
