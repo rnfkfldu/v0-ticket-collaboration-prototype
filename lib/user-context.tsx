@@ -1,10 +1,23 @@
 "use client"
 
-import React, { createContext, useContext, useState, useEffect, type ReactNode } from "react"
+import React, { createContext, useContext, useState, useEffect, useRef, type ReactNode } from "react"
 
-// Storage key for persisting user selection
-const USER_STORAGE_KEY = "selected-user-id"
-const SCOPE_STORAGE_KEY = "selected-scope-mode"
+// Cookie keys for persisting user selection (works on both server and client)
+const USER_COOKIE_KEY = "selected-user-id"
+const SCOPE_COOKIE_KEY = "selected-scope-mode"
+
+// Cookie helpers
+function setCookie(name: string, value: string, days = 365) {
+  if (typeof document === "undefined") return
+  const expires = new Date(Date.now() + days * 864e5).toUTCString()
+  document.cookie = `${name}=${encodeURIComponent(value)}; expires=${expires}; path=/; SameSite=Lax`
+}
+
+function getCookie(name: string): string | null {
+  if (typeof document === "undefined") return null
+  const match = document.cookie.match(new RegExp(`(^| )${name}=([^;]+)`))
+  return match ? decodeURIComponent(match[2]) : null
+}
 
 // ============================================================
 // 1) Division / Process Registry
@@ -163,67 +176,64 @@ interface UserContextValue {
 
 const UserContext = createContext<UserContextValue | null>(null)
 
-// Helper to get initial user from localStorage
-function getInitialUser(): UserProfile {
-  if (typeof window === "undefined") return USER_PROFILES[0]
-  try {
-    const savedUserId = localStorage.getItem(USER_STORAGE_KEY)
+export function UserProvider({ children }: { children: ReactNode }) {
+  // Use refs to track if we've initialized from cookies
+  const initialized = useRef(false)
+  
+  // Initialize state - will be updated from cookies on mount
+  const [currentUser, setCurrentUserState] = useState<UserProfile>(() => {
+    // Try to read from cookie on initial render (client-side only)
+    if (typeof document !== "undefined") {
+      const savedUserId = getCookie(USER_COOKIE_KEY)
+      if (savedUserId) {
+        const found = USER_PROFILES.find(u => u.id === savedUserId)
+        if (found) return found
+      }
+    }
+    return USER_PROFILES[0]
+  })
+  
+  const [scopeMode, setScopeModeState] = useState<ScopeMode>(() => {
+    if (typeof document !== "undefined") {
+      const savedScope = getCookie(SCOPE_COOKIE_KEY)
+      if (savedScope === "all-processes" || savedScope === "my-processes") {
+        return savedScope
+      }
+    }
+    return "my-processes"
+  })
+
+  // Re-sync from cookies after hydration to handle any mismatch
+  useEffect(() => {
+    if (initialized.current) return
+    initialized.current = true
+    
+    const savedUserId = getCookie(USER_COOKIE_KEY)
     if (savedUserId) {
       const found = USER_PROFILES.find(u => u.id === savedUserId)
-      if (found) return found
+      if (found && found.id !== currentUser.id) {
+        setCurrentUserState(found)
+      }
     }
-  } catch {
-    // localStorage not available
-  }
-  return USER_PROFILES[0]
-}
-
-// Helper to get initial scope from localStorage
-function getInitialScope(): ScopeMode {
-  if (typeof window === "undefined") return "my-processes"
-  try {
-    const savedScope = localStorage.getItem(SCOPE_STORAGE_KEY)
-    if (savedScope === "all-processes" || savedScope === "my-processes") {
-      return savedScope
+    
+    const savedScope = getCookie(SCOPE_COOKIE_KEY)
+    if (savedScope && (savedScope === "all-processes" || savedScope === "my-processes")) {
+      if (savedScope !== scopeMode) {
+        setScopeModeState(savedScope)
+      }
     }
-  } catch {
-    // localStorage not available
-  }
-  return "my-processes"
-}
+  }, [currentUser.id, scopeMode])
 
-export function UserProvider({ children }: { children: ReactNode }) {
-  const [currentUser, setCurrentUserState] = useState<UserProfile>(USER_PROFILES[0])
-  const [scopeMode, setScopeModeState] = useState<ScopeMode>("my-processes")
-  const [isInitialized, setIsInitialized] = useState(false)
-
-  // Initialize from localStorage on client side
-  useEffect(() => {
-    const savedUser = getInitialUser()
-    const savedScope = getInitialScope()
-    setCurrentUserState(savedUser)
-    setScopeModeState(savedScope)
-    setIsInitialized(true)
-  }, [])
-
-  // Wrapper to persist user selection
+  // Wrapper to persist user selection to cookie
   const setCurrentUser = (user: UserProfile) => {
     setCurrentUserState(user)
-    try {
-      localStorage.setItem(USER_STORAGE_KEY, user.id)
-    } catch {
-      // localStorage not available
-    }
+    setCookie(USER_COOKIE_KEY, user.id)
   }
 
-  // Wrapper to persist scope selection
+  // Wrapper to persist scope selection to cookie
   const setScopeMode = (mode: ScopeMode) => {
     setScopeModeState(mode)
-    try {
-      localStorage.setItem(SCOPE_STORAGE_KEY, mode)
-    } catch {
-      // localStorage not available
-    }
+    setCookie(SCOPE_COOKIE_KEY, mode)
   }
 
   const assignedProcesses = ALL_PROCESSES.filter(p =>
