@@ -5,15 +5,38 @@ import { Badge } from "@/components/ui/badge"
 import { getTickets } from "@/lib/storage"
 import { useEffect, useState } from "react"
 import type { Ticket } from "@/lib/types"
-import { AlertCircle, Clock, CheckCircle2, XCircle, TrendingUp } from "lucide-react"
+import { AlertCircle, Clock, CheckCircle2, XCircle, TrendingUp, Users } from "lucide-react"
 import Link from "next/link"
+import { useUser } from "@/lib/user-context"
+
+// 팀원별 티켓 할당 (목업) - 팀원 화면에서 자신의 티켓만 보기 위해 사용
+const TICKET_OWNER_MAP: Record<string, string> = {
+  "EVT-001": "김철수",
+  "EVT-002": "박영희", 
+  "EVT-003": "최진우",
+  "EVT-004": "한미영",
+  "EVT-005": "송재현",
+  "EVT-006": "김지수", // 현재 기본 사용자
+  "EVT-007": "김지수",
+  "EVT-008": "김지수",
+  "EVT-009": "김지수",
+  "EVT-010": "김지수",
+}
 
 export function TeamDashboard() {
-  const [tickets, setTickets] = useState<Ticket[]>([])
+  const { currentUser } = useUser()
+  const isTeamLead = currentUser.role === "team-lead" || currentUser.role === "division-head" || currentUser.role === "plant-head"
+  
+  const [allTickets, setAllTickets] = useState<Ticket[]>([])
 
   useEffect(() => {
-    setTickets(getTickets())
+    setAllTickets(getTickets())
   }, [])
+  
+  // 팀장: 전체 팀 티켓, 팀원: 자신의 티켓만
+  const tickets = isTeamLead 
+    ? allTickets 
+    : allTickets.filter(t => TICKET_OWNER_MAP[t.id] === currentUser.name || t.requester === currentUser.name)
 
   const stats = {
     total: tickets.length,
@@ -86,11 +109,28 @@ export function TeamDashboard() {
 
   return (
     <div className="space-y-6">
+      {/* Dashboard Header */}
+      <div className="flex items-center gap-3">
+        {isTeamLead ? (
+          <Badge variant="outline" className="text-sm py-1 px-3">
+            <Users className="h-3.5 w-3.5 mr-1.5" />
+            팀 전체 대시보드
+          </Badge>
+        ) : (
+          <Badge variant="secondary" className="text-sm py-1 px-3">
+            {currentUser.name}님의 대시보드
+          </Badge>
+        )}
+        <span className="text-xs text-muted-foreground">
+          {isTeamLead ? "팀 전체 이벤트 현황" : "나의 담당 이벤트 현황"}
+        </span>
+      </div>
+      
       <div className="grid grid-cols-1 md:grid-cols-5 gap-4">
         <Card className="p-4 border-2">
           <div className="flex items-center justify-between">
             <div>
-              <p className="text-sm text-muted-foreground">전체 이벤트</p>
+              <p className="text-sm text-muted-foreground">{isTeamLead ? "팀 전체 이벤트" : "내 이벤트"}</p>
               <p className="text-2xl font-bold text-foreground">{stats.total}</p>
             </div>
             <div className="h-10 w-10 rounded-full bg-primary/10 flex items-center justify-center">

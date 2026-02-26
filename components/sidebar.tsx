@@ -150,7 +150,6 @@ export function Sidebar({ unreadAlerts = 3 }: SidebarProps) {
       icon: Bell,
       items: [
         { label: "전체 알람", href: "/alerts", icon: Bell, count: 12 },
-        { label: "개인화 알림", href: "/alerts/personalized", icon: Settings },
         { label: "알람 분석 대시보드", href: "/alerts/dashboard", icon: BarChart3 },
       ]
     },

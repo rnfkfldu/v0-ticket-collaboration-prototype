@@ -1527,42 +1527,44 @@ export default function AlertsPage() {
                 )}
               </div>
 
-              {/* Notice 섹션 */}
-              <div className="mb-2">
-                <button
-                  onClick={() => toggleSection("notice")}
-                  className="w-full flex items-center gap-2 p-2 rounded-lg hover:bg-muted/50 transition-colors"
-                >
-                  {expandedSections.notice ? <ChevronDown className="h-4 w-4" /> : <ChevronRight className="h-4 w-4" />}
-                  <Info className="h-4 w-4 text-blue-500" />
-                  <span className="font-medium text-sm">Notice</span>
-                  {unreadCounts.notice > 0 && (
-                    <Badge variant="secondary" className="ml-auto text-xs">{unreadCounts.notice}</Badge>
+              {/* Notice 섹션 - 팀원만 표시 (팀장은 Notice 안 봄) */}
+              {!isTeamLead && (
+                <div className="mb-2">
+                  <button
+                    onClick={() => toggleSection("notice")}
+                    className="w-full flex items-center gap-2 p-2 rounded-lg hover:bg-muted/50 transition-colors"
+                  >
+                    {expandedSections.notice ? <ChevronDown className="h-4 w-4" /> : <ChevronRight className="h-4 w-4" />}
+                    <Info className="h-4 w-4 text-blue-500" />
+                    <span className="font-medium text-sm">Notice</span>
+                    {unreadCounts.notice > 0 && (
+                      <Badge variant="secondary" className="ml-auto text-xs">{unreadCounts.notice}</Badge>
+                    )}
+                  </button>
+                  {expandedSections.notice && (
+                    <div className="ml-2 space-y-1 mt-1">
+                      {alertsByType.notice.map(item => (
+                        <button
+                          key={item.id}
+                          onClick={() => handleSelectAlert(item)}
+                          className={cn(
+                            "w-full text-left p-2 rounded-lg transition-colors",
+                            selectedAlert?.id === item.id ? "bg-primary/10 border border-primary/30" : "hover:bg-muted/50",
+                            item.status === "unread" && "border-l-2 border-l-blue-500"
+                          )}
+                        >
+                          <div className="flex items-center gap-2">
+                            {getTypeIcon(item.type, item.subType)}
+                            <Badge variant="outline" className="text-xs">{getSubTypeLabel(item.subType)}</Badge>
+                          </div>
+                          <p className="text-sm font-medium truncate mt-1">{item.title}</p>
+                          <p className="text-xs text-muted-foreground">{item.timestamp}</p>
+                        </button>
+                      ))}
+                    </div>
                   )}
-                </button>
-                {expandedSections.notice && (
-                  <div className="ml-2 space-y-1 mt-1">
-                    {alertsByType.notice.map(item => (
-                      <button
-                        key={item.id}
-                        onClick={() => handleSelectAlert(item)}
-                        className={cn(
-                          "w-full text-left p-2 rounded-lg transition-colors",
-                          selectedAlert?.id === item.id ? "bg-primary/10 border border-primary/30" : "hover:bg-muted/50",
-                          item.status === "unread" && "border-l-2 border-l-blue-500"
-                        )}
-                      >
-                        <div className="flex items-center gap-2">
-                          {getTypeIcon(item.type, item.subType)}
-                          <Badge variant="outline" className="text-xs">{getSubTypeLabel(item.subType)}</Badge>
-                        </div>
-                        <p className="text-sm font-medium truncate mt-1">{item.title}</p>
-                        <p className="text-xs text-muted-foreground">{item.timestamp}</p>
-                      </button>
-                    ))}
-                  </div>
-                )}
-              </div>
+                </div>
+              )}
 
               {/* Event 섹션 - 팀원만 표시 */}
               {!isTeamLead && (

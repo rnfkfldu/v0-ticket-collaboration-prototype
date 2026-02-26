@@ -2,14 +2,14 @@
 
 import { Badge } from "@/components/ui/badge"
 import { Button } from "@/components/ui/button"
-import { Card } from "@/components/ui/card"
+import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
 import { Input } from "@/components/ui/input"
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs"
 import { useState, useEffect } from "react"
 import Link from "next/link"
 import { getTickets, deleteTicket } from "@/lib/storage"
-import { Search, Trash2, Eye, Clock, ArrowRight, AlertTriangle, CheckCircle, XCircle, FileSearch, PauseCircle } from "lucide-react"
+import { Search, Trash2, Eye, Clock, ArrowRight, AlertTriangle, CheckCircle, XCircle, FileSearch, PauseCircle, Users, LayoutGrid, List } from "lucide-react"
 import { useRouter } from "next/navigation"
 import {
   AlertDialog,
@@ -22,8 +22,24 @@ import {
   AlertDialogTitle,
 } from "@/components/ui/alert-dialog"
 import type { Ticket } from "@/lib/types"
+import { useUser } from "@/lib/user-context"
+import { cn } from "@/lib/utils"
 
 const CURRENT_USER = "김지수"
+
+// 팀장용: 티켓별 담당자 매핑 (목업)
+const TICKET_ASSIGNEES: Record<string, { name: string; team: string }> = {
+  "EVT-001": { name: "김철수", team: "생산팀" },
+  "EVT-002": { name: "박영희", team: "생산팀" },
+  "EVT-003": { name: "최진우", team: "생산팀" },
+  "EVT-004": { name: "한미영", team: "생산팀" },
+  "EVT-005": { name: "송재현", team: "생산팀" },
+  "EVT-006": { name: "김철수", team: "생산팀" },
+  "EVT-007": { name: "박영희", team: "생산팀" },
+  "EVT-008": { name: "최진우", team: "생산팀" },
+  "EVT-009": { name: "한미영", team: "생산팀" },
+  "EVT-010": { name: "송재현", team: "생산팀" },
+}
 
 const PROCESS_STATUS_CONFIG: Record<string, { label: string; color: string; icon: typeof Clock }> = {
   issued: { label: "이벤트 발행", color: "bg-blue-100 text-blue-700 border-blue-200", icon: Clock },
@@ -47,6 +63,9 @@ const TICKET_TYPE_CONFIG: Record<string, { label: string; color: string }> = {
 }
 
 export function TicketsList() {
+  const { currentUser } = useUser()
+  const isTeamLead = currentUser.role === "team-lead" || currentUser.role === "division-head" || currentUser.role === "plant-head"
+  
   const [processStatusFilter, setProcessStatusFilter] = useState<string>("all")
   const [priorityFilter, setPriorityFilter] = useState<string>("all")
   const [categoryFilter, setCategoryFilter] = useState<string>("all")
@@ -54,6 +73,7 @@ export function TicketsList() {
   const [tickets, setTickets] = useState<Ticket[]>([])
   const [isHydrated, setIsHydrated] = useState(false)
   const [deleteTicketId, setDeleteTicketId] = useState<string | null>(null)
+  const [viewMode, setViewMode] = useState<"list" | "grouped">(isTeamLead ? "grouped" : "list")
   const router = useRouter()
 
   useEffect(() => {
@@ -106,10 +126,25 @@ export function TicketsList() {
     })
   }
 
-  const activeTickets = tickets.filter(t => t.processStatus !== "closed" && t.processStatus !== "rejected")
-  const inactiveTickets = tickets.filter(t => t.processStatus === "closed" || t.processStatus === "rejected")
+  // 팀장: 중요 이벤트만 (P1, P2) 필터링
+  const importantTickets = isTeamLead 
+    ? tickets.filter(t => t.priority === "P1" || t.priority === "P2")
+    : tickets
+    
+  const activeTickets = importantTickets.filter(t => t.processStatus !== "closed" && t.processStatus !== "rejected")
+  const inactiveTickets = importantTickets.filter(t => t.processStatus === "closed" || t.processStatus === "rejected")
   const filteredActive = filterTickets(activeTickets)
   const filteredInactive = filterTickets(inactiveTickets)
+  
+  // 팀장용 담당자별 그룹핑
+  const ticketsByAssignee: Record<string, Ticket[]> = {}
+  if (isTeamLead) {
+    filteredActive.forEach(ticket => {
+      const assignee = TICKET_ASSIGNEES[ticket.id]?.name || "미배정"
+      if (!ticketsByAssignee[assignee]) ticketsByAssignee[assignee] = []
+      ticketsByAssignee[assignee].push(ticket)
+    })
+  }
 
   const getProcessStatusBadge = (status: string | undefined) => {
     const config = PROCESS_STATUS_CONFIG[status || "issued"] || PROCESS_STATUS_CONFIG.issued
@@ -171,6 +206,7 @@ export function TicketsList() {
                 <th className="text-left px-4 py-3 text-xs font-medium text-muted-foreground uppercase tracking-wider w-16">Unit</th>
                 <th className="text-left px-4 py-3 text-xs font-medium text-muted-foreground uppercase tracking-wider w-20">우선순위</th>
                 <th className="text-left px-4 py-3 text-xs font-medium text-muted-foreground uppercase tracking-wider w-24">프로세스</th>
+                {isTeamLead && <th className="text-left px-4 py-3 text-xs font-medium text-muted-foreground uppercase tracking-wider w-20">담당자</th>}
                 <th className="text-left px-4 py-3 text-xs font-medium text-muted-foreground uppercase tracking-wider w-24">요청자</th>
                 <th className="text-left px-4 py-3 text-xs font-medium text-muted-foreground uppercase tracking-wider w-24">생성일</th>
                 <th className="text-left px-4 py-3 text-xs font-medium text-muted-foreground uppercase tracking-wider w-16">지연</th>
@@ -180,6 +216,7 @@ export function TicketsList() {
             <tbody className="divide-y divide-border">
               {ticketsList.map((ticket) => {
                 const delay = calculateDelay(ticket)
+                const assignee = TICKET_ASSIGNEES[ticket.id]
                 return (
                   <tr key={ticket.id} className="hover:bg-muted/30 transition-colors cursor-pointer" onClick={() => router.push(`/tickets/${ticket.id}`)}>
                     <td className="px-4 py-3">
@@ -197,6 +234,11 @@ export function TicketsList() {
                     </td>
                     <td className="px-4 py-3">{getPriorityBadge(ticket.priority)}</td>
                     <td className="px-4 py-3">{getProcessStatusBadge(ticket.processStatus)}</td>
+                    {isTeamLead && (
+                      <td className="px-4 py-3">
+                        <span className="text-xs font-medium text-foreground">{assignee?.name || "-"}</span>
+                      </td>
+                    )}
                     <td className="px-4 py-3">
                       <span className="text-xs text-muted-foreground">{ticket.requester}</span>
                     </td>
@@ -279,6 +321,35 @@ export function TicketsList() {
         </Card>
       </div>
 
+      {/* Team Lead Header */}
+      {isTeamLead && (
+        <div className="flex items-center justify-between">
+          <div className="flex items-center gap-2">
+            <Badge variant="outline" className="text-xs">
+              <Users className="h-3 w-3 mr-1" />
+              팀 전체 중요 이벤트 (P1, P2)
+            </Badge>
+            <span className="text-xs text-muted-foreground">총 {filteredActive.length}건</span>
+          </div>
+          <div className="flex items-center rounded border overflow-hidden">
+            <button
+              onClick={() => setViewMode("list")}
+              className={cn("p-1.5 transition-colors", viewMode === "list" ? "bg-primary text-primary-foreground" : "bg-card hover:bg-muted")}
+              title="리스트 뷰"
+            >
+              <List className="h-4 w-4" />
+            </button>
+            <button
+              onClick={() => setViewMode("grouped")}
+              className={cn("p-1.5 transition-colors", viewMode === "grouped" ? "bg-primary text-primary-foreground" : "bg-card hover:bg-muted")}
+              title="담당자별 그룹 뷰"
+            >
+              <LayoutGrid className="h-4 w-4" />
+            </button>
+          </div>
+        </div>
+      )}
+
       {/* Filters */}
       <div className="flex flex-col gap-3 sm:flex-row sm:items-center">
         <div className="relative flex-1 max-w-md">
@@ -342,7 +413,7 @@ export function TicketsList() {
         </TabsList>
 
         <TabsContent value="active" className="space-y-4 mt-4">
-          {pendingAcceptance.length > 0 && processStatusFilter === "all" && (
+          {!isTeamLead && pendingAcceptance.length > 0 && processStatusFilter === "all" && (
             <div className="flex items-center gap-2 p-3 bg-blue-50 border border-blue-200 rounded-lg">
               <AlertTriangle className="h-4 w-4 text-blue-600 shrink-0" />
               <p className="text-sm text-blue-800">
@@ -350,7 +421,56 @@ export function TicketsList() {
               </p>
             </div>
           )}
-          <TicketsTable ticketsList={filteredActive} />
+          
+          {/* 팀장 그룹 뷰 */}
+          {isTeamLead && viewMode === "grouped" ? (
+            <div className="space-y-4">
+              {Object.entries(ticketsByAssignee).map(([assignee, assigneeTickets]) => (
+                <Card key={assignee} className="overflow-hidden">
+                  <CardHeader className="py-3 px-4 bg-muted/30">
+                    <CardTitle className="text-sm flex items-center gap-2">
+                      <Users className="h-4 w-4 text-primary" />
+                      {assignee}
+                      <Badge variant="outline" className="text-xs">{assigneeTickets.length}건</Badge>
+                      {assigneeTickets.some(t => t.priority === "P1") && (
+                        <Badge variant="destructive" className="text-xs">P1 포함</Badge>
+                      )}
+                    </CardTitle>
+                  </CardHeader>
+                  <CardContent className="p-0">
+                    <div className="divide-y divide-border">
+                      {assigneeTickets.map(ticket => {
+                        const delay = calculateDelay(ticket)
+                        return (
+                          <div 
+                            key={ticket.id}
+                            className="p-3 hover:bg-muted/30 cursor-pointer flex items-center gap-4"
+                            onClick={() => router.push(`/tickets/${ticket.id}`)}
+                          >
+                            <span className="text-xs font-mono text-muted-foreground w-16">{ticket.id}</span>
+                            {getPriorityBadge(ticket.priority)}
+                            <span className="text-sm font-medium flex-1 truncate">{ticket.title}</span>
+                            <span className="text-xs text-muted-foreground">{ticket.unit}</span>
+                            {getProcessStatusBadge(ticket.processStatus)}
+                            {delay > 0 && ticket.processStatus !== "closed" && (
+                              <Badge variant="destructive" className="text-xs">+{delay}d</Badge>
+                            )}
+                          </div>
+                        )
+                      })}
+                    </div>
+                  </CardContent>
+                </Card>
+              ))}
+              {Object.keys(ticketsByAssignee).length === 0 && (
+                <Card className="p-12">
+                  <p className="text-center text-muted-foreground text-sm">중요 이벤트가 없습니다.</p>
+                </Card>
+              )}
+            </div>
+          ) : (
+            <TicketsTable ticketsList={filteredActive} />
+          )}
         </TabsContent>
 
         <TabsContent value="inactive" className="space-y-4 mt-4">
