@@ -13,8 +13,12 @@ import { Separator } from "@/components/ui/separator"
 import {
   FileText, Search, CheckCircle, Link, Unlink, Plus, X,
   Pencil, MessageSquare, Send, ChevronLeft, AlertTriangle, Clock,
-  Target, Users, Wrench, Calendar, Circle, CheckCircle2, Ban
+  Target, Users, Wrench, Calendar, Circle, CheckCircle2, Ban, 
+  Play, ArrowRight, ChevronDown, Activity
 } from "lucide-react"
+import {
+  DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger
+} from "@/components/ui/dropdown-menu"
 import { cn } from "@/lib/utils"
 import { getTickets } from "@/lib/storage"
 import { INITIAL_WORK_ITEMS } from "@/lib/workbench-data"
@@ -132,6 +136,41 @@ export default function WorkItemDetailPage() {
   const useCaseInfo = getUseCaseInfo(item.useCase)
   const milestones = item.milestones || []
   const completedMilestones = milestones.filter(m => m.status === "completed").length
+  
+  // Handle milestone status change
+  const handleMilestoneStatusChange = (milestoneId: string, newStatus: Milestone["status"]) => {
+    setItem(prev => {
+      if (!prev || !prev.milestones) return prev
+      const updatedMilestones = prev.milestones.map(ms => {
+        if (ms.id === milestoneId) {
+          return {
+            ...ms,
+            status: newStatus,
+            completedDate: newStatus === "completed" ? new Date().toISOString().split("T")[0] : undefined
+          }
+        }
+        return ms
+      })
+      // Add note for status change
+      const milestone = prev.milestones.find(ms => ms.id === milestoneId)
+      const statusLabel = newStatus === "completed" ? "완료" : newStatus === "in-progress" ? "진행 중" : newStatus === "blocked" ? "차단됨" : "대기"
+      const newNote: WorkNote = {
+        id: `n-${Date.now()}`,
+        date: new Date().toISOString().split("T")[0],
+        author: "김지수",
+        content: `마일스톤 "${milestone?.name}" 상태 변경: ${statusLabel}`,
+        type: "milestone-update"
+      }
+      return {
+        ...prev,
+        milestones: updatedMilestones,
+        notes: [newNote, ...prev.notes]
+      }
+    })
+  }
+  
+  // Get current milestone (first in-progress or first not-started)
+  const currentMilestone = milestones.find(m => m.status === "in-progress") || milestones.find(m => m.status === "not-started")
 
   const ticketSearchResults = allTickets.filter(t =>
     (t.title.toLowerCase().includes(ticketSearchQuery.toLowerCase()) || t.id.includes(ticketSearchQuery)) &&
@@ -178,6 +217,140 @@ export default function WorkItemDetailPage() {
         </header>
 
         <main className="p-6">
+          {/* Milestone Workflow Bar - Horizontal at top */}
+          {milestones.length > 0 && (
+            <Card className="mb-6 p-5">
+              <div className="flex items-center justify-between mb-4">
+                <h3 className="text-sm font-semibold text-foreground flex items-center gap-2">
+                  <Activity className="h-4 w-4 text-primary" />
+                  마일스톤 진행 현황
+                </h3>
+                <Badge variant="outline" className="text-[10px] font-medium">
+                  {completedMilestones} / {milestones.length} 완료
+                </Badge>
+              </div>
+              <div className="grid gap-2" style={{ gridTemplateColumns: `repeat(${milestones.length}, minmax(0, 1fr))` }}>
+                {milestones.map((ms, index) => {
+                  const linkedTickets = item.linkedTickets.filter(t => ms.linkedTicketIds?.includes(t.id))
+                  const isCurrentStep = ms.status === "in-progress"
+                  
+                  const getBorderColor = (status: string) => {
+                    switch (status) {
+                      case "completed": return "border-l-emerald-500"
+                      case "in-progress": return "border-l-amber-500"
+                      case "blocked": return "border-l-red-400"
+                      default: return "border-l-muted-foreground/30"
+                    }
+                  }
+                  
+                  const getCardBg = (status: string) => {
+                    switch (status) {
+                      case "completed": return "bg-emerald-50/50"
+                      case "in-progress": return "bg-amber-50/50"
+                      case "blocked": return "bg-red-50/30"
+                      default: return "bg-muted/20"
+                    }
+                  }
+                  
+                  const getBadgeStyle = (status: string) => {
+                    switch (status) {
+                      case "completed": return "bg-emerald-500 text-white"
+                      case "in-progress": return "bg-amber-500 text-white"
+                      case "blocked": return "bg-red-400 text-white"
+                      default: return "bg-muted text-muted-foreground"
+                    }
+                  }
+                  
+                  const statusLabel = ms.status === "completed" ? "완료" : ms.status === "in-progress" ? "진행 중" : ms.status === "blocked" ? "차단됨" : "대기"
+                  
+                  return (
+                    <div
+                      key={ms.id}
+                      className={cn(
+                        "rounded-lg border border-l-[3px] transition-all",
+                        getBorderColor(ms.status),
+                        getCardBg(ms.status),
+                        isCurrentStep && "ring-1 ring-amber-200/60"
+                      )}
+                    >
+                      <div className="px-3 py-2.5">
+                        <div className="flex items-center gap-2 mb-1.5">
+                          <div className={cn("h-5 w-5 rounded-full flex items-center justify-center shrink-0", getBadgeStyle(ms.status))}>
+                            {ms.status === "completed" ? (
+                              <CheckCircle2 className="h-3 w-3" />
+                            ) : ms.status === "blocked" ? (
+                              <Ban className="h-3 w-3" />
+                            ) : (
+                              <span className="text-[10px] font-bold">{index + 1}</span>
+                            )}
+                          </div>
+                          <span className="text-xs font-medium truncate flex-1">{ms.name}</span>
+                          
+                          {/* Status change dropdown */}
+                          <DropdownMenu>
+                            <DropdownMenuTrigger asChild>
+                              <Button variant="ghost" size="icon" className="h-6 w-6 shrink-0">
+                                <ChevronDown className="h-3 w-3" />
+                              </Button>
+                            </DropdownMenuTrigger>
+                            <DropdownMenuContent align="end">
+                              <DropdownMenuItem onClick={() => handleMilestoneStatusChange(ms.id, "not-started")} className="cursor-pointer">
+                                <Circle className="h-3.5 w-3.5 mr-2 text-muted-foreground" /> 대기
+                              </DropdownMenuItem>
+                              <DropdownMenuItem onClick={() => handleMilestoneStatusChange(ms.id, "in-progress")} className="cursor-pointer">
+                                <Play className="h-3.5 w-3.5 mr-2 text-amber-500" /> 진행 중
+                              </DropdownMenuItem>
+                              <DropdownMenuItem onClick={() => handleMilestoneStatusChange(ms.id, "completed")} className="cursor-pointer">
+                                <CheckCircle2 className="h-3.5 w-3.5 mr-2 text-emerald-500" /> 완료
+                              </DropdownMenuItem>
+                              <DropdownMenuItem onClick={() => handleMilestoneStatusChange(ms.id, "blocked")} className="cursor-pointer">
+                                <Ban className="h-3.5 w-3.5 mr-2 text-red-500" /> 차단됨
+                              </DropdownMenuItem>
+                            </DropdownMenuContent>
+                          </DropdownMenu>
+                        </div>
+                        
+                        <div className="flex items-center gap-1.5 text-[10px] text-muted-foreground">
+                          <Badge variant="outline" className={cn("text-[9px] px-1 py-0", getBadgeStyle(ms.status).replace("bg-", "border-").replace("text-white", "bg-transparent"))}
+                            style={{ borderColor: ms.status === "completed" ? "#10b981" : ms.status === "in-progress" ? "#f59e0b" : ms.status === "blocked" ? "#ef4444" : "#d1d5db", color: ms.status === "completed" ? "#10b981" : ms.status === "in-progress" ? "#f59e0b" : ms.status === "blocked" ? "#ef4444" : "#9ca3af" }}
+                          >
+                            {statusLabel}
+                          </Badge>
+                          {ms.targetDate && (
+                            <span className="flex items-center gap-0.5">
+                              <Calendar className="h-2.5 w-2.5" />
+                              {ms.targetDate}
+                            </span>
+                          )}
+                          {ms.completedDate && (
+                            <span className="text-emerald-600">완료: {ms.completedDate}</span>
+                          )}
+                        </div>
+                        
+                        {/* Linked tickets */}
+                        {linkedTickets.length > 0 && (
+                          <div className="mt-2 pt-2 border-t border-border/50">
+                            <p className="text-[10px] text-muted-foreground mb-1">연결 이벤트:</p>
+                            <div className="space-y-1">
+                              {linkedTickets.map(ticket => (
+                                <div key={ticket.id} className="flex items-center gap-1.5 text-[10px]">
+                                  <Link className="h-2.5 w-2.5 text-muted-foreground" />
+                                  <span className="font-medium text-primary">#{ticket.id}</span>
+                                  <span className="truncate text-muted-foreground">{ticket.title}</span>
+                                  <Badge variant="outline" className="text-[8px] px-1 py-0 ml-auto">{ticket.status}</Badge>
+                                </div>
+                              ))}
+                            </div>
+                          </div>
+                        )}
+                      </div>
+                    </div>
+                  )
+                })}
+              </div>
+            </Card>
+          )}
+          
           <div className="grid grid-cols-3 gap-6">
             {/* Left: Main content (2 cols) */}
             <div className="col-span-2 space-y-6">

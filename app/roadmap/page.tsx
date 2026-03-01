@@ -245,8 +245,8 @@ export default function WorkbenchPage() {
 
       {/* Create Worklist Dialog */}
       <Dialog open={showCreateDialog} onOpenChange={setShowCreateDialog}>
-        <DialogContent className="max-w-2xl max-h-[90vh] overflow-hidden flex flex-col">
-          <DialogHeader>
+        <DialogContent className="max-w-2xl h-[85vh] max-h-[85vh] overflow-hidden flex flex-col">
+          <DialogHeader className="shrink-0">
             <DialogTitle className="flex items-center gap-2">
               <Plus className="h-5 w-5 text-primary" />
               워크리스트 생성
@@ -257,7 +257,7 @@ export default function WorkbenchPage() {
           </DialogHeader>
           
           {/* Step Indicator */}
-          <div className="flex items-center gap-2 py-2 border-b">
+          <div className="flex items-center gap-2 py-2 border-b shrink-0">
             {[1, 2, 3].map(step => (
               <div key={step} className="flex items-center gap-2">
                 <div className={cn(
@@ -274,7 +274,7 @@ export default function WorkbenchPage() {
             ))}
           </div>
           
-          <ScrollArea className="flex-1 pr-4">
+          <ScrollArea className="flex-1 min-h-0 pr-4">
             {/* Step 1: Basic Info */}
             {createStep === 1 && (
               <div className="space-y-4 py-4">
@@ -587,7 +587,7 @@ export default function WorkbenchPage() {
             )}
           </ScrollArea>
 
-          <DialogFooter className="border-t pt-4">
+          <DialogFooter className="border-t pt-4 shrink-0">
             {createStep > 1 && (
               <Button variant="outline" onClick={() => setCreateStep(prev => prev - 1)}>
                 이전

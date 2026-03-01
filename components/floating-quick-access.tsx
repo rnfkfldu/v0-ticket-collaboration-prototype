@@ -433,6 +433,8 @@ export function FloatingQuickAccess() {
   const [newFolderName, setNewFolderName] = useState("")
   const [newFolderUnit, setNewFolderUnit] = useState("")
   const [selectedFolderGroups, setSelectedFolderGroups] = useState<string[]>([])
+  const [loadedFromSaved, setLoadedFromSaved] = useState(false) // Track if we loaded from saved trends
+  const [loadedGroupsInfo, setLoadedGroupsInfo] = useState<{name: string; tags: string[]}[]>([]) // Store loaded groups info for display
 
   // --- 3) Dashboard state ---
   const [dashboards] = useState<DashboardItem[]>(INITIAL_DASHBOARDS)
@@ -582,6 +584,8 @@ export function FloatingQuickAccess() {
     setTrendTab("basic")
     resetDcsState()
     resetProcState()
+    setLoadedFromSaved(false)
+    setLoadedGroupsInfo([])
     setActivePanel("trend")
   }
 
@@ -652,14 +656,16 @@ export function FloatingQuickAccess() {
     setActivePanel("personalized-alarm")
   }
 
-  const handleClose = () => {
-    setIsOpen(false)
-    setActivePanel("menu")
-    setSelectedDashboard(null)
-    setShowSaveDialog(false)
-    setShowNewGroupDialog(false)
-    setSavedMsg("")
-    resetDcsState()
+const handleClose = () => {
+  setIsOpen(false)
+  setActivePanel("menu")
+  setSelectedDashboard(null)
+  setShowSaveDialog(false)
+  setShowNewGroupDialog(false)
+  setSavedMsg("")
+  resetDcsState()
+  setLoadedFromSaved(false)
+  setLoadedGroupsInfo([])
   }
 
   // --- Save trend to group ---
@@ -758,13 +764,38 @@ export function FloatingQuickAccess() {
     )
   }
   
-  // Load selected groups
+  // Load selected groups - now stores group info for display
   const loadSelectedGroups = () => {
     const selectedGroups = trendGroups.filter(g => selectedFolderGroups.includes(g.id))
     const allTags = selectedGroups.flatMap(g => g.tags)
     const uniqueTags = Array.from(new Set(allTags))
-    openTrendWithTags(uniqueTags, `${selectedGroups.length}개 그룹`)
+    // Store groups info for grouped display
+    setLoadedGroupsInfo(selectedGroups.map(g => ({ name: g.name, tags: g.tags })))
+    setLoadedFromSaved(true)
+    setActiveTags(uniqueTags)
+    setFromGroupName(`${selectedGroups.length}개 그룹`)
+    setActivePanel("trend")
+    setTrendTab("basic")
     setSelectedFolderGroups([])
+  }
+  
+  // Back to saved trends
+  const backToSavedTrends = () => {
+    setActiveTags([])
+    setLoadedGroupsInfo([])
+    setLoadedFromSaved(false)
+    setFromGroupName(null)
+    setActivePanel("saved-trends")
+  }
+  
+  // Open single group from saved trends
+  const openSingleGroupTrend = (group: TrendGroup) => {
+    setLoadedGroupsInfo([{ name: group.name, tags: group.tags }])
+    setLoadedFromSaved(true)
+    setActiveTags(group.tags)
+    setFromGroupName(group.name)
+    setActivePanel("trend")
+    setTrendTab("basic")
   }
 
   // Tag trends
@@ -991,26 +1022,49 @@ export function FloatingQuickAccess() {
             <>
           {/* Tag input */}
           <div className="space-y-2 shrink-0">
-            <div className="relative">
-              <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
-              <Input
-                value={tagInput}
-                onChange={(e) => handleTagInput(e.target.value)}
-                onKeyDown={handleKeyDown}
-                placeholder="태그 ID를 입력하세요 (예: TI-3001)"
-                className="pl-9"
-                autoFocus
-              />
-              {suggestions.length > 0 && (
-                <div className="absolute top-full left-0 right-0 mt-1 bg-popover border border-border rounded-md shadow-lg z-10 py-1 max-h-48 overflow-auto">
-                  {suggestions.map(tag => (
-                    <button key={tag} onClick={() => addTag(tag)} className="w-full text-left px-3 py-1.5 text-sm hover:bg-muted flex items-center gap-2 cursor-pointer">
-                      <Tag className="h-3 w-3 text-muted-foreground" />
-                      <span className="font-mono">{tag}</span>
-                    </button>
-                  ))}
-                </div>
-              )}
+            {/* Back to saved trends button (when loaded from saved) */}
+            {loadedFromSaved && (
+              <div className="flex items-center gap-2 px-2 py-1.5 bg-teal-50 border border-teal-200 rounded-md text-xs">
+                <Bookmark className="h-3.5 w-3.5 text-teal-600" />
+                <span className="text-teal-700">저장된 트렌드에서 불러옴</span>
+                <Button variant="ghost" size="sm" className="h-6 ml-auto text-xs px-2 text-teal-700 hover:text-teal-900 hover:bg-teal-100 cursor-pointer" onClick={backToSavedTrends}>
+                  저장 목록으로 돌아가기
+                </Button>
+              </div>
+            )}
+            
+            <div className="flex gap-2">
+              <div className="relative flex-1">
+                <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
+                <Input
+                  value={tagInput}
+                  onChange={(e) => handleTagInput(e.target.value)}
+                  onKeyDown={handleKeyDown}
+                  placeholder="태그 ID를 입력하세요 (예: TI-3001)"
+                  className="pl-9"
+                  autoFocus
+                />
+                {suggestions.length > 0 && (
+                  <div className="absolute top-full left-0 right-0 mt-1 bg-popover border border-border rounded-md shadow-lg z-10 py-1 max-h-48 overflow-auto">
+                    {suggestions.map(tag => (
+                      <button key={tag} onClick={() => addTag(tag)} className="w-full text-left px-3 py-1.5 text-sm hover:bg-muted flex items-center gap-2 cursor-pointer">
+                        <Tag className="h-3 w-3 text-muted-foreground" />
+                        <span className="font-mono">{tag}</span>
+                      </button>
+                    ))}
+                  </div>
+                )}
+              </div>
+              {/* Load from saved trends button */}
+              <Button 
+                variant="outline" 
+                size="sm" 
+                className="gap-1.5 text-xs shrink-0 cursor-pointer"
+                onClick={() => setActivePanel("saved-trends")}
+              >
+                <Bookmark className="h-3.5 w-3.5" />
+                저장된 트렌드 가져오기
+              </Button>
             </div>
             {activeTags.length > 0 && (
               <div className="flex flex-wrap gap-1.5">
@@ -1022,7 +1076,7 @@ export function FloatingQuickAccess() {
                     </button>
                   </Badge>
                 ))}
-                <Button variant="ghost" size="sm" className="h-6 text-xs px-2 text-muted-foreground cursor-pointer" onClick={() => setActiveTags([])}>
+                <Button variant="ghost" size="sm" className="h-6 text-xs px-2 text-muted-foreground cursor-pointer" onClick={() => { setActiveTags([]); setLoadedGroupsInfo([]); setLoadedFromSaved(false) }}>
                   전체 삭제
                 </Button>
               </div>
@@ -1038,6 +1092,55 @@ export function FloatingQuickAccess() {
                 </div>
                 <p className="text-sm font-medium text-foreground mb-1">태그를 입력하여 트렌드를 확인하세요</p>
                 <p className="text-xs text-muted-foreground max-w-sm">상단 검색창에 태그 ID를 입력하면 실시간 트렌드가 표시됩니다.</p>
+              </div>
+            ) : loadedGroupsInfo.length > 1 && viewMode === "individual" ? (
+              /* ===== Grouped view (when multiple saved groups loaded) ===== */
+              <div className="space-y-6 pb-4">
+                {loadedGroupsInfo.map((group, groupIndex) => {
+                  const groupTrends = group.tags.map(tag => ({ tag, ...generateTagTrend(tag) }))
+                  const groupColorBase = groupIndex * 3
+                  return (
+                    <div key={group.name} className="space-y-3">
+                      <div className="flex items-center gap-2 border-b border-border pb-2">
+                        <Bookmark className="h-4 w-4 text-teal-600" />
+                        <h3 className="text-sm font-semibold">{group.name}</h3>
+                        <Badge variant="secondary" className="text-[10px]">{group.tags.length}개 태그</Badge>
+                      </div>
+                      <div className="grid grid-cols-1 lg:grid-cols-2 gap-3">
+                        {groupTrends.map(({ tag, values, unit, high, low, current }, i) => {
+                          const isViolation = (high !== null && current > high) || (low !== null && current < low)
+                          return (
+                            <Card key={tag} className={cn("overflow-hidden", isViolation && "border-red-200")}>
+                              <div className="px-3 pt-2.5 pb-0 flex items-center justify-between">
+                                <div className="flex items-center gap-2">
+                                  <div className="w-2.5 h-2.5 rounded-full shrink-0" style={{ backgroundColor: COLORS[(groupColorBase + i) % COLORS.length] }} />
+                                  <span className="font-mono text-sm font-semibold">{tag}</span>
+                                  {isViolation && <Badge variant="destructive" className="text-[10px] px-1.5 py-0 h-4">Limit 초과</Badge>}
+                                </div>
+                                <span className="text-xs text-muted-foreground">[{unit}]</span>
+                              </div>
+                              <div className="px-2">
+                                <TrendChart values={values} high={high} low={low} color={COLORS[(groupColorBase + i) % COLORS.length]} isAlert={isViolation} height="h-28" />
+                              </div>
+                              <div className="px-3 pb-2.5 flex items-center justify-between text-xs border-t border-border/50 pt-1.5">
+                                <div>
+                                  <span className="text-muted-foreground">현재 </span>
+                                  <span className={cn("font-semibold", isViolation ? "text-red-600" : "text-foreground")}>{current} {unit}</span>
+                                </div>
+                                {high !== null && <div><span className="text-muted-foreground">H </span><span className="text-red-500 font-medium">{high}</span></div>}
+                                {low !== null && <div><span className="text-muted-foreground">L </span><span className="text-blue-500 font-medium">{low}</span></div>}
+                                <div>
+                                  <span className="text-muted-foreground">범위 </span>
+                                  <span className="font-medium">{Math.min(...values).toFixed(1)} ~ {Math.max(...values).toFixed(1)}</span>
+                                </div>
+                              </div>
+                            </Card>
+                          )
+                        })}
+                      </div>
+                    </div>
+                  )
+                })}
               </div>
             ) : viewMode === "overlay" ? (
               /* ===== Overlay view ===== */
@@ -1864,7 +1967,7 @@ export function FloatingQuickAccess() {
                                 className="mt-3 h-4 w-4 rounded border-border cursor-pointer"
                               />
                               <button
-                                onClick={() => openTrendWithTags(group.tags, group.name)}
+                                onClick={() => openSingleGroupTrend(group)}
                                 className="flex-1 text-left p-2.5 rounded-md border border-border bg-background hover:border-primary/30 hover:bg-muted/50 transition-colors cursor-pointer"
                               >
                                 <div className="flex items-center justify-between mb-1">
@@ -1910,7 +2013,7 @@ export function FloatingQuickAccess() {
                           className="mt-3 h-4 w-4 rounded border-border cursor-pointer"
                         />
                         <button
-                          onClick={() => openTrendWithTags(group.tags, group.name)}
+                          onClick={() => openSingleGroupTrend(group)}
                           className="flex-1 text-left p-3 rounded-lg border border-border hover:border-primary/30 hover:bg-muted/50 transition-colors cursor-pointer"
                         >
                           <div className="flex items-center justify-between mb-1.5">
