@@ -94,7 +94,10 @@ export const ALL_PROCESSES: ProcessUnit[] = [
 // ============================================================
 // 2) User Roles
 // ============================================================
-export type UserRole = "engineer" | "team-lead" | "division-head" | "plant-head"
+export type UserRole = "engineer" | "team-lead" | "division-head" | "plant-head" | "operator" | "equipment-engineer"
+
+// Department types for staff roles
+export type Department = "production" | "equipment-tech" | "inspection" | "reliability"
 
 export interface UserProfile {
   id: string
@@ -102,38 +105,60 @@ export interface UserProfile {
   role: UserRole
   roleLabel: string
   division?: Division       // for division-head
+  department?: Department   // for staff roles (equipment-engineer, etc.)
   assignedProcessIds: string[]  // for engineer / team-lead: list of ProcessUnit ids
   alertMinSeverity: "info" | "warning" | "critical"  // role-based default filter
   showManagementDashboard: boolean
+  // Menu visibility flags
+  showStrategicTasks?: boolean     // 전략 과제 메뉴 표시 여부
+  showDataSettings?: boolean       // 데이터/설정 메뉴 표시 여부
+  showOptimization?: boolean       // 최적화/인사이트 메뉴 표시 여부
+  focusArea?: "operations" | "reliability" | "equipment"  // 주요 관심 영역
 }
 
 export const USER_PROFILES: UserProfile[] = [
+  // === 생산팀 역할 ===
   {
     id: "u-engineer-1",
     name: "김철수",
     role: "engineer",
     roleLabel: "생산팀원",
+    department: "production",
     assignedProcessIds: ["HCR", "VGOFCC"],
     alertMinSeverity: "info",
     showManagementDashboard: false,
+    showStrategicTasks: true,
+    showDataSettings: true,
+    showOptimization: true,
+    focusArea: "operations",
   },
   {
     id: "u-engineer-2",
     name: "박영희",
     role: "engineer",
     roleLabel: "생산팀원",
+    department: "production",
     assignedProcessIds: ["1CDU", "2CDU", "1VDU"],
     alertMinSeverity: "info",
     showManagementDashboard: false,
+    showStrategicTasks: true,
+    showDataSettings: true,
+    showOptimization: true,
+    focusArea: "operations",
   },
   {
     id: "u-team-lead",
     name: "이민수",
     role: "team-lead",
     roleLabel: "기술팀장",
+    department: "production",
     assignedProcessIds: ["HCR", "VGOFCC", "RFCC", "VRHR", "1KD", "2KD", "3KD", "4KD", "VBU", "RHDS", "VGHDS", "SRU"],
     alertMinSeverity: "warning",
     showManagementDashboard: true,
+    showStrategicTasks: true,
+    showDataSettings: true,
+    showOptimization: true,
+    focusArea: "operations",
   },
   {
     id: "u-div-head",
@@ -141,18 +166,102 @@ export const USER_PROFILES: UserProfile[] = [
     role: "division-head",
     roleLabel: "부문장",
     division: "Upgrading",
+    department: "production",
     assignedProcessIds: ALL_PROCESSES.filter(p => p.division === "Upgrading").map(p => p.id),
     alertMinSeverity: "warning",
     showManagementDashboard: true,
+    showStrategicTasks: true,
+    showDataSettings: true,
+    showOptimization: true,
+    focusArea: "operations",
   },
   {
     id: "u-plant-head",
     name: "한상진",
     role: "plant-head",
     roleLabel: "공장장",
+    department: "production",
     assignedProcessIds: ALL_PROCESSES.map(p => p.id),
     alertMinSeverity: "critical",
     showManagementDashboard: true,
+    showStrategicTasks: true,
+    showDataSettings: true,
+    showOptimization: true,
+    focusArea: "operations",
+  },
+  
+  // === 운전원 역할 (생산팀, 운전 현황에만 관심) ===
+  {
+    id: "u-operator-1",
+    name: "최운전",
+    role: "operator",
+    roleLabel: "운전원",
+    department: "production",
+    assignedProcessIds: ["HCR", "VGOFCC", "RFCC"],
+    alertMinSeverity: "info",
+    showManagementDashboard: false,
+    showStrategicTasks: false,  // 전략 과제 숨김
+    showDataSettings: false,    // 데이터/설정 숨김
+    showOptimization: false,    // 최적화 숨김
+    focusArea: "operations",
+  },
+  {
+    id: "u-operator-2",
+    name: "김현장",
+    role: "operator",
+    roleLabel: "운전원",
+    department: "production",
+    assignedProcessIds: ["1CDU", "2CDU", "1VDU", "2VDU"],
+    alertMinSeverity: "info",
+    showManagementDashboard: false,
+    showStrategicTasks: false,
+    showDataSettings: false,
+    showOptimization: false,
+    focusArea: "operations",
+  },
+  
+  // === 설비기술팀 역할 (Staff, Reliability 관점) ===
+  {
+    id: "u-equip-eng-1",
+    name: "박설비",
+    role: "equipment-engineer",
+    roleLabel: "설비기술팀원",
+    department: "equipment-tech",
+    assignedProcessIds: ALL_PROCESSES.filter(p => p.division === "Upgrading").map(p => p.id),
+    alertMinSeverity: "info",
+    showManagementDashboard: false,
+    showStrategicTasks: true,
+    showDataSettings: true,
+    showOptimization: false,  // 운전 최적화보다는 설비 관점
+    focusArea: "equipment",   // Compressor, Pump 등 회전기기 중심
+  },
+  {
+    id: "u-equip-eng-2",
+    name: "이정비",
+    role: "equipment-engineer",
+    roleLabel: "설비기술팀원",
+    department: "equipment-tech",
+    assignedProcessIds: ALL_PROCESSES.filter(p => p.division === "Refining" || p.division === "Chemical").map(p => p.id),
+    alertMinSeverity: "info",
+    showManagementDashboard: false,
+    showStrategicTasks: true,
+    showDataSettings: true,
+    showOptimization: false,
+    focusArea: "equipment",
+  },
+  {
+    id: "u-equip-lead",
+    name: "정기술",
+    role: "equipment-engineer",
+    roleLabel: "설비기술팀장",
+    department: "equipment-tech",
+    assignedProcessIds: ALL_PROCESSES.map(p => p.id),
+    alertMinSeverity: "warning",
+    showManagementDashboard: true,
+    showStrategicTasks: true,
+    showDataSettings: true,
+    showOptimization: false,
+    focusArea: "equipment",
   },
 ]
 
@@ -280,9 +389,31 @@ export function getProcessesByDivision(processes: ProcessUnit[]) {
 
 export function getRoleDescription(role: UserRole): string {
   switch (role) {
-    case "engineer": return "담당 공정(1~3개)에 대한 상세 모니터링 및 운전 관리"
-    case "team-lead": return "팀원 담당 공정 합산(~12개) 관리, 주요 이슈 대시보드 중심"
-    case "division-head": return "부문 내 전체 공정(~17개) 총괄, 경영지표 중심 대시보드"
-    case "plant-head": return "전체 50개 공정 총괄, KPI 요약 및 핵심 지표 중심"
+    case "engineer":
+      return "담당 공정의 실시간 운전 현황을 모니터링하고 이벤트에 대응합니다."
+    case "team-lead":
+      return "팀 내 공정 전체를 관리하고 팀원들의 업무를 조율합니다."
+    case "division-head":
+      return "부문 전체의 운전 현황을 모니터링하고 의사결정을 지원합니다."
+    case "plant-head":
+      return "전 공정의 운전 현황을 모니터링하고 전략적 의사결정을 수행합니다."
+    case "operator":
+      return "현장 운전 현황 모니터링에 집중합니다. 알람 및 실시간 데이터 확인이 주요 업무입니다."
+    case "equipment-engineer":
+      return "설비 건전성 및 Reliability 관점에서 회전기기, 정적기기를 모니터링합니다."
+    default:
+      return ""
   }
+}
+
+// Helper to get department label
+export function getDepartmentLabel(dept?: Department): string {
+  switch (dept) {
+    case "production": return "생산팀"
+    case "equipment-tech": return "설비기술팀"
+    case "inspection": return "검사팀"
+    case "reliability": return "신뢰성팀"
+    default: return ""
+  }
+}
 }

@@ -49,9 +49,19 @@ import { Badge } from "@/components/ui/badge"
 import { Input } from "@/components/ui/input"
 import { ScrollArea } from "@/components/ui/scroll-area"
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog"
-import { useUser, USER_PROFILES, getRoleDescription } from "@/lib/user-context"
+import { useUser, USER_PROFILES, getRoleDescription, getDepartmentLabel, type UserProfile } from "@/lib/user-context"
+import { Wrench } from "lucide-react"
 
-const mainMenus = [
+interface MainMenuItem {
+  id: string
+  label: string
+  href: string
+  icon: React.ElementType
+  description: string
+  requiresFlag?: keyof Pick<UserProfile, "showStrategicTasks" | "showDataSettings" | "showOptimization">
+}
+
+const mainMenus: MainMenuItem[] = [
   { 
     id: "operations",
     label: "운전 현황", 
@@ -71,14 +81,16 @@ const mainMenus = [
     label: "최적화/인사이트", 
     href: "/optimization/ai-ml",
     icon: TrendingUp,
-    description: "공정 최적화 및 인사이트"
+    description: "공정 최적화 및 인사이트",
+    requiresFlag: "showOptimization"
   },
   { 
     id: "roadmap",
     label: "전략 과제", 
     href: "/roadmap",
     icon: Target,
-    description: "TA Worklist 및 전략 과제 관리"
+    description: "TA Worklist 및 전략 과제 관리",
+    requiresFlag: "showStrategicTasks"
   },
   { 
     id: "knowledge",
@@ -92,7 +104,8 @@ const mainMenus = [
     label: "데이터/설정", 
     href: "/admin",
     icon: Database,
-    description: "데이터 관리 및 시스템 설정"
+    description: "데이터 관리 및 시스템 설정",
+    requiresFlag: "showDataSettings"
   },
   { 
     id: "review",
@@ -102,6 +115,14 @@ const mainMenus = [
     description: "운전 리뷰 및 KPI 거버넌스"
   },
 ]
+
+// Get filtered menus based on user role
+function getFilteredMenus(user: UserProfile): MainMenuItem[] {
+  return mainMenus.filter(menu => {
+    if (!menu.requiresFlag) return true
+    return user[menu.requiresFlag] !== false
+  })
+}
 
 // 샘플 알람 데이터
 const recentAlerts = [
@@ -171,6 +192,7 @@ export function TopNavigation() {
   }
 
   const activeMenu = getActiveMenu()
+  const filteredMenus = getFilteredMenus(currentUser)
 
   const handleSendMessage = () => {
     if (!chatInput.trim()) return
@@ -241,7 +263,7 @@ export function TopNavigation() {
 
         {/* 메인 메뉴 */}
         <nav className="flex items-center gap-0.5 flex-1">
-          {mainMenus.map((menu) => {
+          {filteredMenus.map((menu) => {
             const Icon = menu.icon
             const isActive = activeMenu === menu.id
             return (

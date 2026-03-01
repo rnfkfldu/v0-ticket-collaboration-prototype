@@ -46,7 +46,9 @@ export default function WorkbenchPage() {
   })
   const [newMilestone, setNewMilestone] = useState({ name: "", description: "", targetDate: "" })
 
-  const items = INITIAL_WORK_ITEMS
+  // Mutable work items list
+  const [items, setItems] = useState<WorkItem[]>(INITIAL_WORK_ITEMS)
+  
   const categories = [...new Set(items.map(i => i.category))]
   const units = [...new Set(items.map(i => i.unit))]
 
@@ -94,8 +96,41 @@ export default function WorkbenchPage() {
   }
 
   const handleCreateWorklist = () => {
-    // In real app, this would save to database
-    alert(`워크리스트 "${newWorklist.title}" 가 생성되었습니다.`)
+    // Create new worklist item
+    const newItem: WorkItem = {
+      id: `WL-${String(items.length + 1).padStart(3, "0")}`,
+      title: newWorklist.title || "새 워크리스트",
+      unit: newWorklist.unit || "Cross-Unit",
+      category: newWorklist.category || "기타",
+      priority: (newWorklist.priority as WorkItem["priority"]) || "medium",
+      status: "planning",
+      owner: currentUser.name,
+      description: newWorklist.description || "",
+      progress: 0,
+      startDate: new Date().toISOString().slice(0, 7),
+      targetDate: newWorklist.milestones?.length 
+        ? newWorklist.milestones[newWorklist.milestones.length - 1].targetDate 
+        : undefined,
+      linkedTickets: [],
+      notes: [{
+        id: `n-${Date.now()}`,
+        date: new Date().toISOString().slice(0, 10),
+        author: currentUser.name,
+        content: "워크리스트가 생성되었습니다.",
+        type: "status-change"
+      }],
+      useCase: newWorklist.useCase,
+      milestones: newWorklist.milestones,
+      problemStatement: newWorklist.problemStatement,
+      triedApproaches: [],
+      teamMembers: newWorklist.teamMembers,
+      parallelTracks: newWorklist.parallelTracks,
+    }
+    
+    // Add to items list
+    setItems(prev => [newItem, ...prev])
+    
+    // Reset form and close dialog
     setShowCreateDialog(false)
     setCreateStep(1)
     setNewWorklist({
