@@ -2,41 +2,133 @@
 
 import { useState } from "react"
 import { AppShell } from "@/components/app-shell"
-import { Card, CardContent } from "@/components/ui/card"
+import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
 import { Badge } from "@/components/ui/badge"
+import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
+import { Label } from "@/components/ui/label"
+import { Textarea } from "@/components/ui/textarea"
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
-import { Search, ChevronRight, Link, Layers } from "lucide-react"
+import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter, DialogDescription } from "@/components/ui/dialog"
+import { Tabs, TabsList, TabsTrigger, TabsContent } from "@/components/ui/tabs"
+import { RadioGroup, RadioGroupItem } from "@/components/ui/radio-group"
+import { ScrollArea } from "@/components/ui/scroll-area"
+import { Separator } from "@/components/ui/separator"
+import { Search, ChevronRight, Link, Layers, Plus, Users, Wrench, Calendar, Target, AlertTriangle, CheckCircle, X, GripVertical, Trash2 } from "lucide-react"
 import { cn } from "@/lib/utils"
-import { INITIAL_WORK_ITEMS } from "@/lib/workbench-data"
+import { INITIAL_WORK_ITEMS, type WorkItem, type Milestone, type WorklistUseCase } from "@/lib/workbench-data"
 import { useRouter } from "next/navigation"
+import { useUser } from "@/lib/user-context"
 
 export default function WorkbenchPage() {
   const [search, setSearch] = useState("")
   const [statusFilter, setStatusFilter] = useState("all")
   const [categoryFilter, setCategoryFilter] = useState("all")
+  const [useCaseFilter, setUseCaseFilter] = useState("all")
   const router = useRouter()
+  const { currentUser } = useUser()
+  const isTeamLead = currentUser.role === "team-lead" || currentUser.role === "division-head" || currentUser.role === "plant-head"
+
+  // Worklist creation dialog state
+  const [showCreateDialog, setShowCreateDialog] = useState(false)
+  const [createStep, setCreateStep] = useState(1)
+  const [newWorklist, setNewWorklist] = useState<Partial<WorkItem>>({
+    title: "",
+    description: "",
+    unit: "",
+    category: "",
+    priority: "medium",
+    useCase: "problem-solving",
+    problemStatement: "",
+    milestones: [],
+    teamMembers: [],
+    parallelTracks: [],
+  })
+  const [newMilestone, setNewMilestone] = useState({ name: "", description: "", targetDate: "" })
 
   const items = INITIAL_WORK_ITEMS
   const categories = [...new Set(items.map(i => i.category))]
+  const units = [...new Set(items.map(i => i.unit))]
 
   const filtered = items
     .filter(i => statusFilter === "all" || i.status === statusFilter)
     .filter(i => categoryFilter === "all" || i.category === categoryFilter)
+    .filter(i => useCaseFilter === "all" || i.useCase === useCaseFilter)
     .filter(i => i.title.toLowerCase().includes(search.toLowerCase()) || i.unit.toLowerCase().includes(search.toLowerCase()) || i.category.toLowerCase().includes(search.toLowerCase()))
 
   const getPriorityStyle = (p: string) => p === "critical" ? "bg-red-500 text-white" : p === "high" ? "bg-amber-500 text-white" : p === "medium" ? "bg-blue-500 text-white" : "bg-muted text-muted-foreground"
   const getStatusStyle = (s: string) => s === "approved" ? "border-green-300 text-green-600" : s === "under-review" ? "border-amber-300 text-amber-600" : s === "in-progress" ? "border-blue-300 text-blue-600" : s === "completed" || s === "closed" ? "border-slate-300 text-slate-500" : "border-purple-300 text-purple-600"
+  const getUseCaseLabel = (uc?: WorklistUseCase) => {
+    switch (uc) {
+      case "team-project": return "팀 프로젝트"
+      case "problem-solving": return "문제 해결"
+      case "ta-worklist": return "TA Worklist"
+      case "optimization": return "최적화"
+      default: return "-"
+    }
+  }
+
+  const addMilestone = () => {
+    if (!newMilestone.name.trim()) return
+    const milestone: Milestone = {
+      id: `ms-${Date.now()}`,
+      name: newMilestone.name,
+      description: newMilestone.description,
+      targetDate: newMilestone.targetDate,
+      status: "not-started",
+      linkedTicketIds: [],
+      order: (newWorklist.milestones?.length || 0) + 1
+    }
+    setNewWorklist(prev => ({
+      ...prev,
+      milestones: [...(prev.milestones || []), milestone]
+    }))
+    setNewMilestone({ name: "", description: "", targetDate: "" })
+  }
+
+  const removeMilestone = (id: string) => {
+    setNewWorklist(prev => ({
+      ...prev,
+      milestones: (prev.milestones || []).filter(m => m.id !== id)
+    }))
+  }
+
+  const handleCreateWorklist = () => {
+    // In real app, this would save to database
+    alert(`워크리스트 "${newWorklist.title}" 가 생성되었습니다.`)
+    setShowCreateDialog(false)
+    setCreateStep(1)
+    setNewWorklist({
+      title: "",
+      description: "",
+      unit: "",
+      category: "",
+      priority: "medium",
+      useCase: "problem-solving",
+      problemStatement: "",
+      milestones: [],
+      teamMembers: [],
+      parallelTracks: [],
+    })
+  }
 
   return (
     <AppShell>
       <div className="min-h-screen bg-background">
         <header className="border-b border-border bg-card px-6 py-4">
-          <div className="flex items-center gap-2">
-            <Layers className="h-5 w-5 text-primary" />
-            <h1 className="text-lg font-semibold">Worklist</h1>
+          <div className="flex items-center justify-between">
+            <div>
+              <div className="flex items-center gap-2">
+                <Layers className="h-5 w-5 text-primary" />
+                <h1 className="text-lg font-semibold">Worklist</h1>
+              </div>
+              <p className="text-sm text-muted-foreground mt-1">다양한 팀 / 공정 / 태스크가 공존하는 중장기 업무 관리 공간. 복수 이벤트 그룹핑을 통해 워크리스트를 종합 관리합니다.</p>
+            </div>
+            <Button onClick={() => setShowCreateDialog(true)} className="gap-2">
+              <Plus className="h-4 w-4" />
+              워크리스트 생성
+            </Button>
           </div>
-          <p className="text-sm text-muted-foreground mt-1">다양한 팀 / 공정 / 태스크가 공존하는 중장기 업무 관리 공간. 복수 이벤트 그룹핑을 통해 워크리스트를 종합 관리합니다.</p>
         </header>
 
         <main className="p-6 space-y-6">
@@ -55,6 +147,16 @@ export default function WorkbenchPage() {
               <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
               <Input placeholder="항목 / Unit / 카테고리 검색..." value={search} onChange={e => setSearch(e.target.value)} className="pl-9" />
             </div>
+            <Select value={useCaseFilter} onValueChange={setUseCaseFilter}>
+              <SelectTrigger className="w-36"><SelectValue placeholder="유형" /></SelectTrigger>
+              <SelectContent>
+                <SelectItem value="all">전체 유형</SelectItem>
+                <SelectItem value="team-project">팀 프로젝트</SelectItem>
+                <SelectItem value="problem-solving">문제 해결</SelectItem>
+                <SelectItem value="ta-worklist">TA Worklist</SelectItem>
+                <SelectItem value="optimization">최적화</SelectItem>
+              </SelectContent>
+            </Select>
             <Select value={categoryFilter} onValueChange={setCategoryFilter}>
               <SelectTrigger className="w-40"><SelectValue placeholder="카테고리" /></SelectTrigger>
               <SelectContent>
@@ -85,6 +187,7 @@ export default function WorkbenchPage() {
                     <th className="text-left p-3 text-xs font-medium text-muted-foreground w-20">ID</th>
                     <th className="text-left p-3 text-xs font-medium text-muted-foreground">항목</th>
                     <th className="text-left p-3 text-xs font-medium text-muted-foreground w-24">Unit</th>
+                    <th className="text-left p-3 text-xs font-medium text-muted-foreground w-24">유형</th>
                     <th className="text-left p-3 text-xs font-medium text-muted-foreground w-28">카테고리</th>
                     <th className="text-left p-3 text-xs font-medium text-muted-foreground w-20">Priority</th>
                     <th className="text-left p-3 text-xs font-medium text-muted-foreground w-24">Status</th>
@@ -103,6 +206,7 @@ export default function WorkbenchPage() {
                       <td className="p-3 font-mono text-xs text-muted-foreground">{item.id}</td>
                       <td className="p-3 text-sm font-medium text-primary hover:underline">{item.title}</td>
                       <td className="p-3"><Badge variant="outline" className="text-xs">{item.unit}</Badge></td>
+                      <td className="p-3"><Badge variant="secondary" className="text-xs">{getUseCaseLabel(item.useCase)}</Badge></td>
                       <td className="p-3 text-xs text-muted-foreground">{item.category}</td>
                       <td className="p-3"><Badge className={cn("text-xs", getPriorityStyle(item.priority))}>{item.priority}</Badge></td>
                       <td className="p-3"><Badge variant="outline" className={cn("text-xs", getStatusStyle(item.status))}>{item.status}</Badge></td>
@@ -130,7 +234,7 @@ export default function WorkbenchPage() {
                     </tr>
                   ))}
                   {filtered.length === 0 && (
-                    <tr><td colSpan={9} className="p-8 text-center text-sm text-muted-foreground">검색 결과가 없습니다.</td></tr>
+                    <tr><td colSpan={10} className="p-8 text-center text-sm text-muted-foreground">검색 결과가 없습니다.</td></tr>
                   )}
                 </tbody>
               </table>
@@ -138,6 +242,370 @@ export default function WorkbenchPage() {
           </Card>
         </main>
       </div>
+
+      {/* Create Worklist Dialog */}
+      <Dialog open={showCreateDialog} onOpenChange={setShowCreateDialog}>
+        <DialogContent className="max-w-2xl max-h-[90vh] overflow-hidden flex flex-col">
+          <DialogHeader>
+            <DialogTitle className="flex items-center gap-2">
+              <Plus className="h-5 w-5 text-primary" />
+              워크리스트 생성
+            </DialogTitle>
+            <DialogDescription>
+              새로운 워크리스트를 생성하고 마일스톤을 설계합니다
+            </DialogDescription>
+          </DialogHeader>
+          
+          {/* Step Indicator */}
+          <div className="flex items-center gap-2 py-2 border-b">
+            {[1, 2, 3].map(step => (
+              <div key={step} className="flex items-center gap-2">
+                <div className={cn(
+                  "w-7 h-7 rounded-full flex items-center justify-center text-xs font-medium",
+                  createStep >= step ? "bg-primary text-primary-foreground" : "bg-muted text-muted-foreground"
+                )}>
+                  {createStep > step ? <CheckCircle className="h-4 w-4" /> : step}
+                </div>
+                <span className={cn("text-sm", createStep >= step ? "text-foreground" : "text-muted-foreground")}>
+                  {step === 1 ? "기본 정보" : step === 2 ? "유형 선택" : "마일스톤 설계"}
+                </span>
+                {step < 3 && <ChevronRight className="h-4 w-4 text-muted-foreground" />}
+              </div>
+            ))}
+          </div>
+          
+          <ScrollArea className="flex-1 pr-4">
+            {/* Step 1: Basic Info */}
+            {createStep === 1 && (
+              <div className="space-y-4 py-4">
+                <div className="space-y-2">
+                  <Label>워크리스트 제목 *</Label>
+                  <Input 
+                    placeholder="예: VDU 분리도 개선 프로젝트"
+                    value={newWorklist.title}
+                    onChange={e => setNewWorklist(prev => ({ ...prev, title: e.target.value }))}
+                  />
+                </div>
+                <div className="space-y-2">
+                  <Label>설명</Label>
+                  <Textarea 
+                    placeholder="워크리스트의 목적과 배경을 설명해 주세요"
+                    value={newWorklist.description}
+                    onChange={e => setNewWorklist(prev => ({ ...prev, description: e.target.value }))}
+                    className="min-h-20"
+                  />
+                </div>
+                <div className="grid grid-cols-2 gap-4">
+                  <div className="space-y-2">
+                    <Label>관련 Unit</Label>
+                    <Select value={newWorklist.unit} onValueChange={v => setNewWorklist(prev => ({ ...prev, unit: v }))}>
+                      <SelectTrigger><SelectValue placeholder="Unit 선택" /></SelectTrigger>
+                      <SelectContent>
+                        <SelectItem value="Cross-Unit">Cross-Unit</SelectItem>
+                        {units.map(u => <SelectItem key={u} value={u}>{u}</SelectItem>)}
+                      </SelectContent>
+                    </Select>
+                  </div>
+                  <div className="space-y-2">
+                    <Label>카테고리</Label>
+                    <Select value={newWorklist.category} onValueChange={v => setNewWorklist(prev => ({ ...prev, category: v }))}>
+                      <SelectTrigger><SelectValue placeholder="카테고리 선택" /></SelectTrigger>
+                      <SelectContent>
+                        {categories.map(c => <SelectItem key={c} value={c}>{c}</SelectItem>)}
+                        <SelectItem value="기타">기타</SelectItem>
+                      </SelectContent>
+                    </Select>
+                  </div>
+                </div>
+                <div className="grid grid-cols-2 gap-4">
+                  <div className="space-y-2">
+                    <Label>우선순위</Label>
+                    <Select value={newWorklist.priority} onValueChange={v => setNewWorklist(prev => ({ ...prev, priority: v as any }))}>
+                      <SelectTrigger><SelectValue /></SelectTrigger>
+                      <SelectContent>
+                        <SelectItem value="critical">Critical</SelectItem>
+                        <SelectItem value="high">High</SelectItem>
+                        <SelectItem value="medium">Medium</SelectItem>
+                        <SelectItem value="low">Low</SelectItem>
+                      </SelectContent>
+                    </Select>
+                  </div>
+                  <div className="space-y-2">
+                    <Label>목표 완료일</Label>
+                    <Input 
+                      type="date"
+                      value={newWorklist.targetDate}
+                      onChange={e => setNewWorklist(prev => ({ ...prev, targetDate: e.target.value }))}
+                    />
+                  </div>
+                </div>
+              </div>
+            )}
+
+            {/* Step 2: Use Case Selection */}
+            {createStep === 2 && (
+              <div className="space-y-4 py-4">
+                <Label className="text-base font-medium">워크리스트 유형 선택</Label>
+                <p className="text-sm text-muted-foreground">업무 시나리오에 맞는 유형을 선택하세요</p>
+                
+                <RadioGroup 
+                  value={newWorklist.useCase} 
+                  onValueChange={v => setNewWorklist(prev => ({ ...prev, useCase: v as WorklistUseCase }))}
+                  className="space-y-3"
+                >
+                  {/* Team Project */}
+                  <div className={cn(
+                    "flex items-start gap-4 p-4 rounded-lg border-2 transition-colors cursor-pointer",
+                    newWorklist.useCase === "team-project" ? "border-primary bg-primary/5" : "border-muted hover:border-muted-foreground/30"
+                  )} onClick={() => setNewWorklist(prev => ({ ...prev, useCase: "team-project" }))}>
+                    <RadioGroupItem value="team-project" id="team-project" className="mt-1" />
+                    <div className="flex-1">
+                      <div className="flex items-center gap-2">
+                        <Users className="h-5 w-5 text-blue-600" />
+                        <Label htmlFor="team-project" className="font-medium cursor-pointer">팀 프로젝트</Label>
+                        {isTeamLead && <Badge variant="outline" className="text-xs">팀장 권장</Badge>}
+                      </div>
+                      <p className="text-sm text-muted-foreground mt-1">
+                        여러 검토가 다각적/병렬적으로 진행되어야 하는 팀 단위 과제. 마일스톤별로 담당자를 지정하고 병렬 트랙을 관리합니다.
+                      </p>
+                      <div className="flex gap-2 mt-2">
+                        <Badge variant="secondary" className="text-xs">병렬 트랙 관리</Badge>
+                        <Badge variant="secondary" className="text-xs">팀원 할당</Badge>
+                        <Badge variant="secondary" className="text-xs">일정 조율</Badge>
+                      </div>
+                    </div>
+                  </div>
+
+                  {/* Problem Solving */}
+                  <div className={cn(
+                    "flex items-start gap-4 p-4 rounded-lg border-2 transition-colors cursor-pointer",
+                    newWorklist.useCase === "problem-solving" ? "border-primary bg-primary/5" : "border-muted hover:border-muted-foreground/30"
+                  )} onClick={() => setNewWorklist(prev => ({ ...prev, useCase: "problem-solving" }))}>
+                    <RadioGroupItem value="problem-solving" id="problem-solving" className="mt-1" />
+                    <div className="flex-1">
+                      <div className="flex items-center gap-2">
+                        <Wrench className="h-5 w-5 text-amber-600" />
+                        <Label htmlFor="problem-solving" className="font-medium cursor-pointer">문제 해결</Label>
+                      </div>
+                      <p className="text-sm text-muted-foreground mt-1">
+                        고질적인 문제를 해결하기 위한 다양한 시도들을 하나로 묶어 관리합니다. 
+                        예: VDU 분리도 저하 문제 - Packing 교체, 케미컬 주입, 운전변수 변경 등
+                      </p>
+                      <div className="flex gap-2 mt-2">
+                        <Badge variant="secondary" className="text-xs">문제 정의</Badge>
+                        <Badge variant="secondary" className="text-xs">시도 이력</Badge>
+                        <Badge variant="secondary" className="text-xs">효과 분석</Badge>
+                      </div>
+                    </div>
+                  </div>
+
+                  {/* TA Worklist */}
+                  <div className={cn(
+                    "flex items-start gap-4 p-4 rounded-lg border-2 transition-colors cursor-pointer",
+                    newWorklist.useCase === "ta-worklist" ? "border-primary bg-primary/5" : "border-muted hover:border-muted-foreground/30"
+                  )} onClick={() => setNewWorklist(prev => ({ ...prev, useCase: "ta-worklist" }))}>
+                    <RadioGroupItem value="ta-worklist" id="ta-worklist" className="mt-1" />
+                    <div className="flex-1">
+                      <div className="flex items-center gap-2">
+                        <Calendar className="h-5 w-5 text-green-600" />
+                        <Label htmlFor="ta-worklist" className="font-medium cursor-pointer">TA Worklist</Label>
+                      </div>
+                      <p className="text-sm text-muted-foreground mt-1">
+                        TA(Turnaround) 기간 중 수행할 작업들을 관리합니다. 검사, 정비, 교체 작업을 일정과 함께 관리합니다.
+                      </p>
+                      <div className="flex gap-2 mt-2">
+                        <Badge variant="secondary" className="text-xs">TA 일정 연동</Badge>
+                        <Badge variant="secondary" className="text-xs">작업 순서</Badge>
+                        <Badge variant="secondary" className="text-xs">자재 연계</Badge>
+                      </div>
+                    </div>
+                  </div>
+
+                  {/* Optimization */}
+                  <div className={cn(
+                    "flex items-start gap-4 p-4 rounded-lg border-2 transition-colors cursor-pointer",
+                    newWorklist.useCase === "optimization" ? "border-primary bg-primary/5" : "border-muted hover:border-muted-foreground/30"
+                  )} onClick={() => setNewWorklist(prev => ({ ...prev, useCase: "optimization" }))}>
+                    <RadioGroupItem value="optimization" id="optimization" className="mt-1" />
+                    <div className="flex-1">
+                      <div className="flex items-center gap-2">
+                        <Target className="h-5 w-5 text-purple-600" />
+                        <Label htmlFor="optimization" className="font-medium cursor-pointer">최적화 과제</Label>
+                      </div>
+                      <p className="text-sm text-muted-foreground mt-1">
+                        에너지 절감, 수율 향상 등 최적화 목표를 달성하기 위한 과제를 관리합니다.
+                      </p>
+                      <div className="flex gap-2 mt-2">
+                        <Badge variant="secondary" className="text-xs">KPI 목표</Badge>
+                        <Badge variant="secondary" className="text-xs">시뮬레이션 연계</Badge>
+                        <Badge variant="secondary" className="text-xs">효과 측정</Badge>
+                      </div>
+                    </div>
+                  </div>
+                </RadioGroup>
+
+                {/* Additional fields based on use case */}
+                {newWorklist.useCase === "problem-solving" && (
+                  <div className="space-y-3 pt-4 border-t">
+                    <Label>문제 정의</Label>
+                    <Textarea
+                      placeholder="예: VDU 분리도가 지속적으로 저하되어 HVGO 품질이 Spec을 벗어남"
+                      value={newWorklist.problemStatement}
+                      onChange={e => setNewWorklist(prev => ({ ...prev, problemStatement: e.target.value }))}
+                      className="min-h-16"
+                    />
+                  </div>
+                )}
+
+                {newWorklist.useCase === "team-project" && isTeamLead && (
+                  <div className="space-y-3 pt-4 border-t">
+                    <Label>참여 팀원</Label>
+                    <Input
+                      placeholder="팀원 이름 (쉼표로 구분)"
+                      value={newWorklist.teamMembers?.join(", ")}
+                      onChange={e => setNewWorklist(prev => ({ ...prev, teamMembers: e.target.value.split(",").map(s => s.trim()).filter(Boolean) }))}
+                    />
+                  </div>
+                )}
+              </div>
+            )}
+
+            {/* Step 3: Milestone Design */}
+            {createStep === 3 && (
+              <div className="space-y-4 py-4">
+                <div>
+                  <Label className="text-base font-medium">마일스톤 설계</Label>
+                  <p className="text-sm text-muted-foreground">워크리스트의 주요 단계를 마일스톤으로 정의하세요. 각 마일스톤에 이벤트를 연결할 수 있습니다.</p>
+                </div>
+
+                {/* Existing milestones */}
+                {(newWorklist.milestones?.length || 0) > 0 && (
+                  <div className="space-y-2">
+                    {newWorklist.milestones?.map((ms, idx) => (
+                      <div key={ms.id} className="flex items-center gap-3 p-3 rounded-lg border bg-muted/30">
+                        <GripVertical className="h-4 w-4 text-muted-foreground" />
+                        <div className="flex items-center justify-center w-6 h-6 rounded-full bg-primary/10 text-primary text-xs font-medium">
+                          {idx + 1}
+                        </div>
+                        <div className="flex-1">
+                          <p className="font-medium text-sm">{ms.name}</p>
+                          {ms.description && <p className="text-xs text-muted-foreground">{ms.description}</p>}
+                        </div>
+                        {ms.targetDate && (
+                          <Badge variant="outline" className="text-xs">
+                            <Calendar className="h-3 w-3 mr-1" />
+                            {ms.targetDate}
+                          </Badge>
+                        )}
+                        <Button variant="ghost" size="icon" className="h-7 w-7" onClick={() => removeMilestone(ms.id)}>
+                          <Trash2 className="h-3.5 w-3.5 text-muted-foreground" />
+                        </Button>
+                      </div>
+                    ))}
+                  </div>
+                )}
+
+                {/* Add new milestone */}
+                <Card className="border-dashed">
+                  <CardContent className="p-4 space-y-3">
+                    <div className="grid grid-cols-2 gap-3">
+                      <div className="space-y-1.5">
+                        <Label className="text-xs">마일스톤 이름</Label>
+                        <Input
+                          placeholder="예: 원인 분석 완료"
+                          value={newMilestone.name}
+                          onChange={e => setNewMilestone(prev => ({ ...prev, name: e.target.value }))}
+                        />
+                      </div>
+                      <div className="space-y-1.5">
+                        <Label className="text-xs">목표일</Label>
+                        <Input
+                          type="date"
+                          value={newMilestone.targetDate}
+                          onChange={e => setNewMilestone(prev => ({ ...prev, targetDate: e.target.value }))}
+                        />
+                      </div>
+                    </div>
+                    <div className="space-y-1.5">
+                      <Label className="text-xs">설명 (선택)</Label>
+                      <Input
+                        placeholder="마일스톤 설명"
+                        value={newMilestone.description}
+                        onChange={e => setNewMilestone(prev => ({ ...prev, description: e.target.value }))}
+                      />
+                    </div>
+                    <Button variant="outline" size="sm" onClick={addMilestone} disabled={!newMilestone.name.trim()} className="w-full gap-2">
+                      <Plus className="h-4 w-4" />
+                      마일스톤 추가
+                    </Button>
+                  </CardContent>
+                </Card>
+
+                {/* Quick templates */}
+                <div className="pt-2">
+                  <p className="text-xs text-muted-foreground mb-2">빠른 템플릿:</p>
+                  <div className="flex flex-wrap gap-2">
+                    <Button variant="outline" size="sm" className="text-xs" onClick={() => {
+                      const templates: Milestone[] = [
+                        { id: "t1", name: "문제 정의", status: "not-started", linkedTicketIds: [], order: 1 },
+                        { id: "t2", name: "원인 분석", status: "not-started", linkedTicketIds: [], order: 2 },
+                        { id: "t3", name: "대안 검토", status: "not-started", linkedTicketIds: [], order: 3 },
+                        { id: "t4", name: "실행 및 검증", status: "not-started", linkedTicketIds: [], order: 4 },
+                        { id: "t5", name: "효과 확인", status: "not-started", linkedTicketIds: [], order: 5 },
+                      ]
+                      setNewWorklist(prev => ({ ...prev, milestones: templates }))
+                    }}>
+                      문제 해결 템플릿
+                    </Button>
+                    <Button variant="outline" size="sm" className="text-xs" onClick={() => {
+                      const templates: Milestone[] = [
+                        { id: "t1", name: "Scope 정의", status: "not-started", linkedTicketIds: [], order: 1 },
+                        { id: "t2", name: "자재 발주", status: "not-started", linkedTicketIds: [], order: 2 },
+                        { id: "t3", name: "사전 준비", status: "not-started", linkedTicketIds: [], order: 3 },
+                        { id: "t4", name: "TA 실행", status: "not-started", linkedTicketIds: [], order: 4 },
+                        { id: "t5", name: "Start-up", status: "not-started", linkedTicketIds: [], order: 5 },
+                      ]
+                      setNewWorklist(prev => ({ ...prev, milestones: templates }))
+                    }}>
+                      TA 템플릿
+                    </Button>
+                    <Button variant="outline" size="sm" className="text-xs" onClick={() => {
+                      const templates: Milestone[] = [
+                        { id: "t1", name: "기회 발굴", status: "not-started", linkedTicketIds: [], order: 1 },
+                        { id: "t2", name: "시뮬레이션", status: "not-started", linkedTicketIds: [], order: 2 },
+                        { id: "t3", name: "테스트 실행", status: "not-started", linkedTicketIds: [], order: 3 },
+                        { id: "t4", name: "효과 검증", status: "not-started", linkedTicketIds: [], order: 4 },
+                        { id: "t5", name: "표준화", status: "not-started", linkedTicketIds: [], order: 5 },
+                      ]
+                      setNewWorklist(prev => ({ ...prev, milestones: templates }))
+                    }}>
+                      최적화 템플릿
+                    </Button>
+                  </div>
+                </div>
+              </div>
+            )}
+          </ScrollArea>
+
+          <DialogFooter className="border-t pt-4">
+            {createStep > 1 && (
+              <Button variant="outline" onClick={() => setCreateStep(prev => prev - 1)}>
+                이전
+              </Button>
+            )}
+            <div className="flex-1" />
+            {createStep < 3 ? (
+              <Button onClick={() => setCreateStep(prev => prev + 1)} disabled={createStep === 1 && !newWorklist.title?.trim()}>
+                다음
+              </Button>
+            ) : (
+              <Button onClick={handleCreateWorklist} disabled={!newWorklist.title?.trim()}>
+                워크리스트 생성
+              </Button>
+            )}
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
     </AppShell>
   )
 }

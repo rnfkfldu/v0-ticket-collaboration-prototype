@@ -5,7 +5,7 @@ import { useRouter } from "next/navigation"
 import {
   TrendingUp, LayoutGrid, LineChart, Plus, X, Search, Bookmark, Trash2,
   ChevronRight, Tag, Save, Layers, FolderPlus, Check, Eye, Monitor, Bell, Settings,
-  Factory, AlertTriangle, ChevronDown
+  Factory, AlertTriangle, ChevronDown, Folder, FolderOpen, ChevronUp, MoreHorizontal
 } from "lucide-react"
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
@@ -25,6 +25,15 @@ interface TrendGroup {
   tags: string[]
   unit: string
   updatedAt: string
+  folderId?: string  // which folder it belongs to
+}
+
+interface TrendFolder {
+  id: string
+  name: string
+  unit?: string
+  color?: string
+  expanded?: boolean
 }
 
 interface DashboardItem {
@@ -37,11 +46,24 @@ interface DashboardItem {
 }
 
 // --- Initial Data ---
+const INITIAL_FOLDERS: TrendFolder[] = [
+  { id: "folder-vdu-ejector", name: "VDU Ejector 관련", unit: "VDU", color: "blue", expanded: true },
+  { id: "folder-hcr-reactor", name: "HCR Reactor 모니터링", unit: "HCR", color: "amber", expanded: false },
+  { id: "folder-cdu-feed", name: "CDU Feed 계통", unit: "CDU", color: "green", expanded: false },
+]
+
 const INITIAL_TREND_GROUPS: TrendGroup[] = [
-  { id: "tg-1", name: "HCR Reactor 온도 모니터링", tags: ["TI-3001", "TI-3002", "TI-3003", "TI-3004"], unit: "HCR", updatedAt: "2026-02-20" },
+  // VDU Ejector folder
+  { id: "tg-vdu-1", name: "Ejector Pressure", tags: ["PI-2001", "PI-2002", "PI-2003"], unit: "VDU", updatedAt: "2026-02-20", folderId: "folder-vdu-ejector" },
+  { id: "tg-vdu-2", name: "Ejector Steam Flow", tags: ["FI-2001", "FI-2002"], unit: "VDU", updatedAt: "2026-02-18", folderId: "folder-vdu-ejector" },
+  { id: "tg-vdu-3", name: "Vacuum Column Top Temp", tags: ["TI-2001", "TI-2002", "TI-2003"], unit: "VDU", updatedAt: "2026-02-17", folderId: "folder-vdu-ejector" },
+  // HCR Reactor folder
+  { id: "tg-1", name: "HCR Reactor 온도 모니터링", tags: ["TI-3001", "TI-3002", "TI-3003", "TI-3004"], unit: "HCR", updatedAt: "2026-02-20", folderId: "folder-hcr-reactor" },
+  { id: "tg-4", name: "HCR 수소 계통", tags: ["FI-3001", "PI-3001", "TIC-3001"], unit: "HCR", updatedAt: "2026-02-14", folderId: "folder-hcr-reactor" },
+  // CDU Feed folder
+  { id: "tg-3", name: "CDU Feed 유량 트래킹", tags: ["FI-1001", "TI-1001", "PI-1001"], unit: "CDU", updatedAt: "2026-02-15", folderId: "folder-cdu-feed" },
+  // Ungrouped
   { id: "tg-2", name: "VDU 감압탑 압력/온도", tags: ["TI-2001", "TI-2002", "PI-2001", "LI-2001"], unit: "VDU", updatedAt: "2026-02-18" },
-  { id: "tg-3", name: "CDU Feed 유량 트래킹", tags: ["FI-1001", "TI-1001", "PI-1001"], unit: "CDU", updatedAt: "2026-02-15" },
-  { id: "tg-4", name: "HCR 수소 계통", tags: ["FI-3001", "PI-3001", "TIC-3001"], unit: "HCR", updatedAt: "2026-02-14" },
 ]
 
 const INITIAL_DASHBOARDS: DashboardItem[] = [
@@ -401,10 +423,16 @@ export function FloatingQuickAccess() {
 
   // --- 2) Saved Trend Groups (mutable) ---
   const [trendGroups, setTrendGroups] = useState<TrendGroup[]>(INITIAL_TREND_GROUPS)
+  const [trendFolders, setTrendFolders] = useState<TrendFolder[]>(INITIAL_FOLDERS)
   const [showNewGroupDialog, setShowNewGroupDialog] = useState(false)
+  const [showNewFolderDialog, setShowNewFolderDialog] = useState(false)
   const [newGroupFormName, setNewGroupFormName] = useState("")
   const [newGroupFormUnit, setNewGroupFormUnit] = useState("")
   const [newGroupFormTags, setNewGroupFormTags] = useState("")
+  const [newGroupFormFolder, setNewGroupFormFolder] = useState("")
+  const [newFolderName, setNewFolderName] = useState("")
+  const [newFolderUnit, setNewFolderUnit] = useState("")
+  const [selectedFolderGroups, setSelectedFolderGroups] = useState<string[]>([])
 
   // --- 3) Dashboard state ---
   const [dashboards] = useState<DashboardItem[]>(INITIAL_DASHBOARDS)
@@ -674,13 +702,70 @@ export function FloatingQuickAccess() {
       tags,
       unit: newGroupFormUnit.trim() || "사용자",
       updatedAt: new Date().toISOString().slice(0, 10),
+      folderId: newGroupFormFolder || undefined,
     }
     setTrendGroups(prev => [ng, ...prev])
     setShowNewGroupDialog(false)
-    setNewGroupFormName(""); setNewGroupFormUnit(""); setNewGroupFormTags("")
+    setNewGroupFormName(""); setNewGroupFormUnit(""); setNewGroupFormTags(""); setNewGroupFormFolder("")
   }
 
   const deleteGroup = (id: string) => { setTrendGroups(prev => prev.filter(g => g.id !== id)) }
+  
+  // --- Folder management ---
+  const toggleFolder = (folderId: string) => {
+    setTrendFolders(prev => prev.map(f => f.id === folderId ? { ...f, expanded: !f.expanded } : f))
+  }
+  
+  const createFolder = () => {
+    if (!newFolderName.trim()) return
+    const newFolder: TrendFolder = {
+      id: `folder-${Date.now()}`,
+      name: newFolderName.trim(),
+      unit: newFolderUnit.trim() || undefined,
+      expanded: true,
+    }
+    setTrendFolders(prev => [...prev, newFolder])
+    setNewFolderName("")
+    setNewFolderUnit("")
+    setShowNewFolderDialog(false)
+  }
+  
+  const deleteFolder = (folderId: string) => {
+    // Move all groups in this folder to ungrouped
+    setTrendGroups(prev => prev.map(g => g.folderId === folderId ? { ...g, folderId: undefined } : g))
+    setTrendFolders(prev => prev.filter(f => f.id !== folderId))
+  }
+  
+  // Get groups for a folder
+  const getGroupsInFolder = (folderId: string) => trendGroups.filter(g => g.folderId === folderId)
+  const ungroupedTrendGroups = trendGroups.filter(g => !g.folderId)
+  
+  // Open folder with all its groups
+  const openFolderTrends = (folderId: string) => {
+    const folderGroups = getGroupsInFolder(folderId)
+    const allTags = folderGroups.flatMap(g => g.tags)
+    const uniqueTags = Array.from(new Set(allTags))
+    const folder = trendFolders.find(f => f.id === folderId)
+    openTrendWithTags(uniqueTags, folder?.name || "폴더")
+  }
+  
+  // Toggle selection of groups within folder for multi-load
+  const toggleGroupSelection = (groupId: string) => {
+    setSelectedFolderGroups(prev => 
+      prev.includes(groupId) 
+        ? prev.filter(id => id !== groupId)
+        : [...prev, groupId]
+    )
+  }
+  
+  // Load selected groups
+  const loadSelectedGroups = () => {
+    const selectedGroups = trendGroups.filter(g => selectedFolderGroups.includes(g.id))
+    const allTags = selectedGroups.flatMap(g => g.tags)
+    const uniqueTags = Array.from(new Set(allTags))
+    openTrendWithTags(uniqueTags, `${selectedGroups.length}개 그룹`)
+    setSelectedFolderGroups([])
+  }
 
   // Tag trends
   const tagTrends = useMemo(() => activeTags.map(tag => ({ tag, ...generateTagTrend(tag) })), [activeTags])
@@ -1687,59 +1772,173 @@ export function FloatingQuickAccess() {
 
       {/* ===== 2) 저장된 트렌드 묶음 Dialog ===== */}
       <Dialog open={isOpen && activePanel === "saved-trends"} onOpenChange={(open) => { if (!open) handleClose() }}>
-        <DialogContent className="max-w-lg max-h-[80vh] flex flex-col">
+        <DialogContent className="max-w-2xl max-h-[85vh] flex flex-col">
           <DialogHeader className="shrink-0">
             <div className="flex items-center justify-between">
               <DialogTitle className="flex items-center gap-2">
                 <Bookmark className="h-5 w-5 text-teal-600" />
                 저장된 트렌드 묶음
               </DialogTitle>
-              <Button variant="outline" size="sm" className="gap-1.5 text-xs cursor-pointer" onClick={() => setShowNewGroupDialog(true)}>
-                <Plus className="h-3.5 w-3.5" />
-                새 묶음 만들기
-              </Button>
+              <div className="flex items-center gap-2">
+                <Button variant="outline" size="sm" className="gap-1.5 text-xs cursor-pointer" onClick={() => setShowNewFolderDialog(true)}>
+                  <FolderPlus className="h-3.5 w-3.5" />
+                  새 폴더
+                </Button>
+                <Button variant="outline" size="sm" className="gap-1.5 text-xs cursor-pointer" onClick={() => setShowNewGroupDialog(true)}>
+                  <Plus className="h-3.5 w-3.5" />
+                  새 묶음
+                </Button>
+              </div>
             </div>
+            {selectedFolderGroups.length > 0 && (
+              <div className="flex items-center gap-2 mt-2 pt-2 border-t">
+                <span className="text-sm text-muted-foreground">{selectedFolderGroups.length}개 선택됨</span>
+                <Button size="sm" className="gap-1.5 text-xs cursor-pointer" onClick={loadSelectedGroups}>
+                  <Eye className="h-3.5 w-3.5" />
+                  선택 항목 불러오기
+                </Button>
+                <Button variant="ghost" size="sm" className="text-xs cursor-pointer" onClick={() => setSelectedFolderGroups([])}>
+                  선택 해제
+                </Button>
+              </div>
+            )}
           </DialogHeader>
           <ScrollArea className="flex-1 -mx-6 px-6 min-h-0">
-            {trendGroups.length === 0 ? (
+            {trendGroups.length === 0 && trendFolders.length === 0 ? (
               <div className="flex flex-col items-center justify-center py-12 text-center">
                 <Bookmark className="h-10 w-10 text-muted-foreground mb-3" />
                 <p className="text-sm font-medium mb-1">저장된 트렌드 묶음이 없습니다</p>
-                <p className="text-xs text-muted-foreground">위의 "새 묶음 만들기" 버튼으로 생성하세요.</p>
+                <p className="text-xs text-muted-foreground">위의 버튼으로 폴더 또는 묶음을 생성하세요.</p>
               </div>
             ) : (
-              <div className="space-y-2 pr-2 pb-4">
-                {trendGroups.map(group => (
-                  <div key={group.id} className="relative group/item">
-                    <button
-                      onClick={() => openTrendWithTags(group.tags, group.name)}
-                      className="w-full text-left p-3 rounded-lg border border-border hover:border-primary/30 hover:bg-muted/50 transition-colors cursor-pointer"
-                    >
-                      <div className="flex items-center justify-between mb-1.5">
-                        <span className="text-sm font-medium">{group.name}</span>
-                        <ChevronRight className="h-4 w-4 text-muted-foreground" />
+              <div className="space-y-3 pr-2 pb-4">
+                {/* Folders */}
+                {trendFolders.map(folder => {
+                  const folderGroups = getGroupsInFolder(folder.id)
+                  const folderColor = folder.color === "blue" ? "border-blue-200 bg-blue-50/50" 
+                    : folder.color === "amber" ? "border-amber-200 bg-amber-50/50"
+                    : folder.color === "green" ? "border-green-200 bg-green-50/50"
+                    : "border-border bg-muted/30"
+                  const iconColor = folder.color === "blue" ? "text-blue-600" 
+                    : folder.color === "amber" ? "text-amber-600"
+                    : folder.color === "green" ? "text-green-600"
+                    : "text-muted-foreground"
+                  
+                  return (
+                    <div key={folder.id} className={cn("rounded-lg border", folderColor)}>
+                      {/* Folder header */}
+                      <div className="flex items-center gap-2 p-3 cursor-pointer" onClick={() => toggleFolder(folder.id)}>
+                        {folder.expanded ? <FolderOpen className={cn("h-5 w-5", iconColor)} /> : <Folder className={cn("h-5 w-5", iconColor)} />}
+                        <span className="font-medium text-sm flex-1">{folder.name}</span>
+                        {folder.unit && <Badge variant="outline" className="text-xs">{folder.unit}</Badge>}
+                        <span className="text-xs text-muted-foreground">{folderGroups.length}개 묶음</span>
+                        <Button 
+                          variant="ghost" 
+                          size="sm" 
+                          className="h-7 px-2 text-xs cursor-pointer" 
+                          onClick={(e) => { e.stopPropagation(); openFolderTrends(folder.id) }}
+                        >
+                          <Eye className="h-3.5 w-3.5 mr-1" />
+                          전체
+                        </Button>
+                        <Button
+                          variant="ghost"
+                          size="icon"
+                          className="h-7 w-7 cursor-pointer"
+                          onClick={(e) => { e.stopPropagation(); deleteFolder(folder.id) }}
+                        >
+                          <Trash2 className="h-3.5 w-3.5 text-muted-foreground hover:text-red-500" />
+                        </Button>
+                        {folder.expanded ? <ChevronUp className="h-4 w-4 text-muted-foreground" /> : <ChevronDown className="h-4 w-4 text-muted-foreground" />}
                       </div>
-                      <div className="flex items-center gap-2 mb-2">
-                        <Badge variant="outline" className="text-xs">{group.unit}</Badge>
-                        <span className="text-xs text-muted-foreground">{group.tags.length}개 태그</span>
-                        <span className="text-xs text-muted-foreground ml-auto">{group.updatedAt}</span>
+                      
+                      {/* Folder contents */}
+                      {folder.expanded && folderGroups.length > 0 && (
+                        <div className="px-3 pb-3 space-y-2">
+                          {folderGroups.map(group => (
+                            <div key={group.id} className="relative group/item flex items-start gap-2">
+                              <input
+                                type="checkbox"
+                                checked={selectedFolderGroups.includes(group.id)}
+                                onChange={() => toggleGroupSelection(group.id)}
+                                className="mt-3 h-4 w-4 rounded border-border cursor-pointer"
+                              />
+                              <button
+                                onClick={() => openTrendWithTags(group.tags, group.name)}
+                                className="flex-1 text-left p-2.5 rounded-md border border-border bg-background hover:border-primary/30 hover:bg-muted/50 transition-colors cursor-pointer"
+                              >
+                                <div className="flex items-center justify-between mb-1">
+                                  <span className="text-sm font-medium">{group.name}</span>
+                                  <ChevronRight className="h-3.5 w-3.5 text-muted-foreground" />
+                                </div>
+                                <div className="flex items-center gap-2">
+                                  <span className="text-xs text-muted-foreground">{group.tags.length}개 태그</span>
+                                  <span className="text-xs text-muted-foreground">{group.updatedAt}</span>
+                                </div>
+                                <div className="flex flex-wrap gap-1 mt-1.5">
+                                  {group.tags.slice(0, 5).map(tag => (
+                                    <span key={tag} className="font-mono text-[10px] px-1 py-0.5 rounded bg-muted text-muted-foreground">{tag}</span>
+                                  ))}
+                                  {group.tags.length > 5 && <span className="text-[10px] text-muted-foreground">+{group.tags.length - 5}</span>}
+                                </div>
+                              </button>
+                              <button
+                                onClick={(e) => { e.stopPropagation(); deleteGroup(group.id) }}
+                                className="opacity-0 group-hover/item:opacity-100 transition-opacity h-7 w-7 mt-2 rounded-md border border-border flex items-center justify-center hover:bg-red-50 hover:border-red-200 cursor-pointer"
+                                title="삭제"
+                              >
+                                <Trash2 className="h-3 w-3 text-muted-foreground hover:text-red-500" />
+                              </button>
+                            </div>
+                          ))}
+                        </div>
+                      )}
+                    </div>
+                  )
+                })}
+                
+                {/* Ungrouped items */}
+                {ungroupedTrendGroups.length > 0 && (
+                  <div className="space-y-2">
+                    {trendFolders.length > 0 && <p className="text-xs text-muted-foreground font-medium px-1 pt-2">폴더 미지정</p>}
+                    {ungroupedTrendGroups.map(group => (
+                      <div key={group.id} className="relative group/item flex items-start gap-2">
+                        <input
+                          type="checkbox"
+                          checked={selectedFolderGroups.includes(group.id)}
+                          onChange={() => toggleGroupSelection(group.id)}
+                          className="mt-3 h-4 w-4 rounded border-border cursor-pointer"
+                        />
+                        <button
+                          onClick={() => openTrendWithTags(group.tags, group.name)}
+                          className="flex-1 text-left p-3 rounded-lg border border-border hover:border-primary/30 hover:bg-muted/50 transition-colors cursor-pointer"
+                        >
+                          <div className="flex items-center justify-between mb-1.5">
+                            <span className="text-sm font-medium">{group.name}</span>
+                            <ChevronRight className="h-4 w-4 text-muted-foreground" />
+                          </div>
+                          <div className="flex items-center gap-2 mb-2">
+                            <Badge variant="outline" className="text-xs">{group.unit}</Badge>
+                            <span className="text-xs text-muted-foreground">{group.tags.length}개 태그</span>
+                            <span className="text-xs text-muted-foreground ml-auto">{group.updatedAt}</span>
+                          </div>
+                          <div className="flex flex-wrap gap-1">
+                            {group.tags.map(tag => (
+                              <span key={tag} className="font-mono text-[11px] px-1.5 py-0.5 rounded bg-muted text-muted-foreground">{tag}</span>
+                            ))}
+                          </div>
+                        </button>
+                        <button
+                          onClick={(e) => { e.stopPropagation(); deleteGroup(group.id) }}
+                          className="opacity-0 group-hover/item:opacity-100 transition-opacity h-7 w-7 mt-2 rounded-md border border-border flex items-center justify-center hover:bg-red-50 hover:border-red-200 cursor-pointer"
+                          title="삭제"
+                        >
+                          <Trash2 className="h-3.5 w-3.5 text-muted-foreground hover:text-red-500" />
+                        </button>
                       </div>
-                      <div className="flex flex-wrap gap-1">
-                        {group.tags.map(tag => (
-                          <span key={tag} className="font-mono text-[11px] px-1.5 py-0.5 rounded bg-muted text-muted-foreground">{tag}</span>
-                        ))}
-                      </div>
-                    </button>
-                    {/* Delete button */}
-                    <button
-                      onClick={(e) => { e.stopPropagation(); deleteGroup(group.id) }}
-                      className="absolute top-2 right-2 opacity-0 group-hover/item:opacity-100 transition-opacity h-7 w-7 rounded-md bg-background border border-border flex items-center justify-center hover:bg-red-50 hover:border-red-200 cursor-pointer"
-                      title="삭제"
-                    >
-                      <Trash2 className="h-3.5 w-3.5 text-muted-foreground hover:text-red-500" />
-                    </button>
+                    ))}
                   </div>
-                ))}
+                )}
               </div>
             )}
           </ScrollArea>
@@ -1751,7 +1950,7 @@ export function FloatingQuickAccess() {
         <DialogContent className="max-w-md">
           <DialogHeader>
             <DialogTitle className="flex items-center gap-2">
-              <FolderPlus className="h-5 w-5 text-teal-600" />
+              <Plus className="h-5 w-5 text-teal-600" />
               새 트렌드 묶음 만들기
             </DialogTitle>
           </DialogHeader>
@@ -1759,6 +1958,17 @@ export function FloatingQuickAccess() {
             <div className="space-y-2">
               <Label className="text-sm">묶음 이름</Label>
               <Input value={newGroupFormName} onChange={e => setNewGroupFormName(e.target.value)} placeholder="예: HCR Reactor 핵심 태그" />
+            </div>
+            <div className="space-y-2">
+              <Label className="text-sm">폴더 (선택)</Label>
+              <select 
+                value={newGroupFormFolder} 
+                onChange={e => setNewGroupFormFolder(e.target.value)}
+                className="w-full h-9 px-3 rounded-md border border-input bg-background text-sm"
+              >
+                <option value="">폴더 미지정</option>
+                {trendFolders.map(f => <option key={f.id} value={f.id}>{f.name}</option>)}
+              </select>
             </div>
             <div className="space-y-2">
               <Label className="text-sm">공정 단위</Label>
@@ -1772,6 +1982,32 @@ export function FloatingQuickAccess() {
           <DialogFooter>
             <Button variant="outline" onClick={() => setShowNewGroupDialog(false)} className="cursor-pointer">취소</Button>
             <Button onClick={handleCreateGroup} disabled={!newGroupFormName.trim()} className="cursor-pointer">생성</Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+      
+      {/* New folder creation dialog */}
+      <Dialog open={showNewFolderDialog} onOpenChange={setShowNewFolderDialog}>
+        <DialogContent className="max-w-sm">
+          <DialogHeader>
+            <DialogTitle className="flex items-center gap-2">
+              <FolderPlus className="h-5 w-5 text-teal-600" />
+              새 폴더 만들기
+            </DialogTitle>
+          </DialogHeader>
+          <div className="space-y-4">
+            <div className="space-y-2">
+              <Label className="text-sm">폴더 이름</Label>
+              <Input value={newFolderName} onChange={e => setNewFolderName(e.target.value)} placeholder="예: VDU Ejector 관련" />
+            </div>
+            <div className="space-y-2">
+              <Label className="text-sm">공정 단위 (선택)</Label>
+              <Input value={newFolderUnit} onChange={e => setNewFolderUnit(e.target.value)} placeholder="예: VDU, HCR" />
+            </div>
+          </div>
+          <DialogFooter>
+            <Button variant="outline" onClick={() => setShowNewFolderDialog(false)} className="cursor-pointer">취소</Button>
+            <Button onClick={createFolder} disabled={!newFolderName.trim()} className="cursor-pointer">생성</Button>
           </DialogFooter>
         </DialogContent>
       </Dialog>

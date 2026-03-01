@@ -12,12 +12,13 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs"
 import { Separator } from "@/components/ui/separator"
 import {
   FileText, Search, CheckCircle, Link, Unlink, Plus, X,
-  Pencil, MessageSquare, Send, ChevronLeft, AlertTriangle, Clock
+  Pencil, MessageSquare, Send, ChevronLeft, AlertTriangle, Clock,
+  Target, Users, Wrench, Calendar, Circle, CheckCircle2, Ban
 } from "lucide-react"
 import { cn } from "@/lib/utils"
 import { getTickets } from "@/lib/storage"
 import { INITIAL_WORK_ITEMS } from "@/lib/workbench-data"
-import type { WorkItem, LinkedTicket, WorkNote } from "@/lib/workbench-data"
+import type { WorkItem, LinkedTicket, WorkNote, Milestone, WorklistUseCase } from "@/lib/workbench-data"
 import { ClosureReportDialog, requiresClosureReport } from "@/components/closure-report-dialog"
 import type { ClosureReport } from "@/components/closure-report-dialog"
 import { useRouter, useParams } from "next/navigation"
@@ -108,6 +109,29 @@ export default function WorkItemDetailPage() {
   const getPriorityStyle = (p: string) => p === "critical" ? "bg-red-500 text-white" : p === "high" ? "bg-amber-500 text-white" : p === "medium" ? "bg-blue-500 text-white" : "bg-muted text-muted-foreground"
   const getStatusStyle = (s: string) => s === "approved" ? "border-green-300 text-green-600 bg-green-50" : s === "under-review" ? "border-amber-300 text-amber-600 bg-amber-50" : s === "in-progress" ? "border-blue-300 text-blue-600 bg-blue-50" : s === "completed" || s === "closed" ? "border-slate-300 text-slate-500 bg-slate-50" : "border-blue-300 text-blue-600"
   const isClosed = item.status === "closed" || item.status === "completed"
+  
+  const getUseCaseInfo = (uc?: WorklistUseCase) => {
+    switch (uc) {
+      case "team-project": return { label: "팀 프로젝트", icon: Users, color: "text-blue-600" }
+      case "problem-solving": return { label: "문제 해결", icon: Wrench, color: "text-amber-600" }
+      case "ta-worklist": return { label: "TA Worklist", icon: Calendar, color: "text-green-600" }
+      case "optimization": return { label: "최적화", icon: Target, color: "text-purple-600" }
+      default: return null
+    }
+  }
+  
+  const getMilestoneStatusIcon = (status: Milestone["status"]) => {
+    switch (status) {
+      case "completed": return <CheckCircle2 className="h-4 w-4 text-green-600" />
+      case "in-progress": return <Circle className="h-4 w-4 text-blue-600 fill-blue-100" />
+      case "blocked": return <Ban className="h-4 w-4 text-red-600" />
+      default: return <Circle className="h-4 w-4 text-muted-foreground" />
+    }
+  }
+  
+  const useCaseInfo = getUseCaseInfo(item.useCase)
+  const milestones = item.milestones || []
+  const completedMilestones = milestones.filter(m => m.status === "completed").length
 
   const ticketSearchResults = allTickets.filter(t =>
     (t.title.toLowerCase().includes(ticketSearchQuery.toLowerCase()) || t.id.includes(ticketSearchQuery)) &&
@@ -135,6 +159,12 @@ export default function WorkItemDetailPage() {
               <Badge variant="outline" className={cn("text-xs", getStatusStyle(item.status))}>{item.status}</Badge>
               <Badge variant="outline" className="text-xs">{item.unit}</Badge>
               <Badge variant="secondary" className="text-xs">{item.category}</Badge>
+              {useCaseInfo && (
+                <Badge variant="secondary" className={cn("text-xs gap-1", useCaseInfo.color)}>
+                  <useCaseInfo.icon className="h-3 w-3" />
+                  {useCaseInfo.label}
+                </Badge>
+              )}
             </div>
             {!isClosed && (
               <Button onClick={handleClose} className="gap-2">
@@ -160,42 +190,175 @@ export default function WorkItemDetailPage() {
                   </CardTitle>
                 </CardHeader>
                 <CardContent>
-                  <div className="grid grid-cols-3 gap-4 mb-4">
-                    <div className="text-center p-4 rounded-lg bg-blue-50 border border-blue-100">
-                      <div className="text-2xl font-bold text-blue-600">{item.linkedTickets.length}</div>
+                  <div className="grid grid-cols-4 gap-3 mb-4">
+                    {milestones.length > 0 && (
+                      <div className="text-center p-3 rounded-lg bg-purple-50 border border-purple-100">
+                        <div className="text-xl font-bold text-purple-600">{completedMilestones}/{milestones.length}</div>
+                        <p className="text-xs text-purple-600 mt-1">마일스톤</p>
+                      </div>
+                    )}
+                    <div className="text-center p-3 rounded-lg bg-blue-50 border border-blue-100">
+                      <div className="text-xl font-bold text-blue-600">{item.linkedTickets.length}</div>
                       <p className="text-xs text-blue-600 mt-1">연결 이벤트</p>
                     </div>
-                    <div className="text-center p-4 rounded-lg bg-amber-50 border border-amber-100">
-                      <div className="text-2xl font-bold text-amber-600">
+                    <div className="text-center p-3 rounded-lg bg-amber-50 border border-amber-100">
+                      <div className="text-xl font-bold text-amber-600">
                         {item.linkedTickets.filter(t => t.status === "In Progress" || t.status === "Open").length}
                       </div>
                       <p className="text-xs text-amber-600 mt-1">진행 중</p>
                     </div>
-                    <div className="text-center p-4 rounded-lg bg-green-50 border border-green-100">
-                      <div className="text-2xl font-bold text-green-600">{closedTickets}</div>
+                    <div className="text-center p-3 rounded-lg bg-green-50 border border-green-100">
+                      <div className="text-xl font-bold text-green-600">{closedTickets}</div>
                       <p className="text-xs text-green-600 mt-1">완료</p>
                     </div>
                   </div>
-                  {item.linkedTickets.length > 0 && (
-                    <div>
-                      <div className="flex justify-between text-xs text-muted-foreground mb-1.5">
-                        <span>이벤트 진행률</span>
-                        <span className="font-medium">{progressPct}%</span>
+                  
+                  {/* Progress bars */}
+                  <div className="space-y-3">
+                    {milestones.length > 0 && (
+                      <div>
+                        <div className="flex justify-between text-xs text-muted-foreground mb-1.5">
+                          <span>마일스톤 진행률</span>
+                          <span className="font-medium">{Math.round((completedMilestones / milestones.length) * 100)}%</span>
+                        </div>
+                        <div className="h-2 bg-muted rounded-full overflow-hidden">
+                          <div className="h-full bg-purple-500 rounded-full transition-all" style={{ width: `${(completedMilestones / milestones.length) * 100}%` }} />
+                        </div>
                       </div>
-                      <div className="h-2.5 bg-muted rounded-full overflow-hidden">
-                        <div className="h-full bg-green-500 rounded-full transition-all" style={{ width: `${progressPct}%` }} />
+                    )}
+                    {item.linkedTickets.length > 0 && (
+                      <div>
+                        <div className="flex justify-between text-xs text-muted-foreground mb-1.5">
+                          <span>이벤트 진행률</span>
+                          <span className="font-medium">{progressPct}%</span>
+                        </div>
+                        <div className="h-2 bg-muted rounded-full overflow-hidden">
+                          <div className="h-full bg-green-500 rounded-full transition-all" style={{ width: `${progressPct}%` }} />
+                        </div>
                       </div>
-                    </div>
-                  )}
+                    )}
+                  </div>
                 </CardContent>
               </Card>
 
-              {/* Tabs: Tickets + Notes */}
-              <Tabs defaultValue="tickets">
+              {/* Tabs: Milestones + Tickets + Notes */}
+              <Tabs defaultValue={milestones.length > 0 ? "milestones" : "tickets"}>
                 <TabsList>
+                  {milestones.length > 0 && (
+                    <TabsTrigger value="milestones">마일스톤 ({completedMilestones}/{milestones.length})</TabsTrigger>
+                  )}
                   <TabsTrigger value="tickets">연결 이벤트 ({item.linkedTickets.length})</TabsTrigger>
                   <TabsTrigger value="notes">관리 이력 ({item.notes.length})</TabsTrigger>
                 </TabsList>
+                
+                {/* Milestones Tab */}
+                {milestones.length > 0 && (
+                  <TabsContent value="milestones" className="mt-4 space-y-3">
+                    <div className="space-y-3">
+                      {milestones.map((ms, idx) => (
+                        <div key={ms.id} className={cn(
+                          "flex items-start gap-3 p-4 rounded-lg border transition-colors",
+                          ms.status === "completed" ? "bg-green-50/50 border-green-200" :
+                          ms.status === "in-progress" ? "bg-blue-50/50 border-blue-200" :
+                          ms.status === "blocked" ? "bg-red-50/50 border-red-200" :
+                          "bg-muted/20 border-border"
+                        )}>
+                          <div className="flex flex-col items-center gap-1">
+                            {getMilestoneStatusIcon(ms.status)}
+                            {idx < milestones.length - 1 && (
+                              <div className={cn(
+                                "w-0.5 h-8",
+                                ms.status === "completed" ? "bg-green-300" : "bg-muted"
+                              )} />
+                            )}
+                          </div>
+                          <div className="flex-1 min-w-0">
+                            <div className="flex items-center justify-between gap-2">
+                              <span className="font-medium text-sm">{ms.name}</span>
+                              <div className="flex items-center gap-2">
+                                {ms.targetDate && (
+                                  <span className="text-xs text-muted-foreground">
+                                    <Calendar className="h-3 w-3 inline mr-1" />
+                                    {ms.targetDate}
+                                  </span>
+                                )}
+                                <Badge variant="outline" className={cn(
+                                  "text-xs",
+                                  ms.status === "completed" ? "border-green-300 text-green-600" :
+                                  ms.status === "in-progress" ? "border-blue-300 text-blue-600" :
+                                  ms.status === "blocked" ? "border-red-300 text-red-600" :
+                                  "border-muted text-muted-foreground"
+                                )}>
+                                  {ms.status === "completed" ? "완료" :
+                                   ms.status === "in-progress" ? "진행 중" :
+                                   ms.status === "blocked" ? "차단됨" : "대기"}
+                                </Badge>
+                              </div>
+                            </div>
+                            {ms.description && (
+                              <p className="text-xs text-muted-foreground mt-1">{ms.description}</p>
+                            )}
+                            {ms.linkedTicketIds.length > 0 && (
+                              <div className="flex items-center gap-2 mt-2">
+                                <Link className="h-3 w-3 text-muted-foreground" />
+                                <span className="text-xs text-muted-foreground">
+                                  연결 이벤트: {ms.linkedTicketIds.map(tid => `#${tid}`).join(", ")}
+                                </span>
+                              </div>
+                            )}
+                            {ms.completedDate && (
+                              <span className="text-xs text-green-600 mt-1 block">완료: {ms.completedDate}</span>
+                            )}
+                          </div>
+                        </div>
+                      ))}
+                    </div>
+                    
+                    {/* Problem solving specific info */}
+                    {item.useCase === "problem-solving" && item.problemStatement && (
+                      <Card className="mt-4 border-amber-200 bg-amber-50/30">
+                        <CardHeader className="pb-2">
+                          <CardTitle className="text-sm flex items-center gap-2 text-amber-700">
+                            <Wrench className="h-4 w-4" />
+                            문제 정의
+                          </CardTitle>
+                        </CardHeader>
+                        <CardContent>
+                          <p className="text-sm">{item.problemStatement}</p>
+                          {item.triedApproaches && item.triedApproaches.length > 0 && (
+                            <div className="mt-3 pt-3 border-t border-amber-200">
+                              <p className="text-xs text-muted-foreground mb-2">시도한 접근법:</p>
+                              <div className="flex flex-wrap gap-1.5">
+                                {item.triedApproaches.map((approach, idx) => (
+                                  <Badge key={idx} variant="outline" className="text-xs">{approach}</Badge>
+                                ))}
+                              </div>
+                            </div>
+                          )}
+                        </CardContent>
+                      </Card>
+                    )}
+                    
+                    {/* Team project specific info */}
+                    {item.useCase === "team-project" && item.teamMembers && item.teamMembers.length > 0 && (
+                      <Card className="mt-4 border-blue-200 bg-blue-50/30">
+                        <CardHeader className="pb-2">
+                          <CardTitle className="text-sm flex items-center gap-2 text-blue-700">
+                            <Users className="h-4 w-4" />
+                            참여 팀원
+                          </CardTitle>
+                        </CardHeader>
+                        <CardContent>
+                          <div className="flex flex-wrap gap-2">
+                            {item.teamMembers.map((member, idx) => (
+                              <Badge key={idx} variant="secondary" className="text-xs">{member}</Badge>
+                            ))}
+                          </div>
+                        </CardContent>
+                      </Card>
+                    )}
+                  </TabsContent>
+                )}
 
                 <TabsContent value="tickets" className="mt-4 space-y-3">
                   {item.linkedTickets.map(ticket => (
