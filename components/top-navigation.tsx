@@ -528,51 +528,53 @@ export function TopNavigation() {
           <DialogHeader>
             <DialogTitle>계정 전환</DialogTitle>
           </DialogHeader>
-          <div className="space-y-3 py-2">
-            {USER_PROFILES.map((profile) => {
-              const isActive = currentUser.id === profile.id
-              return (
-                <button
-                  key={profile.id}
-                  className={cn(
-                    "w-full text-left border rounded-lg p-4 transition-colors cursor-pointer",
-                    isActive
-                      ? "border-primary bg-primary/5"
-                      : "hover:bg-muted/50"
-                  )}
-                  onClick={() => {
-                    setCurrentUser(profile)
-                    setShowUserSwitchDialog(false)
-                  }}
-                >
-                  <div className="flex items-center justify-between mb-1">
-                    <div className="flex items-center gap-3">
-                      <div className={cn(
-                        "w-8 h-8 rounded-full flex items-center justify-center text-xs font-bold",
-                        isActive ? "bg-primary text-primary-foreground" : "bg-muted text-muted-foreground"
-                      )}>
-                        {profile.name.charAt(0)}
-                      </div>
-                      <div>
-                        <p className="font-medium text-sm">{profile.name}</p>
-                        <p className="text-xs text-muted-foreground">{profile.roleLabel}</p>
-                      </div>
-                    </div>
-                    {isActive && (
-                      <Badge variant="secondary" className="text-xs">현재</Badge>
+          <ScrollArea className="max-h-[60vh] pr-4">
+            <div className="space-y-3 py-2">
+              {USER_PROFILES.map((profile) => {
+                const isActive = currentUser.id === profile.id
+                return (
+                  <button
+                    key={profile.id}
+                    className={cn(
+                      "w-full text-left border rounded-lg p-4 transition-colors cursor-pointer",
+                      isActive
+                        ? "border-primary bg-primary/5"
+                        : "hover:bg-muted/50"
                     )}
-                  </div>
-                  <p className="text-xs text-muted-foreground mt-2 ml-11">
-                    {getRoleDescription(profile.role)}
-                  </p>
-                  <p className="text-xs text-muted-foreground mt-1 ml-11">
-                    담당 공정: {profile.assignedProcessIds.length}개
-                    {profile.division && ` | ${profile.division} 부문`}
-                  </p>
-                </button>
-              )
-            })}
-          </div>
+                    onClick={() => {
+                      setCurrentUser(profile)
+                      setShowUserSwitchDialog(false)
+                    }}
+                  >
+                    <div className="flex items-center justify-between mb-1">
+                      <div className="flex items-center gap-3">
+                        <div className={cn(
+                          "w-8 h-8 rounded-full flex items-center justify-center text-xs font-bold",
+                          isActive ? "bg-primary text-primary-foreground" : "bg-muted text-muted-foreground"
+                        )}>
+                          {profile.name.charAt(0)}
+                        </div>
+                        <div>
+                          <p className="font-medium text-sm">{profile.name}</p>
+                          <p className="text-xs text-muted-foreground">{profile.roleLabel}</p>
+                        </div>
+                      </div>
+                      {isActive && (
+                        <Badge variant="secondary" className="text-xs">현재</Badge>
+                      )}
+                    </div>
+                    <p className="text-xs text-muted-foreground mt-2 ml-11">
+                      {getRoleDescription(profile.role)}
+                    </p>
+                    <p className="text-xs text-muted-foreground mt-1 ml-11">
+                      담당 공정: {profile.assignedProcessIds.length}개
+                      {profile.division && ` | ${profile.division} 부문`}
+                    </p>
+                  </button>
+                )
+              })}
+            </div>
+          </ScrollArea>
         </DialogContent>
       </Dialog>
     </header>

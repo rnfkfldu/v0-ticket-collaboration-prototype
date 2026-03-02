@@ -175,21 +175,6 @@ export const USER_PROFILES: UserProfile[] = [
     showOptimization: true,
     focusArea: "operations",
   },
-  {
-    id: "u-plant-head",
-    name: "한상진",
-    role: "plant-head",
-    roleLabel: "공장장",
-    department: "production",
-    assignedProcessIds: ALL_PROCESSES.map(p => p.id),
-    alertMinSeverity: "critical",
-    showManagementDashboard: true,
-    showStrategicTasks: true,
-    showDataSettings: true,
-    showOptimization: true,
-    focusArea: "operations",
-  },
-  
   // === 운전원 역할 (생산팀, 운전 현황에만 관심) ===
   {
     id: "u-operator-1",
@@ -204,18 +189,6 @@ export const USER_PROFILES: UserProfile[] = [
     showDataSettings: false,    // 데이터/설정 숨김
     showOptimization: false,    // 최적화 숨김
     focusArea: "operations",
-  },
-  {
-    id: "u-operator-2",
-    name: "김현장",
-    role: "operator",
-    roleLabel: "운전원",
-    department: "production",
-    assignedProcessIds: ["1CDU", "2CDU", "1VDU", "2VDU"],
-    alertMinSeverity: "info",
-    showManagementDashboard: false,
-    showStrategicTasks: false,
-    showDataSettings: false,
     showOptimization: false,
     focusArea: "operations",
   },
