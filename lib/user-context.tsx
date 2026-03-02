@@ -416,4 +416,3 @@ export function getDepartmentLabel(dept?: Department): string {
     default: return ""
   }
 }
-}
