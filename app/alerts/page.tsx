@@ -2683,7 +2683,7 @@ const handleSelectAlert = (alert: AlertItem) => {
                           <Clock className="h-4 w-4" />
                           과거 알람 발생 이력 ({selectedAlert.data?.tagId})
                         </CardTitle>
-                        <p className="text-xs text-muted-foreground mt-1">이 태그에서 발생했던 과거 알람과 해결 방법</p>
+                        <p className="text-xs text-muted-foreground mt-1">이 태��에서 발생했던 과거 알람과 해결 방법</p>
                       </CardHeader>
                       <CardContent>
                         <div className="space-y-4">
@@ -3100,7 +3100,7 @@ const handleSelectAlert = (alert: AlertItem) => {
                         </CardContent>
                       </Card>
 
-                      {/* ===== 4. 주요 운전변수 현황 ===== */}
+                      {/* ===== 4. 주요 운전변수 현�� ===== */}
                       <Card>
                         <CardHeader className="pb-2">
                           <div className="flex items-center justify-between">
@@ -3201,7 +3201,51 @@ const handleSelectAlert = (alert: AlertItem) => {
                           </CardTitle>
                         </CardHeader>
                         <CardContent>
-                          <div className="space-y-4">
+                          <div className="space-y-6">
+                            {/* 개인화 알람 섹션 */}
+                            {(() => {
+                              const personalAlarms = getPersonalizedAlarms()
+                              if (personalAlarms.length === 0) return null
+                              return (
+                                <div>
+                                  <p className="text-xs font-medium mb-3 flex items-center gap-1.5">
+                                    <Bell className="h-3.5 w-3.5 text-indigo-500" />
+                                    개인화 알람
+                                    <Badge variant="secondary" className="text-[8px] h-4">{personalAlarms.length}</Badge>
+                                  </p>
+                                  <div className="grid grid-cols-2 gap-3">
+                                    {personalAlarms.filter(a => a.active).map(alarm => {
+                                      // Generate a mock current value for demonstration
+                                      const mockCurrentValue = alarm.min && alarm.max 
+                                        ? alarm.min + Math.random() * (alarm.max - alarm.min) * 1.2
+                                        : 50 + Math.random() * 50
+                                      const isTriggered = (alarm.max !== undefined && mockCurrentValue > alarm.max) || 
+                                                         (alarm.min !== undefined && mockCurrentValue < alarm.min)
+                                      return (
+                                        <div key={alarm.id} className={cn("border rounded-lg p-3 bg-card", isTriggered && "border-red-300 bg-red-50/50")}>
+                                          <div className="flex items-center gap-2 mb-2">
+                                            <span className={cn("w-2.5 h-2.5 rounded-full shrink-0", isTriggered ? "bg-red-500 animate-pulse" : "bg-green-500")} />
+                                            <span className="text-xs font-semibold font-mono">{alarm.tagId}</span>
+                                            <Badge variant="outline" className="text-[9px] h-4">{alarm.unit}</Badge>
+                                            {isTriggered && <Badge className="text-[9px] h-4 bg-red-500">알람 발생</Badge>}
+                                          </div>
+                                          <p className="text-[10px] text-muted-foreground mb-2">{alarm.tagDescription || alarm.tagId}</p>
+                                          <div className="flex items-center justify-between text-xs">
+                                            <span className="text-muted-foreground">
+                                              범위: {alarm.min ?? "-"} ~ {alarm.max ?? "-"} {alarm.unit}
+                                            </span>
+                                            <span className={cn("font-semibold", isTriggered ? "text-red-600" : "text-foreground")}>
+                                              현재: {mockCurrentValue.toFixed(1)}
+                                            </span>
+                                          </div>
+                                        </div>
+                                      )
+                                    })}
+                                  </div>
+                                </div>
+                              )
+                            })()}
+
                             {/* 장기 건전성 집중 모니터링 - Detailed trend cards */}
                             <div>
                               <p className="text-xs font-medium mb-3 flex items-center gap-1.5">

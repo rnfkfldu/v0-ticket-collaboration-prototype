@@ -11,7 +11,6 @@ import { Textarea } from "@/components/ui/textarea"
 import { useState } from "react"
 import { useRouter } from "next/navigation"
 import { saveTicket, addWorkPackageToTicket } from "@/lib/storage"
-import { Checkbox } from "@/components/ui/checkbox"
 import { X, PlusCircle, Trash2 } from "lucide-react"
 import { Badge } from "@/components/ui/badge"
 import type { DataInsertBox } from "@/lib/types"
@@ -66,8 +65,6 @@ export function TicketForm() {
     timePeriods: [{ from: "", to: "" }] as { from: string; to: string }[],
     impact: "Throughput",
     owner: UNIT_OWNERS["VDU"] || "",
-    accessLevel: "Team",
-    allowedTeams: [] as string[],
   })
 
   const [showAdditionalDetails, setShowAdditionalDetails] = useState(false)
@@ -80,17 +77,6 @@ export function TicketForm() {
   const autoPriority = autoDeterminePriority(formData.unit, formData.equipment)
   const autoEvent = autoMapEventType(formData.unit)
   const currentUser = "김철수 (Hydroprocessing기술팀)"
-
-  const availableTeams = ["Engineering", "Operations", "Maintenance", "QA", "Management"]
-
-  const toggleTeam = (team: string) => {
-    setFormData((prev) => ({
-      ...prev,
-      allowedTeams: prev.allowedTeams.includes(team)
-        ? prev.allowedTeams.filter((t) => t !== team)
-        : [...prev.allowedTeams, team],
-    }))
-  }
 
   const addTag = () => {
     if (formData.tagInput.trim() && !formData.tags.includes(formData.tagInput.trim())) {
@@ -216,8 +202,7 @@ export function TicketForm() {
       createdDate: new Date().toISOString().split("T")[0],
       dueDate: "",
       bottleneck: "시작 전",
-      accessLevel: formData.accessLevel as "Private" | "Team" | "Public",
-      allowedTeams: formData.accessLevel === "Team" ? formData.allowedTeams : undefined,
+      accessLevel: "Public" as "Private" | "Team" | "Public",
       unit: formData.unit,
       area: formData.area || undefined,
       equipment: formData.equipment || undefined,
@@ -291,8 +276,8 @@ export function TicketForm() {
   return (
     <Card className="p-6">
       <form onSubmit={handleSubmit} className="space-y-6">
-        {/* ===== ROW 1: 공정명(기능위치) / 설비번호 ===== */}
-        <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+        {/* ===== ROW 1: 공정명(기능위치) / 설비번호 + 관련 태그 ===== */}
+        <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
           <div className="space-y-2">
             <Label htmlFor="unit" className="flex items-center gap-1">
               <span className="text-destructive">*</span> 공정명 (기능위치)
@@ -321,15 +306,45 @@ export function TicketForm() {
             </div>
           </div>
           <div className="space-y-2">
-            <Label htmlFor="equipment" className="flex items-center gap-1">
-              설비번호
-            </Label>
+            <Label htmlFor="equipment">설비번호</Label>
             <Input
               id="equipment"
               placeholder="입력 후 엔터.. (예: R-2001, E-101)"
               value={formData.equipment}
               onChange={(e) => setFormData({ ...formData, equipment: e.target.value })}
             />
+          </div>
+          <div className="space-y-2">
+            <Label htmlFor="tags">관련 태그</Label>
+            <Select
+              value=""
+              onValueChange={(value) => {
+                if (value && !formData.tags.includes(value)) {
+                  setFormData({ ...formData, tags: [...formData.tags, value] })
+                }
+              }}
+            >
+              <SelectTrigger>
+                <SelectValue placeholder="태그 선택" />
+              </SelectTrigger>
+              <SelectContent>
+                {AVAILABLE_TAGS[formData.unit]?.map((tag) => (
+                  <SelectItem key={tag} value={tag}>{tag}</SelectItem>
+                ))}
+              </SelectContent>
+            </Select>
+            {formData.tags.length > 0 && (
+              <div className="flex flex-wrap gap-1.5 mt-1.5">
+                {formData.tags.map((tag) => (
+                  <Badge key={tag} variant="secondary" className="text-xs flex items-center gap-1">
+                    {tag}
+                    <button type="button" onClick={() => removeTag(tag)} className="ml-0.5 hover:bg-muted rounded-full">
+                      <X className="h-2.5 w-2.5" />
+                    </button>
+                  </Badge>
+                ))}
+              </div>
+            )}
           </div>
         </div>
 
@@ -345,6 +360,18 @@ export function TicketForm() {
             onChange={(e) => setFormData({ ...formData, title: e.target.value })}
             required
             className="text-base"
+          />
+        </div>
+
+        {/* ===== ROW 2.5: 상세 설명 (제목 바로 아래) ===== */}
+        <div className="space-y-2">
+          <Label htmlFor="description">상세 설명</Label>
+          <Textarea
+            id="description"
+            placeholder="세부내용을 입력하여 주십시오."
+            rows={4}
+            value={formData.description}
+            onChange={(e) => setFormData({ ...formData, description: e.target.value })}
           />
         </div>
 
@@ -436,43 +463,7 @@ export function TicketForm() {
           )}
         </div>
 
-        {/* ===== ROW 5: 태그 (공정 데이터 참조) ===== */}
-        <div className="space-y-2">
-          <Label htmlFor="tags">관련 태그</Label>
-          <div className="flex gap-2">
-            <Select
-              value=""
-              onValueChange={(value) => {
-                if (value && !formData.tags.includes(value)) {
-                  setFormData({ ...formData, tags: [...formData.tags, value] })
-                }
-              }}
-            >
-              <SelectTrigger>
-                <SelectValue placeholder="태그 선택" />
-              </SelectTrigger>
-              <SelectContent>
-                {AVAILABLE_TAGS[formData.unit]?.map((tag) => (
-                  <SelectItem key={tag} value={tag}>{tag}</SelectItem>
-                ))}
-              </SelectContent>
-            </Select>
-          </div>
-          {formData.tags.length > 0 && (
-            <div className="flex flex-wrap gap-2 mt-2">
-              {formData.tags.map((tag) => (
-                <Badge key={tag} variant="secondary" className="flex items-center gap-1">
-                  {tag}
-                  <button type="button" onClick={() => removeTag(tag)} className="ml-1 hover:bg-muted rounded-full">
-                    <X className="h-3 w-3" />
-                  </button>
-                </Badge>
-              ))}
-            </div>
-          )}
-        </div>
-
-        {/* ===== ROW 6: 추가 설명 기입 (데이터 삽입, 첨부 등) ===== */}
+        {/* ===== ROW 5: 추가 설명 기입 (데이터 삽입, 첨부 등) ===== */}
         <div className="space-y-4">
           <Button
             type="button"
@@ -572,74 +563,6 @@ export function TicketForm() {
               />
             </Card>
           )}
-        </div>
-
-        {/* ===== ROW 7: 접근 권한 ===== */}
-        <div className="space-y-4 p-4 border border-border rounded-lg bg-muted/30">
-          <div className="space-y-2">
-            <Label htmlFor="accessLevel" className="text-sm font-semibold">
-              접근 권한
-            </Label>
-            <Select
-              value={formData.accessLevel}
-              onValueChange={(value) =>
-                setFormData({
-                  ...formData,
-                  accessLevel: value,
-                  allowedTeams: value === "Team" ? formData.allowedTeams : [],
-                })
-              }
-            >
-              <SelectTrigger id="accessLevel">
-                <SelectValue />
-              </SelectTrigger>
-              <SelectContent>
-                <SelectItem value="Private">비공개 - 나만 보기</SelectItem>
-                <SelectItem value="Team">팀 - 특정 팀</SelectItem>
-                <SelectItem value="Public">공개 - 모두</SelectItem>
-              </SelectContent>
-            </Select>
-            <p className="text-xs text-muted-foreground">
-              {formData.accessLevel === "Private" && "나만 이 이벤트를 보고 편집할 수 있습니다"}
-              {formData.accessLevel === "Team" && "선택된 팀이 이 이벤트를 보고 협업할 수 있습니다"}
-              {formData.accessLevel === "Public" && "모든 팀이 이 이벤트를 보고 협업할 수 있습니다"}
-            </p>
-          </div>
-
-          {formData.accessLevel === "Team" && (
-            <div className="space-y-3">
-              <Label className="text-sm">접근 가능한 팀 선택</Label>
-              <div className="space-y-2">
-                {availableTeams.map((team) => (
-                  <div key={team} className="flex items-center space-x-2">
-                    <Checkbox
-                      id={team}
-                      checked={formData.allowedTeams.includes(team)}
-                      onCheckedChange={() => toggleTeam(team)}
-                    />
-                    <label
-                      htmlFor={team}
-                      className="text-sm font-medium leading-none peer-disabled:cursor-not-allowed peer-disabled:opacity-70 cursor-pointer"
-                    >
-                      {team}
-                    </label>
-                  </div>
-                ))}
-              </div>
-            </div>
-          )}
-        </div>
-
-        {/* ===== ROW 8: 상세 설명 (맨 아래) ===== */}
-        <div className="space-y-2">
-          <Label htmlFor="description">상세 설명</Label>
-          <Textarea
-            id="description"
-            placeholder="세부내용을 입력하여 주십시오."
-            rows={6}
-            value={formData.description}
-            onChange={(e) => setFormData({ ...formData, description: e.target.value })}
-          />
         </div>
 
         <div className="flex gap-3 pt-4">

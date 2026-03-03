@@ -5,15 +5,16 @@ import type { DataInsertBox } from "@/lib/types"
 import { useState } from "react"
 
 interface DataVisualizationProps {
-  box: DataInsertBox
+  box?: DataInsertBox
+  dataBox?: DataInsertBox
   onTableDataChange?: (data: string[][]) => void
 }
 
-export function DataVisualization({ box, onTableDataChange }: DataVisualizationProps) {
-  console.log("[v0] DataVisualization received box:", box)
-  console.log("[v0] Box type:", box?.type)
+export function DataVisualization({ box, dataBox, onTableDataChange }: DataVisualizationProps) {
+  // Support both 'box' and 'dataBox' props for backwards compatibility
+  const inputBox = box || dataBox
 
-  const safeBox: DataInsertBox = box || {
+  const safeBox: DataInsertBox = inputBox || {
     id: "default",
     type: "trend",
     config: {
@@ -50,7 +51,6 @@ export function DataVisualization({ box, onTableDataChange }: DataVisualizationP
   const boxType = safeBox.type
 
   if (boxType === "dcs") {
-    console.log("[v0] Rendering DCS screen")
     const unit = safeBox.config?.unit || "VDU"
     const graphicNumber = safeBox.config?.graphicNumber || "G-2002"
     const timestamp = safeBox.config?.fromDate || new Date().toISOString()
@@ -120,7 +120,6 @@ export function DataVisualization({ box, onTableDataChange }: DataVisualizationP
   }
 
   if (boxType === "table") {
-    console.log("[v0] Rendering table")
     return (
       <div className="overflow-x-auto">
         <table className="w-full border-collapse border border-border">
@@ -146,7 +145,6 @@ export function DataVisualization({ box, onTableDataChange }: DataVisualizationP
   }
 
   if (boxType === "trend" || !boxType) {
-    console.log("[v0] Rendering trend")
     const tags = safeBox.config?.tags || ["TI-2002", "FIC-2001"]
     const fromDate = safeBox.config?.fromDate || new Date(Date.now() - 24 * 60 * 60 * 1000).toISOString()
     const toDate = safeBox.config?.toDate || new Date().toISOString()
