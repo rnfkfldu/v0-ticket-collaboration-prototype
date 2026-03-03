@@ -13,6 +13,18 @@ export interface Ticket {
   bottleneck?: string
   accessLevel: "Private" | "Team" | "Public"
   allowedTeams?: string[]
+  // 추가 접근 권한 설정
+  allowedUsers?: string[] // 추가로 접근 가능한 사용자 목록
+  // 에스컬레이션 정보
+  escalation?: {
+    escalatedTo: string // 에스컬레이션 대상자 (팀장 등)
+    escalatedBy: string // 에스컬레이션 요청자
+    escalatedAt: string // 에스컬레이션 시간
+    reason: string // 에스컬레이션 사유
+    status: "pending" | "acknowledged" | "resolved" // 에스컬레이션 상태
+    acknowledgedAt?: string
+    resolution?: string
+  }
   unit?: string
   area?: string
   equipment?: string

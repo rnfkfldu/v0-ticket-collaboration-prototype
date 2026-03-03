@@ -11,7 +11,10 @@ import { Textarea } from "@/components/ui/textarea"
 import { useState } from "react"
 import { useRouter } from "next/navigation"
 import { saveTicket, addWorkPackageToTicket } from "@/lib/storage"
-import { X, PlusCircle, Trash2 } from "lucide-react"
+import { X, PlusCircle, Trash2, Shield, Users, Globe, Lock, UserPlus, ChevronDown, ChevronUp } from "lucide-react"
+import { Collapsible, CollapsibleContent, CollapsibleTrigger } from "@/components/ui/collapsible"
+import { RadioGroup, RadioGroupItem } from "@/components/ui/radio-group"
+import { Checkbox } from "@/components/ui/checkbox"
 import { Badge } from "@/components/ui/badge"
 import type { DataInsertBox } from "@/lib/types"
 import { DataInsertBoxConfig } from "@/components/data-insert-box-config"
@@ -72,6 +75,34 @@ export function TicketForm() {
   const [additionalDataBoxes, setAdditionalDataBoxes] = useState<DataInsertBox[]>([])
   const [showDataBoxConfig, setShowDataBoxConfig] = useState(false)
   const [attachments, setAttachments] = useState<{ fileName: string; fileUrl: string }[]>([])
+
+  // Access control state
+  const [showAccessSettings, setShowAccessSettings] = useState(false)
+  const [accessLevel, setAccessLevel] = useState<"Private" | "Team" | "Public">("Private")
+  const [allowedTeams, setAllowedTeams] = useState<string[]>([])
+  const [allowedUsers, setAllowedUsers] = useState<string[]>([])
+  const [userSearchQuery, setUserSearchQuery] = useState("")
+  
+  // Available teams and users for selection
+  const AVAILABLE_TEAMS = [
+    { id: "proc-eng", name: "공정기술팀" },
+    { id: "maint", name: "장치기술팀" },
+    { id: "ops", name: "운전팀" },
+    { id: "safety", name: "안전환경팀" },
+    { id: "dx", name: "DX팀" },
+    { id: "quality", name: "품질관리팀" },
+  ]
+  
+  const AVAILABLE_USERS = [
+    { id: "user-1", name: "김철수", team: "공정기술팀", role: "팀원" },
+    { id: "user-2", name: "박영희", team: "공정기술팀", role: "팀장" },
+    { id: "user-3", name: "이민호", team: "장치기술팀", role: "팀원" },
+    { id: "user-4", name: "정수민", team: "장치기술팀", role: "팀장" },
+    { id: "user-5", name: "최지은", team: "운전팀", role: "팀원" },
+    { id: "user-6", name: "강동원", team: "운전팀", role: "팀장" },
+    { id: "user-7", name: "한소희", team: "안전환경팀", role: "팀원" },
+    { id: "user-8", name: "유재석", team: "DX팀", role: "팀장" },
+  ]
 
   // Auto-determined values
   const autoPriority = autoDeterminePriority(formData.unit, formData.equipment)
@@ -202,7 +233,9 @@ export function TicketForm() {
       createdDate: new Date().toISOString().split("T")[0],
       dueDate: "",
       bottleneck: "시작 전",
-      accessLevel: "Public" as "Private" | "Team" | "Public",
+      accessLevel: accessLevel,
+      allowedTeams: accessLevel === "Team" ? allowedTeams : undefined,
+      allowedUsers: allowedUsers.length > 0 ? allowedUsers : undefined,
       unit: formData.unit,
       area: formData.area || undefined,
       equipment: formData.equipment || undefined,
@@ -564,6 +597,131 @@ export function TicketForm() {
             </Card>
           )}
         </div>
+
+        {/* ===== ROW 6: 접근 권한 설정 ===== */}
+        <Collapsible open={showAccessSettings} onOpenChange={setShowAccessSettings}>
+          <CollapsibleTrigger asChild>
+            <Button type="button" variant="outline" className="w-full justify-between">
+              <div className="flex items-center gap-2">
+                <Shield className="h-4 w-4" />
+                접근 권한 설정
+                {accessLevel === "Private" && <Badge variant="secondary" className="text-xs">기본: 관련자만</Badge>}
+                {accessLevel === "Team" && <Badge variant="secondary" className="text-xs">팀 공유</Badge>}
+                {accessLevel === "Public" && <Badge variant="secondary" className="text-xs">전체 공개</Badge>}
+              </div>
+              {showAccessSettings ? <ChevronUp className="h-4 w-4" /> : <ChevronDown className="h-4 w-4" />}
+            </Button>
+          </CollapsibleTrigger>
+          <CollapsibleContent>
+            <Card className="mt-3 p-4 space-y-4 bg-muted/30">
+              <div className="space-y-3">
+                <Label className="text-sm font-medium">공개 범위</Label>
+                <RadioGroup value={accessLevel} onValueChange={(v) => setAccessLevel(v as "Private" | "Team" | "Public")} className="space-y-2">
+                  <div className={cn("flex items-center space-x-3 rounded-lg border p-3 cursor-pointer transition-colors", accessLevel === "Private" ? "border-primary bg-primary/5" : "hover:bg-muted/50")} onClick={() => setAccessLevel("Private")}>
+                    <RadioGroupItem value="Private" id="access-private" />
+                    <Lock className="h-4 w-4 text-muted-foreground" />
+                    <div className="flex-1">
+                      <Label htmlFor="access-private" className="text-sm font-medium cursor-pointer">관련자만 (기본)</Label>
+                      <p className="text-xs text-muted-foreground">발행자, 담당자, 추가 검토자만 접근 가능</p>
+                    </div>
+                  </div>
+                  <div className={cn("flex items-center space-x-3 rounded-lg border p-3 cursor-pointer transition-colors", accessLevel === "Team" ? "border-primary bg-primary/5" : "hover:bg-muted/50")} onClick={() => setAccessLevel("Team")}>
+                    <RadioGroupItem value="Team" id="access-team" />
+                    <Users className="h-4 w-4 text-muted-foreground" />
+                    <div className="flex-1">
+                      <Label htmlFor="access-team" className="text-sm font-medium cursor-pointer">팀 공유</Label>
+                      <p className="text-xs text-muted-foreground">선택한 팀 전체가 열람 가능</p>
+                    </div>
+                  </div>
+                  <div className={cn("flex items-center space-x-3 rounded-lg border p-3 cursor-pointer transition-colors", accessLevel === "Public" ? "border-primary bg-primary/5" : "hover:bg-muted/50")} onClick={() => setAccessLevel("Public")}>
+                    <RadioGroupItem value="Public" id="access-public" />
+                    <Globe className="h-4 w-4 text-muted-foreground" />
+                    <div className="flex-1">
+                      <Label htmlFor="access-public" className="text-sm font-medium cursor-pointer">전체 공개</Label>
+                      <p className="text-xs text-muted-foreground">모든 사용자가 열람 가능</p>
+                    </div>
+                  </div>
+                </RadioGroup>
+              </div>
+
+              {/* Team selection for Team access level */}
+              {accessLevel === "Team" && (
+                <div className="space-y-3 pt-2 border-t">
+                  <Label className="text-sm font-medium">공유 대상 팀 선택</Label>
+                  <div className="grid grid-cols-2 md:grid-cols-3 gap-2">
+                    {AVAILABLE_TEAMS.map(team => (
+                      <div key={team.id} className={cn("flex items-center space-x-2 rounded-lg border p-2.5 cursor-pointer transition-colors", allowedTeams.includes(team.id) ? "border-primary bg-primary/5" : "hover:bg-muted/50")} onClick={() => {
+                        if (allowedTeams.includes(team.id)) {
+                          setAllowedTeams(allowedTeams.filter(t => t !== team.id))
+                        } else {
+                          setAllowedTeams([...allowedTeams, team.id])
+                        }
+                      }}>
+                        <Checkbox checked={allowedTeams.includes(team.id)} />
+                        <span className="text-sm">{team.name}</span>
+                      </div>
+                    ))}
+                  </div>
+                </div>
+              )}
+
+              {/* Additional users - always available */}
+              <div className="space-y-3 pt-2 border-t">
+                <div className="flex items-center justify-between">
+                  <Label className="text-sm font-medium">추가 접근 허용 사용자</Label>
+                  <Badge variant="outline" className="text-xs">{allowedUsers.length}명 선택됨</Badge>
+                </div>
+                <p className="text-xs text-muted-foreground -mt-1">공개 범위와 관계없이 특정 사용자에게 접근 권한을 부여합니다.</p>
+                
+                <div className="relative">
+                  <Input
+                    placeholder="사용자 검색..."
+                    value={userSearchQuery}
+                    onChange={(e) => setUserSearchQuery(e.target.value)}
+                    className="pr-8"
+                  />
+                  <UserPlus className="absolute right-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
+                </div>
+                
+                {userSearchQuery && (
+                  <Card className="p-2 space-y-1 max-h-40 overflow-y-auto">
+                    {AVAILABLE_USERS.filter(u => 
+                      u.name.toLowerCase().includes(userSearchQuery.toLowerCase()) ||
+                      u.team.toLowerCase().includes(userSearchQuery.toLowerCase())
+                    ).filter(u => !allowedUsers.includes(u.name)).map(user => (
+                      <div key={user.id} className="flex items-center justify-between p-2 rounded hover:bg-muted cursor-pointer" onClick={() => {
+                        setAllowedUsers([...allowedUsers, user.name])
+                        setUserSearchQuery("")
+                      }}>
+                        <div className="flex items-center gap-2">
+                          <div className="h-7 w-7 rounded-full bg-primary/10 flex items-center justify-center text-xs font-medium">{user.name[0]}</div>
+                          <div>
+                            <p className="text-sm font-medium">{user.name}</p>
+                            <p className="text-xs text-muted-foreground">{user.team} · {user.role}</p>
+                          </div>
+                        </div>
+                        <PlusCircle className="h-4 w-4 text-primary" />
+                      </div>
+                    ))}
+                  </Card>
+                )}
+                
+                {allowedUsers.length > 0 && (
+                  <div className="flex flex-wrap gap-2">
+                    {allowedUsers.map(userName => (
+                      <Badge key={userName} variant="secondary" className="text-xs flex items-center gap-1 pr-1">
+                        {userName}
+                        <button type="button" onClick={() => setAllowedUsers(allowedUsers.filter(u => u !== userName))} className="ml-1 hover:bg-muted rounded-full p-0.5">
+                          <X className="h-3 w-3" />
+                        </button>
+                      </Badge>
+                    ))}
+                  </div>
+                )}
+              </div>
+            </Card>
+          </CollapsibleContent>
+        </Collapsible>
 
         <div className="flex gap-3 pt-4">
           <Button type="submit" className="flex-1">

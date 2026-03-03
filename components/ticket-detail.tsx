@@ -22,7 +22,8 @@ import {
   Calendar, User, Target, AlertCircle, CheckCircle, XCircle, Clock, ArrowRight,
   FileSearch, FileText, Send, Save, PlusCircle, Trash2, FileUp, X, RotateCcw,
   Activity, Gauge, Info, Wrench, FileBarChart, Link2, MessageSquare, ChevronRight,
-  Search, Users, UserPlus, ExternalLink, Boxes, ChevronDown
+  Search, Users, UserPlus, ExternalLink, Boxes, ChevronDown, ArrowUpCircle, Shield,
+  Globe, Lock, Eye, Settings
 } from "lucide-react"
 import { useState, useEffect } from "react"
 import { useRouter } from "next/navigation"
@@ -252,7 +253,7 @@ function SimilarEventsDialog({ ticket }: { ticket: Ticket }) {
 function SimilarReportsContent({ ticket }: { ticket: Ticket }) {
   const reports = [
     { id: "RPT-041", title: `${ticket.unit} 열교환기 성능 점검 보고서`, date: "2024-12-15", similarity: 78 },
-    { id: "RPT-038", title: `${ticket.unit} 운전 가이�� 개정 보고서`, date: "2024-11-20", similarity: 65 },
+    { id: "RPT-038", title: `${ticket.unit} 운전 가이��� 개정 보고서`, date: "2024-11-20", similarity: 65 },
     { id: "RPT-022", title: `${ticket.unit || "CDU"} 공정 효율 분석 보고서`, date: "2024-09-10", similarity: 52 },
   ]
   return (
@@ -1182,6 +1183,16 @@ function TeamOpinionsSummary({ ticket }: { ticket: Ticket }) {
   )
 }
 
+// Team leaders for escalation
+const TEAM_LEADERS = [
+  { id: "leader-1", name: "박영희", team: "공정기술팀", role: "팀장" },
+  { id: "leader-2", name: "정수민", team: "장치기술팀", role: "팀장" },
+  { id: "leader-3", name: "강동원", team: "운전팀", role: "팀장" },
+  { id: "leader-4", name: "김현수", team: "안전환경팀", role: "팀장" },
+  { id: "leader-5", name: "유재석", team: "DX팀", role: "팀장" },
+  { id: "leader-6", name: "이상훈", team: "Hydroprocessing기술팀", role: "팀장" },
+]
+
 // === Main Component ===
 export function TicketDetail({ ticket: initialTicket }: TicketDetailProps) {
   const [ticket, setTicket] = useState(initialTicket)
@@ -1190,6 +1201,15 @@ export function TicketDetail({ ticket: initialTicket }: TicketDetailProps) {
   const [showAcceptDialog, setShowAcceptDialog] = useState(false)
   const [showRejectDialog, setShowRejectDialog] = useState(false)
   const [rejectReason, setRejectReason] = useState("")
+  
+  // Escalation state
+  const [showEscalationDialog, setShowEscalationDialog] = useState(false)
+  const [escalationTarget, setEscalationTarget] = useState("")
+  const [escalationReason, setEscalationReason] = useState("")
+  
+  // Access settings state
+  const [showAccessDialog, setShowAccessDialog] = useState(false)
+  
   const router = useRouter()
 
   const refreshTicket = () => {
@@ -1291,6 +1311,55 @@ export function TicketDetail({ ticket: initialTicket }: TicketDetailProps) {
     refreshTicket()
     setShowClosureReport(false)
     alert("종료 Report가 조직장에게 결재 요청되었습니다.")
+  }
+
+  // Escalation handler
+  const handleEscalation = () => {
+    if (!escalationTarget || !escalationReason.trim()) return
+    const targetLeader = TEAM_LEADERS.find(l => l.id === escalationTarget)
+    if (!targetLeader) return
+    
+    updateTicket(ticket.id, {
+      escalation: {
+        escalatedTo: targetLeader.name,
+        escalatedBy: CURRENT_USER,
+        escalatedAt: new Date().toISOString(),
+        reason: escalationReason,
+        status: "pending",
+      },
+      // Also add to allowed users if not already
+      allowedUsers: [...(ticket.allowedUsers || []), targetLeader.name].filter((v, i, a) => a.indexOf(v) === i),
+      messages: [...(ticket.messages || []), {
+        id: `msg-${Date.now()}`, ticketId: ticket.id, author: "System", role: "system" as const,
+        messageType: "status_change" as const, 
+        content: `${CURRENT_USER}님이 ${targetLeader.name} ${targetLeader.role}(${targetLeader.team})에게 에스컬레이션을 요청했습니다. 사유: ${escalationReason}`,
+        timestamp: new Date().toISOString(),
+      }],
+    })
+    setShowEscalationDialog(false)
+    setEscalationTarget("")
+    setEscalationReason("")
+    refreshTicket()
+    alert(`${targetLeader.name} ${targetLeader.role}에게 에스컬레이션 요청이 전송되었습니다.`)
+  }
+
+  // Acknowledge escalation (팀장이 확인)
+  const handleAcknowledgeEscalation = () => {
+    if (!ticket.escalation) return
+    updateTicket(ticket.id, {
+      escalation: {
+        ...ticket.escalation,
+        status: "acknowledged",
+        acknowledgedAt: new Date().toISOString(),
+      },
+      messages: [...(ticket.messages || []), {
+        id: `msg-${Date.now()}`, ticketId: ticket.id, author: "System", role: "system" as const,
+        messageType: "status_change" as const,
+        content: `${ticket.escalation.escalatedTo}님이 에스컬레이션을 확인하고 검토를 시작했습니다.`,
+        timestamp: new Date().toISOString(),
+      }],
+    })
+    refreshTicket()
   }
 
   const isPending = ticket.processStatus === "issued"
@@ -1570,10 +1639,90 @@ export function TicketDetail({ ticket: initialTicket }: TicketDetailProps) {
         </Card>
       )}
 
+      {/* Escalation Banner - show if escalated */}
+      {ticket.escalation && (
+        <Card className={cn("p-4", 
+          ticket.escalation.status === "pending" ? "bg-orange-50 border-orange-200" :
+          ticket.escalation.status === "acknowledged" ? "bg-blue-50 border-blue-200" :
+          "bg-emerald-50 border-emerald-200"
+        )}>
+          <div className="flex items-start justify-between gap-4">
+            <div className="flex items-start gap-3">
+              <ArrowUpCircle className={cn("h-5 w-5 mt-0.5",
+                ticket.escalation.status === "pending" ? "text-orange-600" :
+                ticket.escalation.status === "acknowledged" ? "text-blue-600" :
+                "text-emerald-600"
+              )} />
+              <div>
+                <div className="flex items-center gap-2 mb-1">
+                  <span className="text-sm font-medium">에스컬레이션</span>
+                  <Badge variant="secondary" className={cn("text-xs",
+                    ticket.escalation.status === "pending" ? "bg-orange-100 text-orange-700" :
+                    ticket.escalation.status === "acknowledged" ? "bg-blue-100 text-blue-700" :
+                    "bg-emerald-100 text-emerald-700"
+                  )}>
+                    {ticket.escalation.status === "pending" ? "대기중" :
+                     ticket.escalation.status === "acknowledged" ? "확인됨" : "해결됨"}
+                  </Badge>
+                </div>
+                <p className="text-sm text-muted-foreground mb-1">
+                  <span className="font-medium">{ticket.escalation.escalatedTo}</span>에게 에스컬레이션됨
+                </p>
+                <p className="text-xs text-muted-foreground">
+                  사유: {ticket.escalation.reason}
+                </p>
+                <p className="text-xs text-muted-foreground mt-1">
+                  요청자: {ticket.escalation.escalatedBy} | {new Date(ticket.escalation.escalatedAt).toLocaleString("ko-KR")}
+                </p>
+              </div>
+            </div>
+            {ticket.escalation.status === "pending" && (
+              <Button size="sm" variant="outline" className="bg-white gap-1.5" onClick={handleAcknowledgeEscalation}>
+                <Eye className="h-3.5 w-3.5" />
+                확인
+              </Button>
+            )}
+          </div>
+        </Card>
+      )}
+
+      {/* Access Level Info Card */}
+      <Card className="p-4">
+        <div className="flex items-center justify-between">
+          <div className="flex items-center gap-3">
+            {ticket.accessLevel === "Private" && <Lock className="h-4 w-4 text-muted-foreground" />}
+            {ticket.accessLevel === "Team" && <Users className="h-4 w-4 text-muted-foreground" />}
+            {ticket.accessLevel === "Public" && <Globe className="h-4 w-4 text-muted-foreground" />}
+            <div>
+              <p className="text-sm font-medium">
+                {ticket.accessLevel === "Private" ? "관련자만 접근 가능" :
+                 ticket.accessLevel === "Team" ? "팀 공유" : "전체 공개"}
+              </p>
+              <p className="text-xs text-muted-foreground">
+                {ticket.allowedUsers && ticket.allowedUsers.length > 0 && (
+                  <>추가 접근 허용: {ticket.allowedUsers.join(", ")}</>
+                )}
+                {ticket.allowedTeams && ticket.allowedTeams.length > 0 && (
+                  <> | 팀: {ticket.allowedTeams.join(", ")}</>
+                )}
+              </p>
+            </div>
+          </div>
+          <Button variant="ghost" size="sm" className="gap-1.5" onClick={() => setShowAccessDialog(true)}>
+            <Settings className="h-3.5 w-3.5" />
+            설정
+          </Button>
+        </div>
+      </Card>
+
       {/* Close/Reopen for active events */}
       {!isClosed && !isPending && (
         <Card className="p-4 bg-muted/30">
           <div className="flex gap-2 justify-center">
+            <Button variant="outline" className="gap-2 bg-transparent" onClick={() => setShowEscalationDialog(true)}>
+              <ArrowUpCircle className="h-4 w-4" />
+              에스컬레이션
+            </Button>
             <Button variant="default" className="gap-2" onClick={() => setShowCloseDialog(true)}>
               <CheckCircle className="h-4 w-4" />
               종결
@@ -1648,6 +1797,141 @@ export function TicketDetail({ ticket: initialTicket }: TicketDetailProps) {
           .map(r => ({ team: r.team, reviewer: r.name, opinion: r.opinion! }))}
         onSubmit={handleClosureReportSubmit}
       />
+
+      {/* Escalation Dialog */}
+      <Dialog open={showEscalationDialog} onOpenChange={setShowEscalationDialog}>
+        <DialogContent className="max-w-md">
+          <DialogHeader>
+            <DialogTitle className="flex items-center gap-2">
+              <ArrowUpCircle className="h-5 w-5 text-orange-600" />
+              에스컬레이션 요청
+            </DialogTitle>
+            <DialogDescription>
+              이 이벤트를 팀장급 또는 상위 결재권자에게 에스컬레이션합니다.
+            </DialogDescription>
+          </DialogHeader>
+          <div className="space-y-4 py-2">
+            <div className="space-y-2">
+              <Label className="text-sm font-medium">에스컬레이션 대상</Label>
+              <Select value={escalationTarget} onValueChange={setEscalationTarget}>
+                <SelectTrigger>
+                  <SelectValue placeholder="대상자 선택" />
+                </SelectTrigger>
+                <SelectContent>
+                  {TEAM_LEADERS.map(leader => (
+                    <SelectItem key={leader.id} value={leader.id}>
+                      <div className="flex items-center gap-2">
+                        <span className="font-medium">{leader.name}</span>
+                        <span className="text-xs text-muted-foreground">{leader.team} {leader.role}</span>
+                      </div>
+                    </SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+            </div>
+            <div className="space-y-2">
+              <Label className="text-sm font-medium">에스컬레이션 사유</Label>
+              <Textarea
+                value={escalationReason}
+                onChange={(e) => setEscalationReason(e.target.value)}
+                placeholder="에스컬레이션이 필요한 사유를 작성해주세요..."
+                className="min-h-[100px]"
+              />
+            </div>
+            <Card className="p-3 bg-amber-50 border-amber-200">
+              <div className="flex items-start gap-2">
+                <AlertCircle className="h-4 w-4 text-amber-600 mt-0.5" />
+                <div className="text-xs text-amber-800">
+                  <p className="font-medium mb-1">에스컬레이션 시 다음과 같은 조치가 이루어집니다:</p>
+                  <ul className="list-disc list-inside space-y-0.5 text-amber-700">
+                    <li>대상자에게 즉시 알림 발송</li>
+                    <li>대상자가 이벤트에 접근 가능하도록 권한 부여</li>
+                    <li>이벤트 타임라인에 에스컬레이션 이력 기록</li>
+                  </ul>
+                </div>
+              </div>
+            </Card>
+          </div>
+          <div className="flex justify-end gap-2">
+            <Button variant="outline" onClick={() => setShowEscalationDialog(false)}>취소</Button>
+            <Button onClick={handleEscalation} disabled={!escalationTarget || !escalationReason.trim()} className="gap-1.5 bg-orange-600 hover:bg-orange-700">
+              <ArrowUpCircle className="h-4 w-4" />
+              에스컬레이션 요청
+            </Button>
+          </div>
+        </DialogContent>
+      </Dialog>
+
+      {/* Access Settings Dialog */}
+      <Dialog open={showAccessDialog} onOpenChange={setShowAccessDialog}>
+        <DialogContent className="max-w-md">
+          <DialogHeader>
+            <DialogTitle className="flex items-center gap-2">
+              <Shield className="h-5 w-5" />
+              접근 권한 설정
+            </DialogTitle>
+            <DialogDescription>
+              이 이벤트의 접근 권한을 관리합니다.
+            </DialogDescription>
+          </DialogHeader>
+          <div className="space-y-4 py-2">
+            <div className="space-y-3">
+              <Label className="text-sm font-medium">현재 공개 범위</Label>
+              <div className="flex items-center gap-3 p-3 rounded-lg border">
+                {ticket.accessLevel === "Private" && <Lock className="h-5 w-5 text-muted-foreground" />}
+                {ticket.accessLevel === "Team" && <Users className="h-5 w-5 text-muted-foreground" />}
+                {ticket.accessLevel === "Public" && <Globe className="h-5 w-5 text-muted-foreground" />}
+                <div>
+                  <p className="text-sm font-medium">
+                    {ticket.accessLevel === "Private" ? "관련자만" :
+                     ticket.accessLevel === "Team" ? "팀 공유" : "전체 공개"}
+                  </p>
+                  <p className="text-xs text-muted-foreground">
+                    {ticket.accessLevel === "Private" ? "발행자, 담당자, 추가 검토자만 접근 가능" :
+                     ticket.accessLevel === "Team" ? "선택된 팀 전체가 열람 가능" : "모든 사용자가 열람 가능"}
+                  </p>
+                </div>
+              </div>
+            </div>
+            
+            {ticket.allowedTeams && ticket.allowedTeams.length > 0 && (
+              <div className="space-y-2">
+                <Label className="text-sm font-medium">공유 팀</Label>
+                <div className="flex flex-wrap gap-2">
+                  {ticket.allowedTeams.map(team => (
+                    <Badge key={team} variant="secondary" className="text-xs">{team}</Badge>
+                  ))}
+                </div>
+              </div>
+            )}
+            
+            <div className="space-y-2">
+              <Label className="text-sm font-medium">추가 접근 허용 사용자</Label>
+              {ticket.allowedUsers && ticket.allowedUsers.length > 0 ? (
+                <div className="flex flex-wrap gap-2">
+                  {ticket.allowedUsers.map(user => (
+                    <Badge key={user} variant="outline" className="text-xs flex items-center gap-1">
+                      <User className="h-3 w-3" />
+                      {user}
+                    </Badge>
+                  ))}
+                </div>
+              ) : (
+                <p className="text-xs text-muted-foreground">추가로 접근 허용된 사용자가 없습니다.</p>
+              )}
+            </div>
+
+            <Card className="p-3 bg-muted/50">
+              <p className="text-xs text-muted-foreground">
+                접근 권한 변경은 이벤트 생성 시 설정하거나, 에스컬레이션을 통해 특정 사용자에게 권한을 부여할 수 있습니다.
+              </p>
+            </Card>
+          </div>
+          <div className="flex justify-end">
+            <Button variant="outline" onClick={() => setShowAccessDialog(false)}>닫기</Button>
+          </div>
+        </DialogContent>
+      </Dialog>
     </div>
   )
 }
