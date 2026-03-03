@@ -20,7 +20,7 @@ function getCookie(name: string): string | null {
 }
 
 // ============================================================
-// 1) Process definitions (updated)
+// 1) Process definitions
 // ============================================================
 export type Division = "Refining" | "Chemical" | "Upgrading"
 
@@ -96,7 +96,6 @@ export const ALL_PROCESSES: ProcessUnit[] = [
 // ============================================================
 export type UserRole = "engineer" | "team-lead" | "division-head" | "plant-head" | "operator" | "equipment-engineer"
 
-// Department types for staff roles
 export type Department = "production" | "equipment-tech" | "inspection" | "reliability"
 
 export interface UserProfile {
@@ -104,20 +103,18 @@ export interface UserProfile {
   name: string
   role: UserRole
   roleLabel: string
-  division?: Division       // for division-head
-  department?: Department   // for staff roles (equipment-engineer, etc.)
-  assignedProcessIds: string[]  // for engineer / team-lead: list of ProcessUnit ids
-  alertMinSeverity: "info" | "warning" | "critical"  // role-based default filter
+  division?: Division
+  department?: Department
+  assignedProcessIds: string[]
+  alertMinSeverity: "info" | "warning" | "critical"
   showManagementDashboard: boolean
-  // Menu visibility flags
-  showStrategicTasks?: boolean     // 전략 과제 메뉴 표시 여부
-  showDataSettings?: boolean       // 데이터/설정 메뉴 표시 여부
-  showOptimization?: boolean       // 최적화/인사이트 메뉴 표시 여부
-  focusArea?: "operations" | "reliability" | "equipment"  // 주요 관심 영역
+  showStrategicTasks?: boolean
+  showDataSettings?: boolean
+  showOptimization?: boolean
+  focusArea?: "operations" | "reliability" | "equipment"
 }
 
 export const USER_PROFILES: UserProfile[] = [
-  // === 생산팀 역할 ===
   {
     id: "u-engineer-1",
     name: "김철수",
@@ -175,7 +172,6 @@ export const USER_PROFILES: UserProfile[] = [
     showOptimization: true,
     focusArea: "operations",
   },
-  // === 운전원 역할 (생산팀, 운전 현황에만 관심) ===
   {
     id: "u-operator-1",
     name: "최운전",
@@ -185,13 +181,11 @@ export const USER_PROFILES: UserProfile[] = [
     assignedProcessIds: ["HCR", "VGOFCC", "RFCC"],
     alertMinSeverity: "info",
     showManagementDashboard: false,
-    showStrategicTasks: false,  // 전략 과제 숨김
-    showDataSettings: false,    // 데이터/설정 숨김
-    showOptimization: false,    // 최적화 숨김
+    showStrategicTasks: false,
+    showDataSettings: false,
+    showOptimization: false,
     focusArea: "operations",
   },
-  
-  // === 설비기술팀 역할 (Staff, Reliability 관점) ===
   {
     id: "u-equip-eng-1",
     name: "박설비",
@@ -203,8 +197,8 @@ export const USER_PROFILES: UserProfile[] = [
     showManagementDashboard: false,
     showStrategicTasks: true,
     showDataSettings: true,
-    showOptimization: false,  // 운전 최적화보다는 설비 관점
-    focusArea: "equipment",   // Compressor, Pump 등 회전기기 중심
+    showOptimization: false,
+    focusArea: "equipment",
   },
   {
     id: "u-equip-eng-2",
@@ -246,23 +240,17 @@ interface UserContextValue {
   setCurrentUser: (user: UserProfile) => void
   scopeMode: ScopeMode
   setScopeMode: (mode: ScopeMode) => void
-  /** Processes visible to the user given the current scope */
   visibleProcesses: ProcessUnit[]
-  /** All assigned (not scope filtered) */
   assignedProcesses: ProcessUnit[]
-  /** Whether the user has management-level view */
   isManagement: boolean
 }
 
 const UserContext = createContext<UserContextValue | null>(null)
 
 export function UserProvider({ children }: { children: ReactNode }) {
-  // Use refs to track if we've initialized from cookies
   const initialized = useRef(false)
   
-  // Initialize state - will be updated from cookies on mount
   const [currentUser, setCurrentUserState] = useState<UserProfile>(() => {
-    // Try to read from cookie on initial render (client-side only)
     if (typeof document !== "undefined") {
       const savedUserId = getCookie(USER_COOKIE_KEY)
       if (savedUserId) {
@@ -283,7 +271,6 @@ export function UserProvider({ children }: { children: ReactNode }) {
     return "my-processes"
   })
 
-  // Re-sync from cookies after hydration to handle any mismatch
   useEffect(() => {
     if (initialized.current) return
     initialized.current = true
@@ -304,13 +291,11 @@ export function UserProvider({ children }: { children: ReactNode }) {
     }
   }, [currentUser.id, scopeMode])
 
-  // Wrapper to persist user selection to cookie
   const setCurrentUser = (user: UserProfile) => {
     setCurrentUserState(user)
     setCookie(USER_COOKIE_KEY, user.id)
   }
 
-  // Wrapper to persist scope selection to cookie
   const setScopeMode = (mode: ScopeMode) => {
     setScopeModeState(mode)
     setCookie(SCOPE_COOKIE_KEY, mode)
@@ -377,7 +362,6 @@ export function getRoleDescription(role: UserRole): string {
   }
 }
 
-// Helper to get department label
 export function getDepartmentLabel(dept?: Department): string {
   switch (dept) {
     case "production": return "생산팀"
