@@ -252,7 +252,7 @@ function SimilarEventsDialog({ ticket }: { ticket: Ticket }) {
 function SimilarReportsContent({ ticket }: { ticket: Ticket }) {
   const reports = [
     { id: "RPT-041", title: `${ticket.unit} 열교환기 성능 점검 보고서`, date: "2024-12-15", similarity: 78 },
-    { id: "RPT-038", title: `${ticket.unit} 운전 가이드 개정 보고서`, date: "2024-11-20", similarity: 65 },
+    { id: "RPT-038", title: `${ticket.unit} 운전 가이�� 개정 보고서`, date: "2024-11-20", similarity: 65 },
     { id: "RPT-022", title: `${ticket.unit || "CDU"} 공정 효율 분석 보고서`, date: "2024-09-10", similarity: 52 },
   ]
   return (
@@ -779,7 +779,7 @@ function OpinionWritingCanvas({
   )
 }
 
-// --- Additional Reviewer Assignment ---
+// --- Additional Reviewer Assignment (다중 검토자 지원) ---
 function AdditionalReviewerSection({ ticket, onAssign }: { ticket: Ticket; onAssign: () => void }) {
   const [showAssign, setShowAssign] = useState(false)
   const [selectedTeam, setSelectedTeam] = useState("")
@@ -794,10 +794,24 @@ function AdditionalReviewerSection({ ticket, onAssign }: { ticket: Ticket; onAss
     { team: "DX팀", members: ["오진우", "임가은", "송현정"] },
   ]
 
+  const currentReviewers = ticket.additionalReviewers || []
+
   const handleAssign = () => {
     if (!selectedTeam || !selectedPerson) return
+    // Check if already assigned
+    if (currentReviewers.some(r => r.name === selectedPerson && r.team === selectedTeam)) {
+      alert("이미 배정된 검토자입니다.")
+      return
+    }
+    const newReviewer = {
+      id: `rev-${Date.now()}`,
+      name: selectedPerson,
+      team: selectedTeam,
+      status: "pending" as const,
+      assignedAt: new Date().toISOString(),
+    }
     updateTicket(ticket.id, {
-      additionalReviewer: { name: selectedPerson, team: selectedTeam, status: "pending", assignedAt: new Date().toISOString() },
+      additionalReviewers: [...currentReviewers, newReviewer],
       processStatus: "additional-review",
       processFlow: ticket.processFlow?.map(s =>
         s.step === "review" ? { ...s, status: "completed" as const, timestamp: new Date().toLocaleString("ko-KR") } :
@@ -810,41 +824,46 @@ function AdditionalReviewerSection({ ticket, onAssign }: { ticket: Ticket; onAss
       }],
     })
     setShowAssign(false)
+    setSelectedTeam("")
+    setSelectedPerson("")
     onAssign()
-  }
-
-  // Check if additional-review step doesn't exist yet, add it
-  const hasAdditionalStep = ticket.processFlow?.some(s => s.step === "additional-review")
-
-  if (ticket.additionalReviewer) {
-    return (
-      <Card className="p-4 bg-orange-50/50 border-orange-200">
-        <div className="flex items-center gap-2 mb-2">
-          <Users className="h-4 w-4 text-orange-600" />
-          <p className="text-sm font-medium text-orange-800">추가 검토 배정</p>
-        </div>
-        <div className="flex items-center gap-3">
-          <Badge variant="outline" className="text-xs">{ticket.additionalReviewer.team}</Badge>
-          <span className="text-sm text-foreground">{ticket.additionalReviewer.name}</span>
-          <Badge variant="secondary" className={`text-xs ml-auto ${
-            ticket.additionalReviewer.status === "completed" ? "bg-emerald-100 text-emerald-700" :
-            ticket.additionalReviewer.status === "in-progress" ? "bg-amber-100 text-amber-700" :
-            "bg-slate-100 text-slate-600"
-          }`}>
-            {ticket.additionalReviewer.status === "completed" ? "검토 완료" :
-             ticket.additionalReviewer.status === "in-progress" ? "검토 중" : "배정됨"}
-          </Badge>
-        </div>
-      </Card>
-    )
   }
 
   return (
     <Card className="p-4">
+      {/* 기존 배정된 검토자 목록 */}
+      {currentReviewers.length > 0 && (
+        <div className="mb-4">
+          <div className="flex items-center gap-2 mb-3">
+            <Users className="h-4 w-4 text-orange-600" />
+            <p className="text-sm font-medium text-orange-800">추가 검토 배정 ({currentReviewers.length}명)</p>
+          </div>
+          <div className="space-y-2">
+            {currentReviewers.map((reviewer) => (
+              <div key={reviewer.id} className="flex items-center gap-3 p-2 bg-orange-50/50 rounded-lg border border-orange-100">
+                <Badge variant="outline" className="text-xs">{reviewer.team}</Badge>
+                <span className="text-sm text-foreground">{reviewer.name}</span>
+                <Badge variant="secondary" className={`text-xs ml-auto ${
+                  reviewer.status === "completed" ? "bg-emerald-100 text-emerald-700" :
+                  reviewer.status === "in-progress" ? "bg-amber-100 text-amber-700" :
+                  "bg-slate-100 text-slate-600"
+                }`}>
+                  {reviewer.status === "completed" ? "검토 완료" :
+                   reviewer.status === "in-progress" ? "검토 중" : "배정됨"}
+                </Badge>
+              </div>
+            ))}
+          </div>
+        </div>
+      )}
+
+      {/* 추가 검토자 배정 버튼 */}
       <div className="flex items-center justify-between">
         <div className="flex items-center gap-2">
           <UserPlus className="h-4 w-4 text-muted-foreground" />
-          <p className="text-sm text-muted-foreground">타 팀 추가 검토가 필요한 경우</p>
+          <p className="text-sm text-muted-foreground">
+            {currentReviewers.length > 0 ? "추가 검토자를 더 배정할 수 있습니다" : "타 팀 추가 검토가 필요한 경우"}
+          </p>
         </div>
         <Button variant="outline" size="sm" className="text-xs gap-1.5 bg-transparent" onClick={() => setShowAssign(true)}>
           <UserPlus className="h-3.5 w-3.5" />
@@ -856,7 +875,7 @@ function AdditionalReviewerSection({ ticket, onAssign }: { ticket: Ticket; onAss
         <DialogContent>
           <DialogHeader>
             <DialogTitle>추가 검토자 지정</DialogTitle>
-            <DialogDescription>추가 기술검토가 필요한 팀과 담당자를 선택하세요.</DialogDescription>
+            <DialogDescription>추가 기술검토가 필요한 팀과 담당자를 선택하세요. 여러 명을 배정할 수 있습니다.</DialogDescription>
           </DialogHeader>
           <div className="space-y-4 pt-2">
             <div>
@@ -935,8 +954,9 @@ function CommentsSection({ ticket, onUpdate }: { ticket: Ticket; onUpdate: () =>
   )
 }
 
-// --- Thread History ---
+// --- Thread History with popup detail ---
 function ThreadHistory({ ticket }: { ticket: Ticket }) {
+  const [selectedMessage, setSelectedMessage] = useState<typeof ticket.messages[0] | null>(null)
   const messages = [...(ticket.messages || [])].sort((a, b) => new Date(a.timestamp).getTime() - new Date(b.timestamp).getTime())
 
   const getIcon = (type: string, role: string) => {
@@ -958,31 +978,86 @@ function ThreadHistory({ ticket }: { ticket: Ticket }) {
     return labels[type] || type
   }
 
+  const getRoleLabel = (role: string) => {
+    const labels: Record<string, string> = { requester: "요청자", assignee: "담당자", system: "시스템" }
+    return labels[role] || role
+  }
+
   return (
-    <div className="space-y-3">
-      {messages.length === 0 ? (
-        <p className="text-sm text-muted-foreground text-center py-8">아직 히스토리가 없습니다</p>
-      ) : (
-        messages.map((msg, idx) => (
-          <div key={msg.id} className="flex gap-3">
-            <div className="flex flex-col items-center">
-              <div className="w-7 h-7 rounded-full bg-primary/10 flex items-center justify-center text-primary">
-                {getIcon(msg.messageType, msg.role)}
+    <>
+      <div className="space-y-3">
+        {messages.length === 0 ? (
+          <p className="text-sm text-muted-foreground text-center py-8">아직 히스토리가 없습니다</p>
+        ) : (
+          messages.map((msg, idx) => (
+            <div 
+              key={msg.id} 
+              className="flex gap-3 cursor-pointer hover:opacity-80 transition-opacity"
+              onClick={() => setSelectedMessage(msg)}
+            >
+              <div className="flex flex-col items-center">
+                <div className="w-7 h-7 rounded-full bg-primary/10 flex items-center justify-center text-primary">
+                  {getIcon(msg.messageType, msg.role)}
+                </div>
+                {idx < messages.length - 1 && <div className="w-0.5 flex-1 bg-border mt-1" />}
               </div>
-              {idx < messages.length - 1 && <div className="w-0.5 flex-1 bg-border mt-1" />}
-            </div>
-            <div className={`flex-1 p-3 rounded-lg border ${getBg(msg.role)} mb-1`}>
-              <div className="flex items-center gap-2 mb-1">
-                <span className="text-xs font-medium text-foreground">{msg.author}</span>
-                <Badge variant="outline" className="text-[10px]">{getTypeLabel(msg.messageType)}</Badge>
-                <span className="text-[10px] text-muted-foreground ml-auto">{new Date(msg.timestamp).toLocaleString("ko-KR")}</span>
+              <div className={`flex-1 p-3 rounded-lg border ${getBg(msg.role)} mb-1`}>
+                <div className="flex items-center gap-2 mb-1">
+                  <span className="text-xs font-medium text-foreground">{msg.author}</span>
+                  <Badge variant="outline" className="text-[10px]">{getTypeLabel(msg.messageType)}</Badge>
+                  <span className="text-[10px] text-muted-foreground ml-auto">{new Date(msg.timestamp).toLocaleString("ko-KR")}</span>
+                </div>
+                <p className="text-sm text-foreground line-clamp-2">{msg.content}</p>
               </div>
-              <p className="text-sm text-foreground">{msg.content}</p>
             </div>
-          </div>
-        ))
-      )}
-    </div>
+          ))
+        )}
+      </div>
+
+      {/* Thread Detail Popup */}
+      <Dialog open={!!selectedMessage} onOpenChange={(open) => !open && setSelectedMessage(null)}>
+        <DialogContent className="max-w-lg">
+          <DialogHeader>
+            <DialogTitle className="flex items-center gap-2">
+              {selectedMessage && getIcon(selectedMessage.messageType, selectedMessage.role)}
+              히스토리 상세
+            </DialogTitle>
+            <DialogDescription>
+              {selectedMessage && new Date(selectedMessage.timestamp).toLocaleString("ko-KR")}
+            </DialogDescription>
+          </DialogHeader>
+          {selectedMessage && (
+            <div className="space-y-4 pt-2">
+              <div className="grid grid-cols-2 gap-4">
+                <div>
+                  <Label className="text-xs text-muted-foreground">작성자</Label>
+                  <p className="text-sm font-medium">{selectedMessage.author}</p>
+                </div>
+                <div>
+                  <Label className="text-xs text-muted-foreground">역할</Label>
+                  <p className="text-sm">{getRoleLabel(selectedMessage.role)}</p>
+                </div>
+                <div>
+                  <Label className="text-xs text-muted-foreground">유형</Label>
+                  <Badge variant="secondary" className="text-xs">{getTypeLabel(selectedMessage.messageType)}</Badge>
+                </div>
+                <div>
+                  <Label className="text-xs text-muted-foreground">시간</Label>
+                  <p className="text-sm">{new Date(selectedMessage.timestamp).toLocaleString("ko-KR")}</p>
+                </div>
+              </div>
+              <Separator />
+              <div>
+                <Label className="text-xs text-muted-foreground mb-2 block">내용</Label>
+                <div className="bg-muted/30 rounded-lg p-4">
+                  <p className="text-sm text-foreground whitespace-pre-wrap">{selectedMessage.content}</p>
+                </div>
+              </div>
+            </div>
+          )}
+        </DialogContent>
+      </Dialog>
+    </>
   )
 }
 
@@ -1015,6 +1090,94 @@ function SubmittedOpinionsView({ opinions }: { opinions?: EventOpinion[] }) {
           )}
         </Card>
       ))}
+    </div>
+  )
+}
+
+// --- Team Opinions Summary (타 팀 의견 종합) ---
+function TeamOpinionsSummary({ ticket }: { ticket: Ticket }) {
+  const reviewers = ticket.additionalReviewers || []
+  
+  if (reviewers.length === 0) {
+    return (
+      <div className="text-center py-8 text-sm text-muted-foreground">
+        추가 검토자가 배정되지 않았습니다.
+      </div>
+    )
+  }
+
+  const completedReviewers = reviewers.filter(r => r.status === "completed")
+  const pendingReviewers = reviewers.filter(r => r.status !== "completed")
+
+  return (
+    <div className="space-y-4">
+      {/* Summary stats */}
+      <div className="flex items-center gap-4 p-3 bg-muted/30 rounded-lg">
+        <div className="flex items-center gap-2">
+          <Users className="h-4 w-4 text-muted-foreground" />
+          <span className="text-sm text-muted-foreground">총 {reviewers.length}명 배정</span>
+        </div>
+        <div className="flex items-center gap-2">
+          <CheckCircle className="h-4 w-4 text-emerald-500" />
+          <span className="text-sm text-emerald-600">{completedReviewers.length}명 완료</span>
+        </div>
+        {pendingReviewers.length > 0 && (
+          <div className="flex items-center gap-2">
+            <Clock className="h-4 w-4 text-amber-500" />
+            <span className="text-sm text-amber-600">{pendingReviewers.length}명 대기</span>
+          </div>
+        )}
+      </div>
+
+      {/* Completed opinions */}
+      {completedReviewers.length > 0 && (
+        <div className="space-y-3">
+          <h4 className="text-xs font-semibold text-muted-foreground uppercase tracking-wide">검토 완료 의견</h4>
+          {completedReviewers.map((reviewer) => (
+            <Card key={reviewer.id} className="p-4 bg-emerald-50/30 border-emerald-100">
+              <div className="flex items-center gap-2 mb-2">
+                <Badge variant="outline" className="text-xs bg-white">{reviewer.team}</Badge>
+                <span className="text-sm font-medium text-foreground">{reviewer.name}</span>
+                <Badge variant="secondary" className="text-xs bg-emerald-100 text-emerald-700 ml-auto">완료</Badge>
+              </div>
+              {reviewer.opinion ? (
+                <div className="bg-white rounded-lg p-3 border border-emerald-100">
+                  <p className="text-sm text-foreground whitespace-pre-wrap">{reviewer.opinion}</p>
+                </div>
+              ) : (
+                <p className="text-sm text-muted-foreground italic">의견 내용이 없습니다.</p>
+              )}
+              <div className="flex items-center gap-4 mt-2 text-[10px] text-muted-foreground">
+                <span>배정일: {new Date(reviewer.assignedAt).toLocaleDateString("ko-KR")}</span>
+                {reviewer.completedAt && <span>완료일: {new Date(reviewer.completedAt).toLocaleDateString("ko-KR")}</span>}
+              </div>
+            </Card>
+          ))}
+        </div>
+      )}
+
+      {/* Pending reviewers */}
+      {pendingReviewers.length > 0 && (
+        <div className="space-y-3">
+          <h4 className="text-xs font-semibold text-muted-foreground uppercase tracking-wide">검토 대기</h4>
+          {pendingReviewers.map((reviewer) => (
+            <Card key={reviewer.id} className="p-4 border-dashed">
+              <div className="flex items-center gap-2">
+                <Badge variant="outline" className="text-xs">{reviewer.team}</Badge>
+                <span className="text-sm text-muted-foreground">{reviewer.name}</span>
+                <Badge variant="secondary" className={`text-xs ml-auto ${
+                  reviewer.status === "in-progress" ? "bg-amber-100 text-amber-700" : "bg-slate-100 text-slate-600"
+                }`}>
+                  {reviewer.status === "in-progress" ? "검토 중" : "대기 중"}
+                </Badge>
+              </div>
+              <p className="text-xs text-muted-foreground mt-2">
+                배정일: {new Date(reviewer.assignedAt).toLocaleDateString("ko-KR")}
+              </p>
+            </Card>
+          ))}
+        </div>
+      )}
     </div>
   )
 }
@@ -1107,7 +1270,24 @@ export function TicketDetail({ ticket: initialTicket }: TicketDetailProps) {
 
   const handleClosureReportSubmit = (report: ClosureReport) => {
     closeTicket(ticket.id)
-    updateTicket(ticket.id, { processStatus: "closed", processFlow: ticket.processFlow?.map(s => ({ ...s, status: "completed" as const })) })
+    updateTicket(ticket.id, { 
+      processStatus: "closed", 
+      processFlow: ticket.processFlow?.map(s => ({ ...s, status: "completed" as const })),
+      closureReport: {
+        id: report.id,
+        title: report.title,
+        summary: report.summary,
+        background: report.background,
+        actions: report.actions,
+        results: report.results,
+        lessons: report.lessons,
+        recommendations: report.recommendations,
+        teamOpinions: report.teamOpinions,
+        createdDate: report.createdDate,
+        author: report.author,
+      },
+      executiveSummary: report.summary, // 이전 호환성을 위해 유지
+    })
     refreshTicket()
     setShowClosureReport(false)
     alert("종료 Report가 조직장에게 결재 요청되었습니다.")
@@ -1298,12 +1478,17 @@ export function TicketDetail({ ticket: initialTicket }: TicketDetailProps) {
         </Card>
       )}
 
-      {/* Thread / Comments tabs */}
+      {/* Thread / Comments / Team Opinions tabs */}
       <Card className="p-6">
         <Tabs defaultValue="thread">
           <TabsList className="mb-4">
             <TabsTrigger value="thread">이벤트 히스토리</TabsTrigger>
             <TabsTrigger value="comments">댓글</TabsTrigger>
+            {(ticket.additionalReviewers?.length || 0) > 0 && (
+              <TabsTrigger value="team-opinions">
+                타 팀 의견 종합 ({ticket.additionalReviewers?.filter(r => r.status === "completed").length || 0}/{ticket.additionalReviewers?.length || 0})
+              </TabsTrigger>
+            )}
           </TabsList>
           <TabsContent value="thread">
             <ThreadHistory ticket={ticket} />
@@ -1311,15 +1496,77 @@ export function TicketDetail({ ticket: initialTicket }: TicketDetailProps) {
           <TabsContent value="comments">
             <CommentsSection ticket={ticket} onUpdate={refreshTicket} />
           </TabsContent>
+          <TabsContent value="team-opinions">
+            <TeamOpinionsSummary ticket={ticket} />
+          </TabsContent>
         </Tabs>
       </Card>
 
-      {/* Closed event summary */}
-      {isClosed && ticket.executiveSummary && (
+      {/* Closed event - Full Report View */}
+      {isClosed && (ticket.closureReport || ticket.executiveSummary) && (
         <Card className="p-6">
-          <h3 className="text-sm font-semibold text-foreground mb-3">완료 보고서</h3>
-          <div className="whitespace-pre-line text-sm text-muted-foreground bg-muted/30 p-4 rounded">{ticket.executiveSummary}</div>
-          {ticket.closedDate && <p className="text-xs text-muted-foreground mt-3">완료일: {new Date(ticket.closedDate).toLocaleDateString("ko-KR")}</p>}
+          <div className="flex items-center justify-between mb-4">
+            <h3 className="text-sm font-semibold text-foreground flex items-center gap-2">
+              <FileBarChart className="h-4 w-4" />
+              종결 리포트
+            </h3>
+            {ticket.closedDate && (
+              <Badge variant="secondary" className="text-xs">
+                종결일: {new Date(ticket.closedDate).toLocaleDateString("ko-KR")}
+              </Badge>
+            )}
+          </div>
+          
+          {ticket.closureReport ? (
+            <div className="space-y-4">
+              <div>
+                <Label className="text-xs text-muted-foreground">요약</Label>
+                <div className="whitespace-pre-line text-sm text-foreground bg-muted/30 p-3 rounded mt-1">{ticket.closureReport.summary}</div>
+              </div>
+              <div>
+                <Label className="text-xs text-muted-foreground">배경</Label>
+                <div className="whitespace-pre-line text-sm text-foreground bg-muted/30 p-3 rounded mt-1">{ticket.closureReport.background}</div>
+              </div>
+              <div>
+                <Label className="text-xs text-muted-foreground">수행 내용</Label>
+                <div className="whitespace-pre-line text-sm text-foreground bg-muted/30 p-3 rounded mt-1">{ticket.closureReport.actions}</div>
+              </div>
+              <div>
+                <Label className="text-xs text-muted-foreground">결과</Label>
+                <div className="whitespace-pre-line text-sm text-foreground bg-muted/30 p-3 rounded mt-1">{ticket.closureReport.results}</div>
+              </div>
+              <div>
+                <Label className="text-xs text-muted-foreground">교훈 및 개선점</Label>
+                <div className="whitespace-pre-line text-sm text-foreground bg-muted/30 p-3 rounded mt-1">{ticket.closureReport.lessons}</div>
+              </div>
+              <div>
+                <Label className="text-xs text-muted-foreground">후속 조치 권고</Label>
+                <div className="whitespace-pre-line text-sm text-foreground bg-muted/30 p-3 rounded mt-1">{ticket.closureReport.recommendations}</div>
+              </div>
+              {/* 타 팀 의견 포함 */}
+              {ticket.closureReport.teamOpinions && ticket.closureReport.teamOpinions.length > 0 && (
+                <div>
+                  <Label className="text-xs text-muted-foreground">타 팀 의견 종합</Label>
+                  <div className="space-y-2 mt-1">
+                    {ticket.closureReport.teamOpinions.map((op, idx) => (
+                      <div key={idx} className="bg-orange-50/50 border border-orange-100 rounded p-3">
+                        <div className="flex items-center gap-2 mb-1">
+                          <Badge variant="outline" className="text-xs">{op.team}</Badge>
+                          <span className="text-xs text-muted-foreground">{op.reviewer}</span>
+                        </div>
+                        <p className="text-sm text-foreground">{op.opinion}</p>
+                      </div>
+                    ))}
+                  </div>
+                </div>
+              )}
+              <div className="text-xs text-muted-foreground pt-2 border-t">
+                작성자: {ticket.closureReport.author} | 작성일: {ticket.closureReport.createdDate}
+              </div>
+            </div>
+          ) : (
+            <div className="whitespace-pre-line text-sm text-muted-foreground bg-muted/30 p-4 rounded">{ticket.executiveSummary}</div>
+          )}
         </Card>
       )}
 
@@ -1396,6 +1643,9 @@ export function TicketDetail({ ticket: initialTicket }: TicketDetailProps) {
         open={showClosureReport} onOpenChange={setShowClosureReport}
         title={ticket.title} description={ticket.description}
         type="ticket" ticketType={ticket.ticketType} workPackages={ticket.workPackages.map(wp => wp.title)}
+        teamOpinions={(ticket.additionalReviewers || [])
+          .filter(r => r.status === "completed" && r.opinion)
+          .map(r => ({ team: r.team, reviewer: r.name, opinion: r.opinion! }))}
         onSubmit={handleClosureReportSubmit}
       />
     </div>

@@ -58,13 +58,29 @@ export interface Ticket {
   // 이벤트 프로세스 플로우
   processStatus?: "issued" | "accepted" | "rejected" | "review" | "additional-review" | "review-complete" | "closed" | "hold"
   processFlow?: EventProcessStep[]
-  // 추가 검토자
-  additionalReviewer?: {
+  // 추가 검토자 (여러 명 가능)
+  additionalReviewers?: {
+    id: string
     name: string
     team: string
     status: "pending" | "in-progress" | "completed"
     assignedAt: string
     completedAt?: string
+    opinion?: string
+  }[]
+  // 종결 리포트
+  closureReport?: {
+    id: string
+    title: string
+    summary: string
+    background: string
+    actions: string
+    results: string
+    lessons: string
+    recommendations: string
+    teamOpinions?: { team: string; reviewer: string; opinion: string }[]
+    createdDate: string
+    author: string
   }
   // 의견 (opinions)
   opinions?: EventOpinion[]

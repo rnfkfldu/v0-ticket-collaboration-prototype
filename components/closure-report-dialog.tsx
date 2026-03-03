@@ -117,6 +117,7 @@ interface ClosureReportDialogProps {
   ticketType?: string
   linkedTickets?: { id: string; title: string }[]
   workPackages?: string[]
+  teamOpinions?: { team: string; reviewer: string; opinion: string }[]
   onSubmit: (report: ClosureReport) => void
 }
 
@@ -131,6 +132,7 @@ export interface ClosureReport {
   results: string
   lessons: string
   recommendations: string
+  teamOpinions?: { team: string; reviewer: string; opinion: string }[]
   status: "draft" | "pending-approval" | "approved" | "rejected"
   createdDate: string
   author: string
@@ -147,6 +149,7 @@ export function ClosureReportDialog({
   ticketType,
   linkedTickets,
   workPackages,
+  teamOpinions,
   onSubmit,
 }: ClosureReportDialogProps) {
   const [step, setStep] = useState<"generating" | "editing" | "preview">("generating")
@@ -193,6 +196,7 @@ export function ClosureReportDialog({
       results,
       lessons,
       recommendations,
+      teamOpinions: teamOpinions || [],
       status: "pending-approval",
       createdDate: new Date().toISOString().split("T")[0],
       author: "김지수",
