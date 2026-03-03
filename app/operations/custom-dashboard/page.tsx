@@ -12,14 +12,36 @@ import { Label } from "@/components/ui/label"
 import {
   LayoutGrid, Plus, ArrowLeft, Settings, Trash2, Clock, Edit2,
   BarChart3, TrendingUp, Gauge, Table, X, Check, Search, Layers,
-  Monitor, GripVertical, Maximize2, Minimize2, Eye, Component
+  Monitor, GripVertical, Maximize2, Minimize2, Eye, Component,
+  FolderOpen, Folder, FolderPlus, User, Users, Building, Globe,
+  ChevronRight, ChevronDown, MoreVertical, Lock, Share2
 } from "lucide-react"
+import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuSeparator, DropdownMenuTrigger } from "@/components/ui/dropdown-menu"
+import { Collapsible, CollapsibleContent, CollapsibleTrigger } from "@/components/ui/collapsible"
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
+import { Textarea } from "@/components/ui/textarea"
+import { RadioGroup, RadioGroupItem } from "@/components/ui/radio-group"
 import { cn } from "@/lib/utils"
 import { AVAILABLE_TAGS } from "@/lib/process-data"
 
 // =========================================================================
 // Types
 // =========================================================================
+
+// Folder permission types
+type FolderPermission = "personal" | "team" | "department" | "company"
+
+interface DashboardFolder {
+  id: string
+  name: string
+  permission: FolderPermission
+  teamId?: string // for team permission
+  teamName?: string
+  icon?: string
+  createdAt: string
+  dashboardIds: string[]
+}
+
 interface EquipmentGroup {
   equipmentId: string
   equipmentName: string
@@ -53,7 +75,31 @@ interface DashboardItem {
   unit: string
   widgets: WidgetConfig[]
   updatedAt: string
+  folderId?: string // folder association
 }
+
+// Permission config
+const PERMISSION_CONFIG: Record<FolderPermission, { label: string; icon: string; description: string; color: string }> = {
+  personal: { label: "개인용", icon: "user", description: "나만 볼 수 있는 폴더", color: "blue" },
+  team: { label: "팀 공용", icon: "users", description: "소속 팀 전체 공유", color: "green" },
+  department: { label: "부서 공용", icon: "building", description: "부서 전체 공유", color: "amber" },
+  company: { label: "전사 공용", icon: "globe", description: "회사 전체 공유", color: "purple" },
+}
+
+const TEAM_OPTIONS = [
+  { id: "proc-eng", name: "공정기술팀" },
+  { id: "maint", name: "장치기술팀" },
+  { id: "ops", name: "운전팀" },
+  { id: "safety", name: "안전환경팀" },
+  { id: "dx", name: "DX팀" },
+]
+
+// Initial folders
+const INITIAL_FOLDERS: DashboardFolder[] = [
+  { id: "folder-personal", name: "내 대시보드", permission: "personal", createdAt: "2026-01-15", dashboardIds: ["db-1"] },
+  { id: "folder-proc-team", name: "공정기술팀 공용", permission: "team", teamId: "proc-eng", teamName: "공정기술팀", createdAt: "2026-01-10", dashboardIds: ["db-2", "db-3"] },
+  { id: "folder-company", name: "전사 표준 대시보드", permission: "company", createdAt: "2025-12-01", dashboardIds: [] },
+]
 
 // =========================================================================
 // Equipment Hierarchy
@@ -168,7 +214,7 @@ interface OOPComponent {
 const OOP_COMPONENTS: OOPComponent[] = [
   // 건전성 모니터링
   { id: "oop-health-overview", name: "설비 건전성 종합 현황", category: "건전성 모니터링", description: "전 공정 설비 건전성 스코어 및 상태 요약", sourcePage: "/operations/health/overview", icon: "health" },
-  { id: "oop-health-heatmap", name: "건전성 히트맵", category: "건전성 모니터링", description: "공정별 설비 건전성 히트맵 시각화", sourcePage: "/operations/health/overview", icon: "health" },
+  { id: "oop-health-heatmap", name: "건전성 히트맵", category: "건전성 모니터링", description: "공정별 설비 건��성 히트맵 시각화", sourcePage: "/operations/health/overview", icon: "health" },
   { id: "oop-health-alerts", name: "건전성 주의 설비 목록", category: "건전성 모니터링", description: "스코어 60 이하 설비 리스트 및 상세", sourcePage: "/operations/health/overview", icon: "health" },
   { id: "oop-fouling-trend", name: "Fouling 트렌드", category: "건전성 모니터링", description: "열교환기 Fouling Factor 추이", sourcePage: "/operations/health/exchanger", icon: "health" },
   { id: "oop-corrosion-map", name: "부식 맵", category: "건전성 모니터링", description: "배관 두께 감소 추이 및 잔여 수명", sourcePage: "/operations/health/piping", icon: "health" },
@@ -334,11 +380,21 @@ export default function CustomDashboardPage() {
   const initialId = searchParams.get("id")
 
   const [dashboards, setDashboards] = useState<DashboardItem[]>(INITIAL_DASHBOARDS)
+  const [folders, setFolders] = useState<DashboardFolder[]>(INITIAL_FOLDERS)
+  const [expandedFolders, setExpandedFolders] = useState<Set<string>>(new Set(INITIAL_FOLDERS.map(f => f.id)))
   const [selectedId, setSelectedId] = useState<string | null>(initialId)
   const [showCreateDialog, setShowCreateDialog] = useState(false)
   const [newName, setNewName] = useState("")
   const [newDesc, setNewDesc] = useState("")
   const [newUnit, setNewUnit] = useState("")
+  const [newFolderId, setNewFolderId] = useState<string>("")
+
+  // Folder dialog state
+  const [showFolderDialog, setShowFolderDialog] = useState(false)
+  const [editingFolder, setEditingFolder] = useState<DashboardFolder | null>(null)
+  const [folderName, setFolderName] = useState("")
+  const [folderPermission, setFolderPermission] = useState<FolderPermission>("personal")
+  const [folderTeamId, setFolderTeamId] = useState("")
 
   // Add widget dialog
   const [showAddWidget, setShowAddWidget] = useState(false)
@@ -365,22 +421,118 @@ export default function CustomDashboardPage() {
     setDashboards(prev => prev.map(d => d.id === selectedId ? fn(d) : d))
   }, [selectedId])
 
+  // ========== Folder CRUD ==========
+  const toggleFolder = (folderId: string) => {
+    setExpandedFolders(prev => {
+      const next = new Set(prev)
+      if (next.has(folderId)) next.delete(folderId)
+      else next.add(folderId)
+      return next
+    })
+  }
+
+  const openFolderDialog = (folder?: DashboardFolder) => {
+    if (folder) {
+      setEditingFolder(folder)
+      setFolderName(folder.name)
+      setFolderPermission(folder.permission)
+      setFolderTeamId(folder.teamId || "")
+    } else {
+      setEditingFolder(null)
+      setFolderName("")
+      setFolderPermission("personal")
+      setFolderTeamId("")
+    }
+    setShowFolderDialog(true)
+  }
+
+  const handleSaveFolder = () => {
+    if (!folderName.trim()) return
+    if (editingFolder) {
+      // Update existing folder
+      setFolders(prev => prev.map(f => f.id === editingFolder.id ? {
+        ...f,
+        name: folderName.trim(),
+        permission: folderPermission,
+        teamId: folderPermission === "team" ? folderTeamId : undefined,
+        teamName: folderPermission === "team" ? TEAM_OPTIONS.find(t => t.id === folderTeamId)?.name : undefined,
+      } : f))
+    } else {
+      // Create new folder
+      const newFolder: DashboardFolder = {
+        id: `folder-${Date.now()}`,
+        name: folderName.trim(),
+        permission: folderPermission,
+        teamId: folderPermission === "team" ? folderTeamId : undefined,
+        teamName: folderPermission === "team" ? TEAM_OPTIONS.find(t => t.id === folderTeamId)?.name : undefined,
+        createdAt: new Date().toISOString().slice(0, 10),
+        dashboardIds: [],
+      }
+      setFolders(prev => [...prev, newFolder])
+      setExpandedFolders(prev => new Set([...prev, newFolder.id]))
+    }
+    setShowFolderDialog(false)
+  }
+
+  const handleDeleteFolder = (folderId: string) => {
+    // Move dashboards from this folder to unassigned
+    const folder = folders.find(f => f.id === folderId)
+    if (folder) {
+      setDashboards(prev => prev.map(d => 
+        folder.dashboardIds.includes(d.id) ? { ...d, folderId: undefined } : d
+      ))
+    }
+    setFolders(prev => prev.filter(f => f.id !== folderId))
+  }
+
+  const getPermissionIcon = (permission: FolderPermission) => {
+    switch (permission) {
+      case "personal": return <User className="h-4 w-4" />
+      case "team": return <Users className="h-4 w-4" />
+      case "department": return <Building className="h-4 w-4" />
+      case "company": return <Globe className="h-4 w-4" />
+    }
+  }
+
   // ========== Dashboard CRUD ==========
   const handleCreate = () => {
     if (!newName.trim()) return
     const nd: DashboardItem = {
       id: `db-${Date.now()}`, name: newName.trim(), description: newDesc.trim(),
       unit: newUnit.trim() || "사용자", updatedAt: new Date().toISOString().slice(0, 10), widgets: [],
+      folderId: newFolderId || undefined,
+    }
+    // If folder selected, add to folder's dashboardIds
+    if (newFolderId) {
+      setFolders(prev => prev.map(f => f.id === newFolderId ? { ...f, dashboardIds: [...f.dashboardIds, nd.id] } : f))
     }
     setDashboards(prev => [nd, ...prev])
     setSelectedId(nd.id)
     setShowCreateDialog(false)
-    setNewName(""); setNewDesc(""); setNewUnit("")
+    setNewName(""); setNewDesc(""); setNewUnit(""); setNewFolderId("")
   }
   const handleDelete = (id: string) => {
+    // Remove from folder
+    setFolders(prev => prev.map(f => ({ ...f, dashboardIds: f.dashboardIds.filter(did => did !== id) })))
     setDashboards(prev => prev.filter(d => d.id !== id))
     if (selectedId === id) setSelectedId(null)
   }
+
+  const moveDashboardToFolder = (dashboardId: string, targetFolderId: string | null) => {
+    // Remove from all folders first
+    setFolders(prev => prev.map(f => ({ ...f, dashboardIds: f.dashboardIds.filter(id => id !== dashboardId) })))
+    // Add to target folder if specified
+    if (targetFolderId) {
+      setFolders(prev => prev.map(f => f.id === targetFolderId ? { ...f, dashboardIds: [...f.dashboardIds, dashboardId] } : f))
+    }
+    setDashboards(prev => prev.map(d => d.id === dashboardId ? { ...d, folderId: targetFolderId || undefined } : d))
+  }
+
+  // Get dashboards not in any folder
+  const unassignedDashboards = useMemo(() => {
+    const assignedIds = new Set(folders.flatMap(f => f.dashboardIds))
+    return dashboards.filter(d => !assignedIds.has(d.id))
+  }, [folders, dashboards])
 
   // ========== Widget Add ==========
   const addOopWidget = (comp: OOPComponent) => {
@@ -499,6 +651,52 @@ export default function CustomDashboardPage() {
     return true
   })
 
+  // Dashboard card component
+  const DashboardCard = ({ db }: { db: DashboardItem }) => (
+    <Card key={db.id} className="hover:shadow-md transition-shadow cursor-pointer group relative" onClick={() => setSelectedId(db.id)}>
+      <CardContent className="p-4">
+        <div className="flex items-start justify-between mb-2">
+          <div className="h-9 w-9 rounded-lg bg-amber-500/10 flex items-center justify-center shrink-0">
+            <LayoutGrid className="h-4.5 w-4.5 text-amber-600" />
+          </div>
+          <DropdownMenu>
+            <DropdownMenuTrigger asChild onClick={(e) => e.stopPropagation()}>
+              <button className="opacity-0 group-hover:opacity-100 transition-opacity h-7 w-7 rounded-md border border-border flex items-center justify-center hover:bg-muted cursor-pointer">
+                <MoreVertical className="h-3.5 w-3.5 text-muted-foreground" />
+              </button>
+            </DropdownMenuTrigger>
+            <DropdownMenuContent align="end" onClick={(e) => e.stopPropagation()}>
+              <DropdownMenuItem className="text-xs" onClick={() => setSelectedId(db.id)}>
+                <Eye className="h-3.5 w-3.5 mr-2" />열기
+              </DropdownMenuItem>
+              <DropdownMenuSeparator />
+              <DropdownMenuItem className="text-xs">
+                <Share2 className="h-3.5 w-3.5 mr-2" />폴더 이동
+              </DropdownMenuItem>
+              {folders.map(f => (
+                <DropdownMenuItem key={f.id} className="text-xs pl-6" onClick={() => moveDashboardToFolder(db.id, f.id)}>
+                  {getPermissionIcon(f.permission)}
+                  <span className="ml-2">{f.name}</span>
+                </DropdownMenuItem>
+              ))}
+              <DropdownMenuSeparator />
+              <DropdownMenuItem className="text-xs text-red-600" onClick={() => handleDelete(db.id)}>
+                <Trash2 className="h-3.5 w-3.5 mr-2" />삭제
+              </DropdownMenuItem>
+            </DropdownMenuContent>
+          </DropdownMenu>
+        </div>
+        <h3 className="font-semibold text-sm mb-1 group-hover:text-primary transition-colors line-clamp-1">{db.name}</h3>
+        <p className="text-xs text-muted-foreground mb-2 line-clamp-1">{db.description}</p>
+        <div className="flex items-center gap-2">
+          <Badge variant="outline" className="text-[10px]">{db.unit}</Badge>
+          <span className="text-[10px] text-muted-foreground">{db.widgets.length}개</span>
+          <span className="text-[10px] text-muted-foreground ml-auto">{db.updatedAt}</span>
+        </div>
+      </CardContent>
+    </Card>
+  )
+
   // ===== List View =====
   if (!selected) {
     return (
@@ -510,49 +708,128 @@ export default function CustomDashboardPage() {
                 <LayoutGrid className="h-5 w-5" />
                 커스텀 대시보드
               </h1>
-              <p className="text-sm text-muted-foreground mt-1">사용자가 구성한 대시보드를 관리하고 조회합니다.</p>
+              <p className="text-sm text-muted-foreground mt-1">폴더별로 대시보드를 정리하고 권한을 설정할 수 있습니다.</p>
             </div>
-            <Button className="gap-1.5 cursor-pointer" onClick={() => setShowCreateDialog(true)}>
-              <Plus className="h-4 w-4" />
-              새 대시보드
-            </Button>
+            <div className="flex items-center gap-2">
+              <Button variant="outline" className="gap-1.5 cursor-pointer" onClick={() => openFolderDialog()}>
+                <FolderPlus className="h-4 w-4" />
+                새 폴더
+              </Button>
+              <Button className="gap-1.5 cursor-pointer" onClick={() => setShowCreateDialog(true)}>
+                <Plus className="h-4 w-4" />
+                새 대시보드
+              </Button>
+            </div>
           </div>
 
-          {dashboards.length === 0 ? (
-            <div className="flex flex-col items-center justify-center py-20 text-center">
-              <div className="h-16 w-16 rounded-full bg-muted flex items-center justify-center mb-4">
-                <LayoutGrid className="h-8 w-8 text-muted-foreground" />
-              </div>
-              <p className="text-sm font-medium mb-1">아직 생성된 대시보드가 없습니다</p>
-              <p className="text-xs text-muted-foreground mb-4">{"위의 \"새 대시보드\" 버튼으로 나만의 대시보드를 만들어보세요."}</p>
-            </div>
-          ) : (
-            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
-              {dashboards.map(db => (
-                <Card key={db.id} className="hover:shadow-md transition-shadow cursor-pointer group relative" onClick={() => setSelectedId(db.id)}>
-                  <CardContent className="p-5">
-                    <div className="flex items-start justify-between mb-3">
-                      <div className="h-10 w-10 rounded-lg bg-amber-500/10 flex items-center justify-center shrink-0">
-                        <LayoutGrid className="h-5 w-5 text-amber-600" />
+          {/* Folder-based dashboard list */}
+          <div className="space-y-4">
+            {folders.map(folder => {
+              const folderDashboards = dashboards.filter(d => folder.dashboardIds.includes(d.id))
+              const isExpanded = expandedFolders.has(folder.id)
+              const permConfig = PERMISSION_CONFIG[folder.permission]
+              
+              return (
+                <Collapsible key={folder.id} open={isExpanded} onOpenChange={() => toggleFolder(folder.id)}>
+                  <div className="border rounded-lg bg-card">
+                    <CollapsibleTrigger asChild>
+                      <div className="flex items-center justify-between p-3 cursor-pointer hover:bg-muted/50 transition-colors">
+                        <div className="flex items-center gap-3">
+                          {isExpanded ? <ChevronDown className="h-4 w-4 text-muted-foreground" /> : <ChevronRight className="h-4 w-4 text-muted-foreground" />}
+                          <div className={cn("h-8 w-8 rounded-lg flex items-center justify-center", 
+                            permConfig.color === "blue" && "bg-blue-100 text-blue-600",
+                            permConfig.color === "green" && "bg-green-100 text-green-600",
+                            permConfig.color === "amber" && "bg-amber-100 text-amber-600",
+                            permConfig.color === "purple" && "bg-purple-100 text-purple-600"
+                          )}>
+                            {isExpanded ? <FolderOpen className="h-4 w-4" /> : <Folder className="h-4 w-4" />}
+                          </div>
+                          <div>
+                            <div className="flex items-center gap-2">
+                              <span className="font-medium text-sm">{folder.name}</span>
+                              <Badge variant="secondary" className={cn("text-[10px]",
+                                permConfig.color === "blue" && "bg-blue-100 text-blue-700",
+                                permConfig.color === "green" && "bg-green-100 text-green-700",
+                                permConfig.color === "amber" && "bg-amber-100 text-amber-700",
+                                permConfig.color === "purple" && "bg-purple-100 text-purple-700"
+                              )}>
+                                {getPermissionIcon(folder.permission)}
+                                <span className="ml-1">{permConfig.label}</span>
+                              </Badge>
+                              {folder.teamName && (
+                                <span className="text-xs text-muted-foreground">({folder.teamName})</span>
+                              )}
+                            </div>
+                            <span className="text-xs text-muted-foreground">{folderDashboards.length}개 대시보드</span>
+                          </div>
+                        </div>
+                        <DropdownMenu>
+                          <DropdownMenuTrigger asChild onClick={(e) => e.stopPropagation()}>
+                            <Button variant="ghost" size="icon" className="h-8 w-8">
+                              <MoreVertical className="h-4 w-4" />
+                            </Button>
+                          </DropdownMenuTrigger>
+                          <DropdownMenuContent align="end">
+                            <DropdownMenuItem className="text-xs" onClick={() => openFolderDialog(folder)}>
+                              <Settings className="h-3.5 w-3.5 mr-2" />폴더 설정
+                            </DropdownMenuItem>
+                            <DropdownMenuSeparator />
+                            <DropdownMenuItem className="text-xs text-red-600" onClick={() => handleDeleteFolder(folder.id)}>
+                              <Trash2 className="h-3.5 w-3.5 mr-2" />폴더 삭제
+                            </DropdownMenuItem>
+                          </DropdownMenuContent>
+                        </DropdownMenu>
                       </div>
-                      <button onClick={(e) => { e.stopPropagation(); handleDelete(db.id) }}
-                        className="opacity-0 group-hover:opacity-100 transition-opacity h-7 w-7 rounded-md border border-border flex items-center justify-center hover:bg-red-50 hover:border-red-200 cursor-pointer" title="삭제">
-                        <Trash2 className="h-3.5 w-3.5 text-muted-foreground hover:text-red-500" />
-                      </button>
-                    </div>
-                    <h3 className="font-semibold text-sm mb-1 group-hover:text-primary transition-colors">{db.name}</h3>
-                    <p className="text-xs text-muted-foreground mb-3 line-clamp-2">{db.description}</p>
-                    <div className="flex items-center gap-2">
-                      <Badge variant="outline" className="text-xs">{db.unit}</Badge>
-                      <span className="text-xs text-muted-foreground">위젯 {db.widgets.length}개</span>
-                      <span className="text-xs text-muted-foreground ml-auto flex items-center gap-1"><Clock className="h-3 w-3" />{db.updatedAt}</span>
-                    </div>
-                  </CardContent>
-                </Card>
-              ))}
-            </div>
-          )}
+                    </CollapsibleTrigger>
+                    <CollapsibleContent>
+                      <div className="px-3 pb-3">
+                        {folderDashboards.length === 0 ? (
+                          <div className="text-center py-6 text-sm text-muted-foreground border-t">
+                            이 폴더에 대시보드가 없습니다
+                          </div>
+                        ) : (
+                          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-3 pt-2 border-t">
+                            {folderDashboards.map(db => <DashboardCard key={db.id} db={db} />)}
+                          </div>
+                        )}
+                      </div>
+                    </CollapsibleContent>
+                  </div>
+                </Collapsible>
+              )
+            })}
 
+            {/* Unassigned dashboards */}
+            {unassignedDashboards.length > 0 && (
+              <div className="border rounded-lg bg-card">
+                <div className="flex items-center gap-3 p-3 border-b">
+                  <div className="h-8 w-8 rounded-lg bg-muted flex items-center justify-center">
+                    <FolderOpen className="h-4 w-4 text-muted-foreground" />
+                  </div>
+                  <div>
+                    <span className="font-medium text-sm">미분류 대시보드</span>
+                    <p className="text-xs text-muted-foreground">{unassignedDashboards.length}개</p>
+                  </div>
+                </div>
+                <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-3 p-3">
+                  {unassignedDashboards.map(db => <DashboardCard key={db.id} db={db} />)}
+                </div>
+              </div>
+            )}
+
+            {/* Empty state */}
+            {folders.length === 0 && dashboards.length === 0 && (
+              <div className="flex flex-col items-center justify-center py-20 text-center">
+                <div className="h-16 w-16 rounded-full bg-muted flex items-center justify-center mb-4">
+                  <LayoutGrid className="h-8 w-8 text-muted-foreground" />
+                </div>
+                <p className="text-sm font-medium mb-1">아직 생성된 대시보드가 없습니다</p>
+                <p className="text-xs text-muted-foreground mb-4">{"폴더를 만들고 대시보드를 정리해보세요."}</p>
+              </div>
+            )}
+          </div>
+
+          {/* Create Dashboard Dialog */}
           <Dialog open={showCreateDialog} onOpenChange={setShowCreateDialog}>
             <DialogContent className="max-w-md">
               <DialogHeader><DialogTitle className="flex items-center gap-2"><Plus className="h-5 w-5" />새 대시보드 만들기</DialogTitle></DialogHeader>
@@ -560,10 +837,99 @@ export default function CustomDashboardPage() {
                 <div className="space-y-2"><Label className="text-sm">대시보드 이름</Label><Input value={newName} onChange={e => setNewName(e.target.value)} placeholder="예: HCR 촉매 성능 대시보드" /></div>
                 <div className="space-y-2"><Label className="text-sm">설명</Label><Input value={newDesc} onChange={e => setNewDesc(e.target.value)} placeholder="대시보드의 용도나 범위를 입력하세요" /></div>
                 <div className="space-y-2"><Label className="text-sm">공정 단위</Label><Input value={newUnit} onChange={e => setNewUnit(e.target.value)} placeholder="예: HCR, VDU, CDU, 전체" /></div>
+                <div className="space-y-2">
+                  <Label className="text-sm">저장 폴더</Label>
+                  <Select value={newFolderId} onValueChange={setNewFolderId}>
+                    <SelectTrigger>
+                      <SelectValue placeholder="폴더 선택 (선택사항)" />
+                    </SelectTrigger>
+                    <SelectContent>
+                      <SelectItem value="">미분류</SelectItem>
+                      {folders.map(f => (
+                        <SelectItem key={f.id} value={f.id}>
+                          <div className="flex items-center gap-2">
+                            {getPermissionIcon(f.permission)}
+                            <span>{f.name}</span>
+                          </div>
+                        </SelectItem>
+                      ))}
+                    </SelectContent>
+                  </Select>
+                </div>
               </div>
               <DialogFooter>
                 <Button variant="outline" onClick={() => setShowCreateDialog(false)} className="cursor-pointer">취소</Button>
                 <Button onClick={handleCreate} disabled={!newName.trim()} className="cursor-pointer">생성</Button>
+              </DialogFooter>
+            </DialogContent>
+          </Dialog>
+
+          {/* Folder Settings Dialog */}
+          <Dialog open={showFolderDialog} onOpenChange={setShowFolderDialog}>
+            <DialogContent className="max-w-md">
+              <DialogHeader>
+                <DialogTitle className="flex items-center gap-2">
+                  {editingFolder ? <Settings className="h-5 w-5" /> : <FolderPlus className="h-5 w-5" />}
+                  {editingFolder ? "폴더 설정" : "새 폴더 만들기"}
+                </DialogTitle>
+              </DialogHeader>
+              <div className="space-y-4">
+                <div className="space-y-2">
+                  <Label className="text-sm">폴더 이름</Label>
+                  <Input value={folderName} onChange={e => setFolderName(e.target.value)} placeholder="예: 내 대시보드, 팀 공용 등" />
+                </div>
+                
+                <div className="space-y-3">
+                  <Label className="text-sm">접근 권한</Label>
+                  <RadioGroup value={folderPermission} onValueChange={(v) => setFolderPermission(v as FolderPermission)} className="space-y-2">
+                    {(Object.entries(PERMISSION_CONFIG) as [FolderPermission, typeof PERMISSION_CONFIG["personal"]][]).map(([key, config]) => (
+                      <div key={key} className={cn(
+                        "flex items-center space-x-3 rounded-lg border p-3 cursor-pointer transition-colors",
+                        folderPermission === key ? "border-primary bg-primary/5" : "hover:bg-muted/50"
+                      )} onClick={() => setFolderPermission(key)}>
+                        <RadioGroupItem value={key} id={key} />
+                        <div className={cn("h-8 w-8 rounded-lg flex items-center justify-center",
+                          config.color === "blue" && "bg-blue-100 text-blue-600",
+                          config.color === "green" && "bg-green-100 text-green-600",
+                          config.color === "amber" && "bg-amber-100 text-amber-600",
+                          config.color === "purple" && "bg-purple-100 text-purple-600"
+                        )}>
+                          {key === "personal" && <User className="h-4 w-4" />}
+                          {key === "team" && <Users className="h-4 w-4" />}
+                          {key === "department" && <Building className="h-4 w-4" />}
+                          {key === "company" && <Globe className="h-4 w-4" />}
+                        </div>
+                        <div className="flex-1">
+                          <Label htmlFor={key} className="text-sm font-medium cursor-pointer">{config.label}</Label>
+                          <p className="text-xs text-muted-foreground">{config.description}</p>
+                        </div>
+                      </div>
+                    ))}
+                  </RadioGroup>
+                </div>
+
+                {/* Team selection for team permission */}
+                {folderPermission === "team" && (
+                  <div className="space-y-2">
+                    <Label className="text-sm">공유 대상 팀</Label>
+                    <Select value={folderTeamId} onValueChange={setFolderTeamId}>
+                      <SelectTrigger>
+                        <SelectValue placeholder="팀 선택" />
+                      </SelectTrigger>
+                      <SelectContent>
+                        {TEAM_OPTIONS.map(team => (
+                          <SelectItem key={team.id} value={team.id}>{team.name}</SelectItem>
+                        ))}
+                      </SelectContent>
+                    </Select>
+                  </div>
+                )}
+              </div>
+              <DialogFooter>
+                <Button variant="outline" onClick={() => setShowFolderDialog(false)} className="cursor-pointer">취소</Button>
+                <Button onClick={handleSaveFolder} disabled={!folderName.trim() || (folderPermission === "team" && !folderTeamId)} className="cursor-pointer">
+                  {editingFolder ? "저장" : "생성"}
+                </Button>
               </DialogFooter>
             </DialogContent>
           </Dialog>
