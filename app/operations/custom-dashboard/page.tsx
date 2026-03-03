@@ -31,6 +31,7 @@ import { AVAILABLE_TAGS } from "@/lib/process-data"
 // Folder permission types
 type FolderPermission = "personal" | "team" | "department" | "company"
 
+// Hierarchical folder structure - supports nested folders
 interface DashboardFolder {
   id: string
   name: string
@@ -39,6 +40,8 @@ interface DashboardFolder {
   teamName?: string
   icon?: string
   createdAt: string
+  parentId?: string | null // null or undefined for root folders
+  children: DashboardFolder[] // nested subfolders
   dashboardIds: string[]
 }
 
@@ -94,11 +97,95 @@ const TEAM_OPTIONS = [
   { id: "dx", name: "DX팀" },
 ]
 
-// Initial folders
+// Initial hierarchical folders with nested structure
 const INITIAL_FOLDERS: DashboardFolder[] = [
-  { id: "folder-personal", name: "내 대시보드", permission: "personal", createdAt: "2026-01-15", dashboardIds: ["db-1"] },
-  { id: "folder-proc-team", name: "공정기술팀 공용", permission: "team", teamId: "proc-eng", teamName: "공정기술팀", createdAt: "2026-01-10", dashboardIds: ["db-2", "db-3"] },
-  { id: "folder-company", name: "전사 표준 대시보드", permission: "company", createdAt: "2025-12-01", dashboardIds: [] },
+  { 
+    id: "folder-personal", 
+    name: "내 대시보드", 
+    permission: "personal", 
+    createdAt: "2026-01-15", 
+    dashboardIds: ["db-1"],
+    children: [
+      {
+        id: "folder-personal-hcr",
+        name: "HCR 분석",
+        permission: "personal",
+        parentId: "folder-personal",
+        createdAt: "2026-02-01",
+        dashboardIds: [],
+        children: [
+          {
+            id: "folder-personal-hcr-catalyst",
+            name: "촉매 모니터링",
+            permission: "personal",
+            parentId: "folder-personal-hcr",
+            createdAt: "2026-02-10",
+            dashboardIds: [],
+            children: []
+          }
+        ]
+      },
+      {
+        id: "folder-personal-vdu",
+        name: "VDU 분석",
+        permission: "personal",
+        parentId: "folder-personal",
+        createdAt: "2026-02-05",
+        dashboardIds: [],
+        children: []
+      }
+    ]
+  },
+  { 
+    id: "folder-proc-team", 
+    name: "공정기술팀 공용", 
+    permission: "team", 
+    teamId: "proc-eng", 
+    teamName: "공정기술팀", 
+    createdAt: "2026-01-10", 
+    dashboardIds: ["db-2", "db-3"],
+    children: [
+      {
+        id: "folder-proc-team-daily",
+        name: "일일 모니터링",
+        permission: "team",
+        teamId: "proc-eng",
+        parentId: "folder-proc-team",
+        createdAt: "2026-01-20",
+        dashboardIds: [],
+        children: []
+      },
+      {
+        id: "folder-proc-team-kpi",
+        name: "KPI 대시보드",
+        permission: "team",
+        teamId: "proc-eng",
+        parentId: "folder-proc-team",
+        createdAt: "2026-01-25",
+        dashboardIds: [],
+        children: [
+          {
+            id: "folder-proc-team-kpi-monthly",
+            name: "월간 리포트",
+            permission: "team",
+            teamId: "proc-eng",
+            parentId: "folder-proc-team-kpi",
+            createdAt: "2026-02-01",
+            dashboardIds: [],
+            children: []
+          }
+        ]
+      }
+    ]
+  },
+  { 
+    id: "folder-company", 
+    name: "전사 표준 대시보드", 
+    permission: "company", 
+    createdAt: "2025-12-01", 
+    dashboardIds: [],
+    children: []
+  },
 ]
 
 // =========================================================================
@@ -421,6 +508,74 @@ export default function CustomDashboardPage() {
     setDashboards(prev => prev.map(d => d.id === selectedId ? fn(d) : d))
   }, [selectedId])
 
+  // ========== Hierarchical Folder Helpers ==========
+  // Find folder by ID in nested structure
+  const findFolderById = useCallback((folders: DashboardFolder[], id: string): DashboardFolder | null => {
+    for (const folder of folders) {
+      if (folder.id === id) return folder
+      const found = findFolderById(folder.children, id)
+      if (found) return found
+    }
+    return null
+  }, [])
+
+  // Get all folder IDs (flattened) for expansion
+  const getAllFolderIds = useCallback((folders: DashboardFolder[]): string[] => {
+    return folders.flatMap(f => [f.id, ...getAllFolderIds(f.children)])
+  }, [])
+
+  // Get flattened list of all folders with depth info
+  const getFlattenedFolders = useCallback((folders: DashboardFolder[], depth = 0): { folder: DashboardFolder; depth: number; path: string }[] => {
+    return folders.flatMap(f => {
+      const path = depth === 0 ? f.name : f.name
+      return [{ folder: f, depth, path }, ...getFlattenedFolders(f.children, depth + 1)]
+    })
+  }, [])
+
+  // Get folder path (breadcrumb)
+  const getFolderPath = useCallback((folders: DashboardFolder[], targetId: string, path: string[] = []): string[] | null => {
+    for (const folder of folders) {
+      if (folder.id === targetId) return [...path, folder.name]
+      const found = getFolderPath(folder.children, targetId, [...path, folder.name])
+      if (found) return found
+    }
+    return null
+  }, [])
+
+  // Update folder in nested structure
+  const updateFolderInTree = useCallback((folders: DashboardFolder[], id: string, updater: (f: DashboardFolder) => DashboardFolder): DashboardFolder[] => {
+    return folders.map(f => {
+      if (f.id === id) return updater(f)
+      return { ...f, children: updateFolderInTree(f.children, id, updater) }
+    })
+  }, [])
+
+  // Delete folder from nested structure
+  const deleteFolderFromTree = useCallback((folders: DashboardFolder[], id: string): DashboardFolder[] => {
+    return folders.filter(f => f.id !== id).map(f => ({
+      ...f,
+      children: deleteFolderFromTree(f.children, id)
+    }))
+  }, [])
+
+  // Add folder to parent
+  const addFolderToParent = useCallback((folders: DashboardFolder[], parentId: string | null, newFolder: DashboardFolder): DashboardFolder[] => {
+    if (!parentId) {
+      return [...folders, newFolder]
+    }
+    return folders.map(f => {
+      if (f.id === parentId) {
+        return { ...f, children: [...f.children, newFolder] }
+      }
+      return { ...f, children: addFolderToParent(f.children, parentId, newFolder) }
+    })
+  }, [])
+
+  // Get all dashboard IDs from folder and its children
+  const getAllDashboardIds = useCallback((folder: DashboardFolder): string[] => {
+    return [...folder.dashboardIds, ...folder.children.flatMap(c => getAllDashboardIds(c))]
+  }, [])
+
   // ========== Folder CRUD ==========
   const toggleFolder = (folderId: string) => {
     setExpandedFolders(prev => {
@@ -431,17 +586,21 @@ export default function CustomDashboardPage() {
     })
   }
 
-  const openFolderDialog = (folder?: DashboardFolder) => {
+  const [parentFolderId, setParentFolderId] = useState<string | null>(null)
+
+  const openFolderDialog = (folder?: DashboardFolder, parentId?: string) => {
     if (folder) {
       setEditingFolder(folder)
       setFolderName(folder.name)
       setFolderPermission(folder.permission)
       setFolderTeamId(folder.teamId || "")
+      setParentFolderId(folder.parentId || null)
     } else {
       setEditingFolder(null)
       setFolderName("")
       setFolderPermission("personal")
       setFolderTeamId("")
+      setParentFolderId(parentId || null)
     }
     setShowFolderDialog(true)
   }
@@ -449,16 +608,16 @@ export default function CustomDashboardPage() {
   const handleSaveFolder = () => {
     if (!folderName.trim()) return
     if (editingFolder) {
-      // Update existing folder
-      setFolders(prev => prev.map(f => f.id === editingFolder.id ? {
+      // Update existing folder in tree
+      setFolders(prev => updateFolderInTree(prev, editingFolder.id, f => ({
         ...f,
         name: folderName.trim(),
         permission: folderPermission,
         teamId: folderPermission === "team" ? folderTeamId : undefined,
         teamName: folderPermission === "team" ? TEAM_OPTIONS.find(t => t.id === folderTeamId)?.name : undefined,
-      } : f))
+      })))
     } else {
-      // Create new folder
+      // Create new folder in hierarchy
       const newFolder: DashboardFolder = {
         id: `folder-${Date.now()}`,
         name: folderName.trim(),
@@ -466,23 +625,27 @@ export default function CustomDashboardPage() {
         teamId: folderPermission === "team" ? folderTeamId : undefined,
         teamName: folderPermission === "team" ? TEAM_OPTIONS.find(t => t.id === folderTeamId)?.name : undefined,
         createdAt: new Date().toISOString().slice(0, 10),
+        parentId: parentFolderId,
+        children: [],
         dashboardIds: [],
       }
-      setFolders(prev => [...prev, newFolder])
+      setFolders(prev => addFolderToParent(prev, parentFolderId, newFolder))
       setExpandedFolders(prev => new Set([...prev, newFolder.id]))
     }
     setShowFolderDialog(false)
+    setParentFolderId(null)
   }
 
   const handleDeleteFolder = (folderId: string) => {
-    // Move dashboards from this folder to unassigned
-    const folder = folders.find(f => f.id === folderId)
+    // Get all dashboard IDs from this folder and children
+    const folder = findFolderById(folders, folderId)
     if (folder) {
+      const allDashboardIds = getAllDashboardIds(folder)
       setDashboards(prev => prev.map(d => 
-        folder.dashboardIds.includes(d.id) ? { ...d, folderId: undefined } : d
+        allDashboardIds.includes(d.id) ? { ...d, folderId: undefined } : d
       ))
     }
-    setFolders(prev => prev.filter(f => f.id !== folderId))
+    setFolders(prev => deleteFolderFromTree(prev, folderId))
   }
 
   const getPermissionIcon = (permission: FolderPermission) => {
@@ -494,6 +657,9 @@ export default function CustomDashboardPage() {
     }
   }
 
+  // Flattened folders for select dropdown
+  const flattenedFolders = useMemo(() => getFlattenedFolders(folders), [folders, getFlattenedFolders])
+
   // ========== Dashboard CRUD ==========
   const handleCreate = () => {
     if (!newName.trim()) return
@@ -502,35 +668,57 @@ export default function CustomDashboardPage() {
       unit: newUnit.trim() || "사용자", updatedAt: new Date().toISOString().slice(0, 10), widgets: [],
       folderId: newFolderId || undefined,
     }
-    // If folder selected, add to folder's dashboardIds
+    // If folder selected, add to folder's dashboardIds (in hierarchical structure)
     if (newFolderId) {
-      setFolders(prev => prev.map(f => f.id === newFolderId ? { ...f, dashboardIds: [...f.dashboardIds, nd.id] } : f))
+      setFolders(prev => updateFolderInTree(prev, newFolderId, f => ({
+        ...f,
+        dashboardIds: [...f.dashboardIds, nd.id]
+      })))
     }
     setDashboards(prev => [nd, ...prev])
     setSelectedId(nd.id)
     setShowCreateDialog(false)
     setNewName(""); setNewDesc(""); setNewUnit(""); setNewFolderId("")
   }
+
+  // Remove dashboard from tree recursively
+  const removeDashboardFromTree = useCallback((folders: DashboardFolder[], dashboardId: string): DashboardFolder[] => {
+    return folders.map(f => ({
+      ...f,
+      dashboardIds: f.dashboardIds.filter(id => id !== dashboardId),
+      children: removeDashboardFromTree(f.children, dashboardId)
+    }))
+  }, [])
+
   const handleDelete = (id: string) => {
-    // Remove from folder
-    setFolders(prev => prev.map(f => ({ ...f, dashboardIds: f.dashboardIds.filter(did => did !== id) })))
+    // Remove from folder tree
+    setFolders(prev => removeDashboardFromTree(prev, id))
     setDashboards(prev => prev.filter(d => d.id !== id))
     if (selectedId === id) setSelectedId(null)
   }
 
   const moveDashboardToFolder = (dashboardId: string, targetFolderId: string | null) => {
-    // Remove from all folders first
-    setFolders(prev => prev.map(f => ({ ...f, dashboardIds: f.dashboardIds.filter(id => id !== dashboardId) })))
-    // Add to target folder if specified
-    if (targetFolderId) {
-      setFolders(prev => prev.map(f => f.id === targetFolderId ? { ...f, dashboardIds: [...f.dashboardIds, dashboardId] } : f))
-    }
+    // Remove from all folders first (recursively)
+    setFolders(prev => {
+      let updated = removeDashboardFromTree(prev, dashboardId)
+      // Add to target folder if specified
+      if (targetFolderId) {
+        updated = updateFolderInTree(updated, targetFolderId, f => ({
+          ...f,
+          dashboardIds: [...f.dashboardIds, dashboardId]
+        }))
+      }
+      return updated
+    })
     setDashboards(prev => prev.map(d => d.id === dashboardId ? { ...d, folderId: targetFolderId || undefined } : d))
   }
 
-  // Get dashboards not in any folder
+  // Get dashboards not in any folder (recursively check all folders)
   const unassignedDashboards = useMemo(() => {
-    const assignedIds = new Set(folders.flatMap(f => f.dashboardIds))
+    const getAllAssignedIds = (folders: DashboardFolder[]): string[] => {
+      return folders.flatMap(f => [...f.dashboardIds, ...getAllAssignedIds(f.children)])
+    }
+    const assignedIds = new Set(getAllAssignedIds(folders))
     return dashboards.filter(d => !assignedIds.has(d.id))
   }, [folders, dashboards])
 
@@ -651,51 +839,152 @@ export default function CustomDashboardPage() {
     return true
   })
 
-  // Dashboard card component
-  const DashboardCard = ({ db }: { db: DashboardItem }) => (
-    <Card key={db.id} className="hover:shadow-md transition-shadow cursor-pointer group relative" onClick={() => setSelectedId(db.id)}>
-      <CardContent className="p-4">
-        <div className="flex items-start justify-between mb-2">
-          <div className="h-9 w-9 rounded-lg bg-amber-500/10 flex items-center justify-center shrink-0">
-            <LayoutGrid className="h-4.5 w-4.5 text-amber-600" />
+  // Dashboard card component (compact for tree view)
+  const DashboardCard = ({ db, compact = false }: { db: DashboardItem; compact?: boolean }) => (
+    <Card key={db.id} className={cn("hover:shadow-md transition-shadow cursor-pointer group relative", compact && "border-0 shadow-none")} onClick={() => setSelectedId(db.id)}>
+      <CardContent className={cn("p-4", compact && "p-2")}>
+        <div className="flex items-center gap-3">
+          <div className={cn("rounded-lg bg-amber-500/10 flex items-center justify-center shrink-0", compact ? "h-7 w-7" : "h-9 w-9")}>
+            <LayoutGrid className={cn("text-amber-600", compact ? "h-3.5 w-3.5" : "h-4.5 w-4.5")} />
           </div>
-          <DropdownMenu>
-            <DropdownMenuTrigger asChild onClick={(e) => e.stopPropagation()}>
-              <button className="opacity-0 group-hover:opacity-100 transition-opacity h-7 w-7 rounded-md border border-border flex items-center justify-center hover:bg-muted cursor-pointer">
-                <MoreVertical className="h-3.5 w-3.5 text-muted-foreground" />
-              </button>
-            </DropdownMenuTrigger>
-            <DropdownMenuContent align="end" onClick={(e) => e.stopPropagation()}>
-              <DropdownMenuItem className="text-xs" onClick={() => setSelectedId(db.id)}>
-                <Eye className="h-3.5 w-3.5 mr-2" />열기
-              </DropdownMenuItem>
-              <DropdownMenuSeparator />
-              <DropdownMenuItem className="text-xs">
-                <Share2 className="h-3.5 w-3.5 mr-2" />폴더 이동
-              </DropdownMenuItem>
-              {folders.map(f => (
-                <DropdownMenuItem key={f.id} className="text-xs pl-6" onClick={() => moveDashboardToFolder(db.id, f.id)}>
-                  {getPermissionIcon(f.permission)}
-                  <span className="ml-2">{f.name}</span>
+          <div className="flex-1 min-w-0">
+            <h3 className={cn("font-semibold group-hover:text-primary transition-colors line-clamp-1", compact ? "text-xs" : "text-sm")}>{db.name}</h3>
+            {!compact && <p className="text-xs text-muted-foreground line-clamp-1">{db.description}</p>}
+          </div>
+          <div className="flex items-center gap-2">
+            {!compact && (
+              <>
+                <Badge variant="outline" className="text-[10px]">{db.unit}</Badge>
+                <span className="text-[10px] text-muted-foreground">{db.widgets.length}개</span>
+              </>
+            )}
+            <DropdownMenu>
+              <DropdownMenuTrigger asChild onClick={(e) => e.stopPropagation()}>
+                <button className="opacity-0 group-hover:opacity-100 transition-opacity h-6 w-6 rounded-md border border-border flex items-center justify-center hover:bg-muted cursor-pointer">
+                  <MoreVertical className="h-3 w-3 text-muted-foreground" />
+                </button>
+              </DropdownMenuTrigger>
+              <DropdownMenuContent align="end" onClick={(e) => e.stopPropagation()}>
+                <DropdownMenuItem className="text-xs" onClick={() => setSelectedId(db.id)}>
+                  <Eye className="h-3.5 w-3.5 mr-2" />열기
                 </DropdownMenuItem>
-              ))}
-              <DropdownMenuSeparator />
-              <DropdownMenuItem className="text-xs text-red-600" onClick={() => handleDelete(db.id)}>
-                <Trash2 className="h-3.5 w-3.5 mr-2" />삭제
-              </DropdownMenuItem>
-            </DropdownMenuContent>
-          </DropdownMenu>
-        </div>
-        <h3 className="font-semibold text-sm mb-1 group-hover:text-primary transition-colors line-clamp-1">{db.name}</h3>
-        <p className="text-xs text-muted-foreground mb-2 line-clamp-1">{db.description}</p>
-        <div className="flex items-center gap-2">
-          <Badge variant="outline" className="text-[10px]">{db.unit}</Badge>
-          <span className="text-[10px] text-muted-foreground">{db.widgets.length}개</span>
-          <span className="text-[10px] text-muted-foreground ml-auto">{db.updatedAt}</span>
+                <DropdownMenuSeparator />
+                <DropdownMenuItem className="text-xs">
+                  <Share2 className="h-3.5 w-3.5 mr-2" />폴더 이동
+                </DropdownMenuItem>
+                {flattenedFolders.map(({ folder: f, depth }) => (
+                  <DropdownMenuItem key={f.id} className="text-xs" style={{ paddingLeft: `${(depth + 2) * 8}px` }} onClick={() => moveDashboardToFolder(db.id, f.id)}>
+                    {getPermissionIcon(f.permission)}
+                    <span className="ml-2">{f.name}</span>
+                  </DropdownMenuItem>
+                ))}
+                <DropdownMenuSeparator />
+                <DropdownMenuItem className="text-xs text-red-600" onClick={() => handleDelete(db.id)}>
+                  <Trash2 className="h-3.5 w-3.5 mr-2" />삭제
+                </DropdownMenuItem>
+              </DropdownMenuContent>
+            </DropdownMenu>
+          </div>
         </div>
       </CardContent>
     </Card>
   )
+
+  // Recursive folder tree node component
+  const FolderTreeNode = ({ folder, depth = 0 }: { folder: DashboardFolder; depth?: number }) => {
+    const folderDashboards = dashboards.filter(d => folder.dashboardIds.includes(d.id))
+    const isExpanded = expandedFolders.has(folder.id)
+    const permConfig = PERMISSION_CONFIG[folder.permission]
+    const hasChildren = folder.children.length > 0 || folderDashboards.length > 0
+    const totalItems = folder.dashboardIds.length + folder.children.reduce((acc, c) => acc + getAllDashboardIds(c).length + 1, 0)
+
+    return (
+      <div className={cn("relative", depth > 0 && "ml-4 border-l border-border/50")}>
+        {/* Folder header */}
+        <div 
+          className={cn(
+            "flex items-center gap-2 py-2 px-3 hover:bg-muted/50 transition-colors cursor-pointer rounded-md group",
+            depth > 0 && "ml-2"
+          )}
+          onClick={() => hasChildren && toggleFolder(folder.id)}
+        >
+          {/* Expand/collapse icon */}
+          <button className={cn("shrink-0 h-5 w-5 flex items-center justify-center rounded hover:bg-muted", !hasChildren && "invisible")}>
+            {isExpanded ? <ChevronDown className="h-3.5 w-3.5 text-muted-foreground" /> : <ChevronRight className="h-3.5 w-3.5 text-muted-foreground" />}
+          </button>
+          
+          {/* Folder icon */}
+          <div className={cn("h-7 w-7 rounded-lg flex items-center justify-center shrink-0", 
+            permConfig.color === "blue" && "bg-blue-100 text-blue-600",
+            permConfig.color === "green" && "bg-green-100 text-green-600",
+            permConfig.color === "amber" && "bg-amber-100 text-amber-600",
+            permConfig.color === "purple" && "bg-purple-100 text-purple-600"
+          )}>
+            {isExpanded ? <FolderOpen className="h-3.5 w-3.5" /> : <Folder className="h-3.5 w-3.5" />}
+          </div>
+          
+          {/* Folder info */}
+          <div className="flex-1 min-w-0">
+            <div className="flex items-center gap-2">
+              <span className="font-medium text-sm truncate">{folder.name}</span>
+              <Badge variant="secondary" className={cn("text-[10px] shrink-0",
+                permConfig.color === "blue" && "bg-blue-100 text-blue-700",
+                permConfig.color === "green" && "bg-green-100 text-green-700",
+                permConfig.color === "amber" && "bg-amber-100 text-amber-700",
+                permConfig.color === "purple" && "bg-purple-100 text-purple-700"
+              )}>
+                {permConfig.label}
+              </Badge>
+              <span className="text-[10px] text-muted-foreground">
+                {folder.children.length > 0 ? `${folder.children.length}개 하위폴더, ` : ""}
+                {folderDashboards.length}개 대시보드
+              </span>
+            </div>
+          </div>
+
+          {/* Actions */}
+          <DropdownMenu>
+            <DropdownMenuTrigger asChild onClick={(e) => e.stopPropagation()}>
+              <Button variant="ghost" size="icon" className="h-7 w-7 opacity-0 group-hover:opacity-100 transition-opacity">
+                <MoreVertical className="h-3.5 w-3.5" />
+              </Button>
+            </DropdownMenuTrigger>
+            <DropdownMenuContent align="end">
+              <DropdownMenuItem className="text-xs" onClick={(e) => { e.stopPropagation(); openFolderDialog(undefined, folder.id) }}>
+                <FolderPlus className="h-3.5 w-3.5 mr-2" />하위 폴더 추가
+              </DropdownMenuItem>
+              <DropdownMenuItem className="text-xs" onClick={(e) => { e.stopPropagation(); openFolderDialog(folder) }}>
+                <Settings className="h-3.5 w-3.5 mr-2" />폴더 설정
+              </DropdownMenuItem>
+              <DropdownMenuSeparator />
+              <DropdownMenuItem className="text-xs text-red-600" onClick={(e) => { e.stopPropagation(); handleDeleteFolder(folder.id) }}>
+                <Trash2 className="h-3.5 w-3.5 mr-2" />폴더 삭제
+              </DropdownMenuItem>
+            </DropdownMenuContent>
+          </DropdownMenu>
+        </div>
+
+        {/* Expanded content */}
+        {isExpanded && (
+          <div className={cn("pb-1", depth > 0 && "ml-2")}>
+            {/* Child folders */}
+            {folder.children.map(child => (
+              <FolderTreeNode key={child.id} folder={child} depth={depth + 1} />
+            ))}
+            
+            {/* Dashboards in this folder */}
+            {folderDashboards.length > 0 && (
+              <div className={cn("ml-7 space-y-1 pt-1", folder.children.length > 0 && "border-t border-border/30 mt-1")}>
+                {folderDashboards.map(db => (
+                  <DashboardCard key={db.id} db={db} compact />
+                ))}
+              </div>
+            )}
+          </div>
+        )}
+      </div>
+    )
+  }
 
   // ===== List View =====
   if (!selected) {
@@ -722,111 +1011,126 @@ export default function CustomDashboardPage() {
             </div>
           </div>
 
-          {/* Folder-based dashboard list */}
-          <div className="space-y-4">
-            {folders.map(folder => {
-              const folderDashboards = dashboards.filter(d => folder.dashboardIds.includes(d.id))
-              const isExpanded = expandedFolders.has(folder.id)
-              const permConfig = PERMISSION_CONFIG[folder.permission]
+          {/* Hierarchical folder tree view */}
+          <div className="flex gap-6">
+            {/* Tree panel */}
+            <Card className="w-80 shrink-0 p-3 max-h-[calc(100vh-200px)] overflow-y-auto">
+              <div className="flex items-center justify-between mb-3 pb-2 border-b">
+                <h3 className="text-sm font-medium flex items-center gap-2">
+                  <Layers className="h-4 w-4" />
+                  폴더 구조
+                </h3>
+                <Button variant="ghost" size="sm" className="h-7 text-xs gap-1" onClick={() => setExpandedFolders(new Set(getAllFolderIds(folders)))}>
+                  모두 펼치기
+                </Button>
+              </div>
               
-              return (
-                <Collapsible key={folder.id} open={isExpanded} onOpenChange={() => toggleFolder(folder.id)}>
-                  <div className="border rounded-lg bg-card">
-                    <CollapsibleTrigger asChild>
-                      <div className="flex items-center justify-between p-3 cursor-pointer hover:bg-muted/50 transition-colors">
-                        <div className="flex items-center gap-3">
-                          {isExpanded ? <ChevronDown className="h-4 w-4 text-muted-foreground" /> : <ChevronRight className="h-4 w-4 text-muted-foreground" />}
-                          <div className={cn("h-8 w-8 rounded-lg flex items-center justify-center", 
-                            permConfig.color === "blue" && "bg-blue-100 text-blue-600",
-                            permConfig.color === "green" && "bg-green-100 text-green-600",
-                            permConfig.color === "amber" && "bg-amber-100 text-amber-600",
-                            permConfig.color === "purple" && "bg-purple-100 text-purple-600"
-                          )}>
-                            {isExpanded ? <FolderOpen className="h-4 w-4" /> : <Folder className="h-4 w-4" />}
-                          </div>
-                          <div>
-                            <div className="flex items-center gap-2">
-                              <span className="font-medium text-sm">{folder.name}</span>
-                              <Badge variant="secondary" className={cn("text-[10px]",
-                                permConfig.color === "blue" && "bg-blue-100 text-blue-700",
-                                permConfig.color === "green" && "bg-green-100 text-green-700",
-                                permConfig.color === "amber" && "bg-amber-100 text-amber-700",
-                                permConfig.color === "purple" && "bg-purple-100 text-purple-700"
-                              )}>
-                                {getPermissionIcon(folder.permission)}
-                                <span className="ml-1">{permConfig.label}</span>
-                              </Badge>
-                              {folder.teamName && (
-                                <span className="text-xs text-muted-foreground">({folder.teamName})</span>
-                              )}
-                            </div>
-                            <span className="text-xs text-muted-foreground">{folderDashboards.length}개 대시보드</span>
-                          </div>
-                        </div>
-                        <DropdownMenu>
-                          <DropdownMenuTrigger asChild onClick={(e) => e.stopPropagation()}>
-                            <Button variant="ghost" size="icon" className="h-8 w-8">
-                              <MoreVertical className="h-4 w-4" />
-                            </Button>
-                          </DropdownMenuTrigger>
-                          <DropdownMenuContent align="end">
-                            <DropdownMenuItem className="text-xs" onClick={() => openFolderDialog(folder)}>
-                              <Settings className="h-3.5 w-3.5 mr-2" />폴더 설정
-                            </DropdownMenuItem>
-                            <DropdownMenuSeparator />
-                            <DropdownMenuItem className="text-xs text-red-600" onClick={() => handleDeleteFolder(folder.id)}>
-                              <Trash2 className="h-3.5 w-3.5 mr-2" />폴더 삭제
-                            </DropdownMenuItem>
-                          </DropdownMenuContent>
-                        </DropdownMenu>
-                      </div>
-                    </CollapsibleTrigger>
-                    <CollapsibleContent>
-                      <div className="px-3 pb-3">
-                        {folderDashboards.length === 0 ? (
-                          <div className="text-center py-6 text-sm text-muted-foreground border-t">
-                            이 폴더에 대시보드가 없습니다
-                          </div>
-                        ) : (
-                          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-3 pt-2 border-t">
-                            {folderDashboards.map(db => <DashboardCard key={db.id} db={db} />)}
-                          </div>
-                        )}
-                      </div>
-                    </CollapsibleContent>
-                  </div>
-                </Collapsible>
-              )
-            })}
+              {/* Root folders */}
+              <div className="space-y-0.5">
+                {folders.map(folder => (
+                  <FolderTreeNode key={folder.id} folder={folder} depth={0} />
+                ))}
+              </div>
 
-            {/* Unassigned dashboards */}
-            {unassignedDashboards.length > 0 && (
-              <div className="border rounded-lg bg-card">
-                <div className="flex items-center gap-3 p-3 border-b">
-                  <div className="h-8 w-8 rounded-lg bg-muted flex items-center justify-center">
-                    <FolderOpen className="h-4 w-4 text-muted-foreground" />
+              {/* Unassigned dashboards in tree */}
+              {unassignedDashboards.length > 0 && (
+                <div className="mt-4 pt-3 border-t">
+                  <div className="flex items-center gap-2 py-2 px-3 text-muted-foreground">
+                    <div className="h-7 w-7 rounded-lg bg-muted flex items-center justify-center">
+                      <LayoutGrid className="h-3.5 w-3.5" />
+                    </div>
+                    <span className="text-sm font-medium">미분류 ({unassignedDashboards.length})</span>
                   </div>
+                  <div className="ml-7 space-y-1">
+                    {unassignedDashboards.map(db => (
+                      <DashboardCard key={db.id} db={db} compact />
+                    ))}
+                  </div>
+                </div>
+              )}
+            </Card>
+
+            {/* Main content area - shows selected folder's dashboards in grid */}
+            <div className="flex-1">
+              <Card className="p-4">
+                <div className="flex items-center justify-between mb-4">
                   <div>
-                    <span className="font-medium text-sm">미분류 대시보드</span>
-                    <p className="text-xs text-muted-foreground">{unassignedDashboards.length}개</p>
+                    <h3 className="text-sm font-medium">전체 대시보드</h3>
+                    <p className="text-xs text-muted-foreground mt-0.5">총 {dashboards.length}개</p>
+                  </div>
+                  <div className="flex items-center gap-2">
+                    <div className="relative">
+                      <Search className="absolute left-2.5 top-1/2 -translate-y-1/2 h-3.5 w-3.5 text-muted-foreground" />
+                      <Input placeholder="대시보드 검색..." className="pl-8 h-8 w-48 text-xs" />
+                    </div>
                   </div>
                 </div>
-                <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-3 p-3">
-                  {unassignedDashboards.map(db => <DashboardCard key={db.id} db={db} />)}
-                </div>
-              </div>
-            )}
-
-            {/* Empty state */}
-            {folders.length === 0 && dashboards.length === 0 && (
-              <div className="flex flex-col items-center justify-center py-20 text-center">
-                <div className="h-16 w-16 rounded-full bg-muted flex items-center justify-center mb-4">
-                  <LayoutGrid className="h-8 w-8 text-muted-foreground" />
-                </div>
-                <p className="text-sm font-medium mb-1">아직 생성된 대시보드가 없습니다</p>
-                <p className="text-xs text-muted-foreground mb-4">{"폴더를 만들고 대시보드를 정리해보세요."}</p>
-              </div>
-            )}
+                
+                {dashboards.length === 0 ? (
+                  <div className="text-center py-12 text-muted-foreground">
+                    <LayoutGrid className="h-12 w-12 mx-auto mb-3 opacity-30" />
+                    <p className="text-sm">아직 대시보드가 없습니다</p>
+                    <p className="text-xs mt-1">새 대시보드를 만들어 시작하세요</p>
+                  </div>
+                ) : (
+                  <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-4">
+                    {dashboards.map(db => {
+                      const folderPath = db.folderId ? getFolderPath(folders, db.folderId) : null
+                      return (
+                        <Card key={db.id} className="hover:shadow-md transition-shadow cursor-pointer group" onClick={() => setSelectedId(db.id)}>
+                          <CardContent className="p-4">
+                            <div className="flex items-start justify-between mb-2">
+                              <div className="h-10 w-10 rounded-lg bg-amber-500/10 flex items-center justify-center">
+                                <LayoutGrid className="h-5 w-5 text-amber-600" />
+                              </div>
+                              <DropdownMenu>
+                                <DropdownMenuTrigger asChild onClick={(e) => e.stopPropagation()}>
+                                  <button className="opacity-0 group-hover:opacity-100 transition-opacity h-7 w-7 rounded-md border flex items-center justify-center hover:bg-muted">
+                                    <MoreVertical className="h-3.5 w-3.5 text-muted-foreground" />
+                                  </button>
+                                </DropdownMenuTrigger>
+                                <DropdownMenuContent align="end" onClick={(e) => e.stopPropagation()}>
+                                  <DropdownMenuItem className="text-xs" onClick={() => setSelectedId(db.id)}>
+                                    <Eye className="h-3.5 w-3.5 mr-2" />열기
+                                  </DropdownMenuItem>
+                                  <DropdownMenuSeparator />
+                                  <DropdownMenuItem className="text-xs">
+                                    <Share2 className="h-3.5 w-3.5 mr-2" />폴더 이동
+                                  </DropdownMenuItem>
+                                  {flattenedFolders.map(({ folder: f, depth }) => (
+                                    <DropdownMenuItem key={f.id} className="text-xs" style={{ paddingLeft: `${(depth + 2) * 8}px` }} onClick={() => moveDashboardToFolder(db.id, f.id)}>
+                                      {getPermissionIcon(f.permission)}
+                                      <span className="ml-2">{f.name}</span>
+                                    </DropdownMenuItem>
+                                  ))}
+                                  <DropdownMenuSeparator />
+                                  <DropdownMenuItem className="text-xs text-red-600" onClick={() => handleDelete(db.id)}>
+                                    <Trash2 className="h-3.5 w-3.5 mr-2" />삭제
+                                  </DropdownMenuItem>
+                                </DropdownMenuContent>
+                              </DropdownMenu>
+                            </div>
+                            <h3 className="font-semibold text-sm mb-1 group-hover:text-primary transition-colors">{db.name}</h3>
+                            <p className="text-xs text-muted-foreground mb-2 line-clamp-1">{db.description}</p>
+                            {folderPath && (
+                              <p className="text-[10px] text-muted-foreground mb-2 flex items-center gap-1">
+                                <Folder className="h-3 w-3" />
+                                {folderPath.join(" / ")}
+                              </p>
+                            )}
+                            <div className="flex items-center gap-2">
+                              <Badge variant="outline" className="text-[10px]">{db.unit}</Badge>
+                              <span className="text-[10px] text-muted-foreground">{db.widgets.length}개</span>
+                              <span className="text-[10px] text-muted-foreground ml-auto">{db.updatedAt}</span>
+                            </div>
+                          </CardContent>
+                        </Card>
+                      )
+                    })}
+                  </div>
+                )}
+              </Card>
+            </div>
           </div>
 
           {/* Create Dashboard Dialog */}
@@ -845,9 +1149,9 @@ export default function CustomDashboardPage() {
                     </SelectTrigger>
                     <SelectContent>
                       <SelectItem value="">미분류</SelectItem>
-                      {folders.map(f => (
+                      {flattenedFolders.map(({ folder: f, depth }) => (
                         <SelectItem key={f.id} value={f.id}>
-                          <div className="flex items-center gap-2">
+                          <div className="flex items-center gap-2" style={{ paddingLeft: `${depth * 12}px` }}>
                             {getPermissionIcon(f.permission)}
                             <span>{f.name}</span>
                           </div>
@@ -855,6 +1159,11 @@ export default function CustomDashboardPage() {
                       ))}
                     </SelectContent>
                   </Select>
+                  {newFolderId && (
+                    <p className="text-xs text-muted-foreground">
+                      {getFolderPath(folders, newFolderId)?.join(" / ")}
+                    </p>
+                  )}
                 </div>
               </div>
               <DialogFooter>
@@ -878,6 +1187,34 @@ export default function CustomDashboardPage() {
                   <Label className="text-sm">폴더 이름</Label>
                   <Input value={folderName} onChange={e => setFolderName(e.target.value)} placeholder="예: 내 대시보드, 팀 공용 등" />
                 </div>
+
+                {/* Parent folder selection - only for new folders */}
+                {!editingFolder && (
+                  <div className="space-y-2">
+                    <Label className="text-sm">상위 폴더</Label>
+                    <Select value={parentFolderId || ""} onValueChange={(v) => setParentFolderId(v || null)}>
+                      <SelectTrigger>
+                        <SelectValue placeholder="최상위 (루트)" />
+                      </SelectTrigger>
+                      <SelectContent>
+                        <SelectItem value="">최상위 (루트)</SelectItem>
+                        {flattenedFolders.map(({ folder: f, depth }) => (
+                          <SelectItem key={f.id} value={f.id}>
+                            <div className="flex items-center gap-2" style={{ paddingLeft: `${depth * 12}px` }}>
+                              <Folder className="h-3.5 w-3.5 text-muted-foreground" />
+                              <span>{f.name}</span>
+                            </div>
+                          </SelectItem>
+                        ))}
+                      </SelectContent>
+                    </Select>
+                    {parentFolderId && (
+                      <p className="text-xs text-muted-foreground">
+                        {getFolderPath(folders, parentFolderId)?.join(" / ")} 아래에 생성됩니다
+                      </p>
+                    )}
+                  </div>
+                )}
                 
                 <div className="space-y-3">
                   <Label className="text-sm">접근 권한</Label>
@@ -926,7 +1263,7 @@ export default function CustomDashboardPage() {
                 )}
               </div>
               <DialogFooter>
-                <Button variant="outline" onClick={() => setShowFolderDialog(false)} className="cursor-pointer">취소</Button>
+                <Button variant="outline" onClick={() => { setShowFolderDialog(false); setParentFolderId(null) }} className="cursor-pointer">취소</Button>
                 <Button onClick={handleSaveFolder} disabled={!folderName.trim() || (folderPermission === "team" && !folderTeamId)} className="cursor-pointer">
                   {editingFolder ? "저장" : "생성"}
                 </Button>
