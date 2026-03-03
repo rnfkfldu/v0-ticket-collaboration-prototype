@@ -20,7 +20,7 @@ function getCookie(name: string): string | null {
 }
 
 // ============================================================
-// 1) Division / Process Registry
+// 1) Process definitions (updated)
 // ============================================================
 export type Division = "Refining" | "Chemical" | "Upgrading"
 
