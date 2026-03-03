@@ -189,8 +189,6 @@ export const USER_PROFILES: UserProfile[] = [
     showDataSettings: false,    // 데이터/설정 숨김
     showOptimization: false,    // 최적화 숨김
     focusArea: "operations",
-    showOptimization: false,
-    focusArea: "operations",
   },
   
   // === 설비기술팀 역할 (Staff, Reliability 관점) ===
