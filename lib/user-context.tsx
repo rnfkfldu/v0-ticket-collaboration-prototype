@@ -362,6 +362,7 @@ export function getRoleDescription(role: UserRole): string {
   }
 }
 
+// Helper to get department label for display
 export function getDepartmentLabel(dept?: Department): string {
   switch (dept) {
     case "production": return "생산팀"
