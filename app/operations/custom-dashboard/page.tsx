@@ -1346,59 +1346,61 @@ export default function CustomDashboardPage() {
 
       {/* ===== Add Widget Dialog ===== */}
       <Dialog open={showAddWidget} onOpenChange={setShowAddWidget}>
-        <DialogContent className="max-w-3xl max-h-[80vh] flex flex-col">
+        <DialogContent className="max-w-5xl w-[90vw] h-[85vh] max-h-[85vh] flex flex-col">
           <DialogHeader>
             <DialogTitle className="flex items-center gap-2"><Plus className="h-5 w-5" /> 위젯 추가</DialogTitle>
           </DialogHeader>
 
           {/* Tab switcher */}
           <div className="flex items-center gap-1 border border-border rounded-lg p-1 bg-muted/30 shrink-0">
-            <button onClick={() => setAddWidgetTab("oop")} className={cn("flex-1 flex items-center justify-center gap-2 px-3 py-2 rounded-md text-sm font-medium transition-colors cursor-pointer", addWidgetTab === "oop" ? "bg-background shadow-sm text-foreground" : "text-muted-foreground hover:text-foreground")}>
+            <button onClick={() => setAddWidgetTab("oop")} className={cn("flex-1 flex items-center justify-center gap-2 px-4 py-2.5 rounded-md text-sm font-medium transition-colors cursor-pointer", addWidgetTab === "oop" ? "bg-background shadow-sm text-foreground" : "text-muted-foreground hover:text-foreground")}>
               <Component className="h-4 w-4" /> OOP 기존 컴포넌트
             </button>
-            <button onClick={() => setAddWidgetTab("trend")} className={cn("flex-1 flex items-center justify-center gap-2 px-3 py-2 rounded-md text-sm font-medium transition-colors cursor-pointer", addWidgetTab === "trend" ? "bg-background shadow-sm text-foreground" : "text-muted-foreground hover:text-foreground")}>
+            <button onClick={() => setAddWidgetTab("trend")} className={cn("flex-1 flex items-center justify-center gap-2 px-4 py-2.5 rounded-md text-sm font-medium transition-colors cursor-pointer", addWidgetTab === "trend" ? "bg-background shadow-sm text-foreground" : "text-muted-foreground hover:text-foreground")}>
               <TrendingUp className="h-4 w-4" /> 자유 트렌드
             </button>
-            <button onClick={() => setAddWidgetTab("table")} className={cn("flex-1 flex items-center justify-center gap-2 px-3 py-2 rounded-md text-sm font-medium transition-colors cursor-pointer", addWidgetTab === "table" ? "bg-background shadow-sm text-foreground" : "text-muted-foreground hover:text-foreground")}>
+            <button onClick={() => setAddWidgetTab("table")} className={cn("flex-1 flex items-center justify-center gap-2 px-4 py-2.5 rounded-md text-sm font-medium transition-colors cursor-pointer", addWidgetTab === "table" ? "bg-background shadow-sm text-foreground" : "text-muted-foreground hover:text-foreground")}>
               <Table className="h-4 w-4" /> 자유 테이블
             </button>
           </div>
 
           {/* Tab A: OOP Components */}
           {addWidgetTab === "oop" && (
-            <div className="flex flex-col flex-1 min-h-0 gap-3">
-              <div className="flex items-center gap-2 shrink-0">
-                <div className="relative flex-1">
+            <div className="flex flex-col flex-1 min-h-0 gap-4">
+              <div className="flex items-center gap-3 shrink-0">
+                <div className="relative flex-1 max-w-md">
                   <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
                   <Input value={oopSearch} onChange={e => setOopSearch(e.target.value)} placeholder="컴포넌트 검색..." className="pl-9" />
                 </div>
-                <div className="flex items-center gap-1">
-                  <button onClick={() => setOopCategoryFilter("전체")} className={cn("px-2.5 py-1.5 rounded-md text-xs font-medium transition-colors cursor-pointer", oopCategoryFilter === "전체" ? "bg-primary text-primary-foreground" : "bg-muted text-muted-foreground hover:text-foreground")}>전체</button>
+                <div className="flex items-center gap-1.5">
+                  <button onClick={() => setOopCategoryFilter("전체")} className={cn("px-3 py-1.5 rounded-md text-xs font-medium transition-colors cursor-pointer", oopCategoryFilter === "전체" ? "bg-primary text-primary-foreground" : "bg-muted text-muted-foreground hover:text-foreground")}>전체</button>
                   {OOP_CATEGORIES.map(cat => (
-                    <button key={cat} onClick={() => setOopCategoryFilter(cat)} className={cn("px-2.5 py-1.5 rounded-md text-xs font-medium transition-colors cursor-pointer whitespace-nowrap", oopCategoryFilter === cat ? "bg-primary text-primary-foreground" : "bg-muted text-muted-foreground hover:text-foreground")}>{cat}</button>
+                    <button key={cat} onClick={() => setOopCategoryFilter(cat)} className={cn("px-3 py-1.5 rounded-md text-xs font-medium transition-colors cursor-pointer whitespace-nowrap", oopCategoryFilter === cat ? "bg-primary text-primary-foreground" : "bg-muted text-muted-foreground hover:text-foreground")}>{cat}</button>
                   ))}
                 </div>
               </div>
               <div className="flex-1 min-h-0 overflow-auto">
-                <div className="grid grid-cols-2 gap-3 pb-4">
+                <div className="grid grid-cols-2 lg:grid-cols-3 gap-4 pb-4">
                   {filteredOop.map(comp => (
                     <Card key={comp.id} className="hover:shadow-md transition-shadow">
-                      <CardContent className="p-4">
-                        <div className="flex items-start gap-3">
-                          <div className="h-10 w-10 rounded-lg bg-primary/10 flex items-center justify-center shrink-0">
-                            <Component className="h-5 w-5 text-primary" />
+                      <CardContent className="p-5">
+                        <div className="flex items-start gap-4">
+                          <div className="h-12 w-12 rounded-lg bg-primary/10 flex items-center justify-center shrink-0">
+                            <Component className="h-6 w-6 text-primary" />
                           </div>
                           <div className="flex-1 min-w-0">
-                            <p className="text-sm font-medium truncate">{comp.name}</p>
-                            <p className="text-[11px] text-muted-foreground mt-0.5">{comp.description}</p>
-                            <div className="flex items-center gap-2 mt-2">
-                              <Badge variant="secondary" className="text-[10px]">{comp.category}</Badge>
-                              <span className="text-[10px] text-muted-foreground font-mono">{comp.sourcePage}</span>
+                            <div className="flex items-start justify-between gap-2">
+                              <p className="text-sm font-semibold">{comp.name}</p>
+                              <Button size="sm" variant="outline" className="shrink-0 gap-1 cursor-pointer h-8" onClick={() => addOopWidget(comp)}>
+                                <Plus className="h-3.5 w-3.5" /> 추가
+                              </Button>
+                            </div>
+                            <p className="text-xs text-muted-foreground mt-1.5 line-clamp-2">{comp.description}</p>
+                            <div className="flex items-center gap-2 mt-3">
+                              <Badge variant="secondary" className="text-[11px]">{comp.category}</Badge>
+                              <span className="text-[11px] text-muted-foreground font-mono">{comp.sourcePage}</span>
                             </div>
                           </div>
-                          <Button size="sm" variant="outline" className="shrink-0 gap-1 cursor-pointer" onClick={() => addOopWidget(comp)}>
-                            <Plus className="h-3.5 w-3.5" /> 추가
-                          </Button>
                         </div>
                       </CardContent>
                     </Card>
