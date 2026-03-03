@@ -174,7 +174,7 @@ export default function NewTicketPage() {
                 </CardContent>
               </Card>
 
-              {/* 5. 모델 개선 요청 (NEW) */}
+              {/* 5. AI/ML 모델 관련 요청 (NEW) */}
               <Card 
                 className="cursor-pointer hover:border-violet-500 hover:shadow-lg transition-all duration-200 group relative"
                 onClick={() => setSelectedType("model-improvement")}
@@ -184,20 +184,20 @@ export default function NewTicketPage() {
                   <div className="mx-auto w-14 h-14 bg-violet-500/10 rounded-full flex items-center justify-center mb-3 group-hover:bg-violet-500/20 transition-colors">
                     <Cpu className="h-7 w-7 text-violet-500" />
                   </div>
-                  <CardTitle className="text-base">모델 개선 요청</CardTitle>
+                  <CardTitle className="text-base">AI/ML 모델 관련 요청</CardTitle>
                   <CardDescription className="text-xs leading-relaxed">
-                    AI/ML, RTO, APC 모델 성능 저하 또는 연동 문제 시정 요청
+                    신규 모델 구성 요청 또는 기존 모델 개선/장애 해결 요청
                   </CardDescription>
                 </CardHeader>
                 <CardContent className="pt-0">
                   <ul className="text-xs text-muted-foreground space-y-1.5">
                     <li className="flex items-center gap-2">
                       <span className="w-1 h-1 bg-violet-500 rounded-full flex-shrink-0" />
-                      모델 재구성 / M2M 장애해결 / APC 가동
+                      신규 AI/ML 모델 구성 요청
                     </li>
                     <li className="flex items-center gap-2">
                       <span className="w-1 h-1 bg-violet-500 rounded-full flex-shrink-0" />
-                      요청 범주별 자동 수신팀 배정
+                      기존 모델 개선 / M2M 장애 / APC 가동
                     </li>
                     <li className="flex items-center gap-2">
                       <span className="w-1 h-1 bg-violet-500 rounded-full flex-shrink-0" />
@@ -413,9 +413,24 @@ export default function NewTicketPage() {
 }
 
 
-// ===================== 모델 개선 요청 폼 =====================
+// ===================== AI/ML 모델 관련 요청 폼 =====================
 function ModelImprovementForm({ onBack }: { onBack: () => void }) {
+  const [subType, setSubType] = useState<"new-model" | "existing-improvement" | null>(null)
   const [requestCategory, setRequestCategory] = useState<string>("")
+  
+  // 신규 모델 구성 폼 상태
+  const [modelName, setModelName] = useState("")
+  const [modelPurpose, setModelPurpose] = useState("")
+  const [selectedUnit, setSelectedUnit] = useState("")
+  const [equipment, setEquipment] = useState("")
+  const [description, setDescription] = useState("")
+  const [inputTags, setInputTags] = useState<string[]>([])
+  const [tagInput, setTagInput] = useState("")
+  const [outputTag, setOutputTag] = useState("") // 실측값 태그
+  const [guideMin, setGuideMin] = useState("") // 가이드 최소값
+  const [guideMax, setGuideMax] = useState("") // 가이드 최대값
+  const [trainingFrom, setTrainingFrom] = useState("")
+  const [trainingTo, setTrainingTo] = useState("")
   
   const categoryInfo: Record<string, { receivingTeam: string; description: string }> = {
     "model-rebuild": { receivingTeam: "DX Modeling팀", description: "AI/ML 또는 RTO 모델의 성능이 저하되어 모델 재학습 또는 구조 변경이 필요한 경우" },
@@ -423,18 +438,311 @@ function ModelImprovementForm({ onBack }: { onBack: () => void }) {
     "apc-activation": { receivingTeam: "APC운영팀", description: "APC 컨트롤러의 가동/재가동이 필요하거나, DCS와의 연동이 끊긴 경우" },
   }
 
+  const PURPOSE_OPTIONS = ["공정 최적화", "이상 감지", "품질 예측", "에너지 절감", "촉매 성능 예측", "수율 예측", "기타"]
+  const UNITS = ["CDU", "VDU", "HCR", "CCR", "DHT", "NHT", "VGOFCC", "RFCC", "Utilities"]
+
+  const addTag = () => {
+    if (tagInput.trim() && !inputTags.includes(tagInput.trim())) {
+      setInputTags([...inputTags, tagInput.trim()])
+      setTagInput("")
+    }
+  }
+
+  const removeTag = (tag: string) => {
+    setInputTags(inputTags.filter(t => t !== tag))
+  }
+
+  // 서브타입 선택 화면
+  if (!subType) {
+    return (
+      <AppShell>
+        <div className="min-h-screen bg-background">
+          <header className="border-b border-border bg-card">
+            <div className="px-6 py-4 flex items-center gap-4">
+              <Button variant="ghost" size="sm" className="gap-2 bg-transparent" onClick={onBack}>
+                <ChevronLeft className="h-4 w-4" />
+                유형 선택으로
+              </Button>
+              <div className="flex items-center gap-2">
+                <Cpu className="h-5 w-5 text-violet-500" />
+                <h1 className="text-lg font-semibold text-foreground">AI/ML 모델 관련 요청</h1>
+              </div>
+            </div>
+          </header>
+          <main className="px-6 py-10 max-w-4xl mx-auto">
+            <div className="text-center mb-8">
+              <h2 className="text-xl font-bold text-foreground mb-2">어떤 요청을 하시겠습니까?</h2>
+              <p className="text-sm text-muted-foreground">신규 모델 구성 또는 기존 모델 개선 중 선택해주세요</p>
+            </div>
+            <div className="grid grid-cols-2 gap-6">
+              {/* 신규 모델 구성 */}
+              <Card 
+                className="cursor-pointer hover:border-violet-500 hover:shadow-lg transition-all duration-200 group"
+                onClick={() => setSubType("new-model")}
+              >
+                <CardHeader className="text-center pb-3">
+                  <div className="mx-auto w-16 h-16 bg-violet-500/10 rounded-full flex items-center justify-center mb-3 group-hover:bg-violet-500/20 transition-colors">
+                    <FlaskConical className="h-8 w-8 text-violet-500" />
+                  </div>
+                  <CardTitle className="text-lg">신규 모델 구성</CardTitle>
+                  <CardDescription className="text-xs leading-relaxed">
+                    새로운 AI/ML 예측 모델 구성을 요청합니다
+                  </CardDescription>
+                </CardHeader>
+                <CardContent className="pt-0">
+                  <ul className="text-xs text-muted-foreground space-y-1.5">
+                    <li className="flex items-center gap-2">
+                      <span className="w-1 h-1 bg-violet-500 rounded-full flex-shrink-0" />
+                      모델 목적 및 대상 설비 지정
+                    </li>
+                    <li className="flex items-center gap-2">
+                      <span className="w-1 h-1 bg-violet-500 rounded-full flex-shrink-0" />
+                      입력 변수(태그) 및 학습 기간 설정
+                    </li>
+                    <li className="flex items-center gap-2">
+                      <span className="w-1 h-1 bg-violet-500 rounded-full flex-shrink-0" />
+                      실측값 태그 및 가이드 범위 설정
+                    </li>
+                  </ul>
+                </CardContent>
+              </Card>
+
+              {/* 기존 모델 개선 요청 */}
+              <Card 
+                className="cursor-pointer hover:border-orange-500 hover:shadow-lg transition-all duration-200 group"
+                onClick={() => setSubType("existing-improvement")}
+              >
+                <CardHeader className="text-center pb-3">
+                  <div className="mx-auto w-16 h-16 bg-orange-500/10 rounded-full flex items-center justify-center mb-3 group-hover:bg-orange-500/20 transition-colors">
+                    <AlertTriangle className="h-8 w-8 text-orange-500" />
+                  </div>
+                  <CardTitle className="text-lg">기존 모델 개선 요청</CardTitle>
+                  <CardDescription className="text-xs leading-relaxed">
+                    기존 모델의 성능 개선, 장애 해결, 연동 요청
+                  </CardDescription>
+                </CardHeader>
+                <CardContent className="pt-0">
+                  <ul className="text-xs text-muted-foreground space-y-1.5">
+                    <li className="flex items-center gap-2">
+                      <span className="w-1 h-1 bg-orange-500 rounded-full flex-shrink-0" />
+                      모델 재구성 / 재학습 요청
+                    </li>
+                    <li className="flex items-center gap-2">
+                      <span className="w-1 h-1 bg-orange-500 rounded-full flex-shrink-0" />
+                      M2M 네트워크 장애 해결
+                    </li>
+                    <li className="flex items-center gap-2">
+                      <span className="w-1 h-1 bg-orange-500 rounded-full flex-shrink-0" />
+                      APC 가동/연동 요청
+                    </li>
+                  </ul>
+                </CardContent>
+              </Card>
+            </div>
+          </main>
+        </div>
+      </AppShell>
+    )
+  }
+
+  // 신규 모델 구성 폼
+  if (subType === "new-model") {
+    return (
+      <AppShell>
+        <div className="min-h-screen bg-background">
+          <header className="border-b border-border bg-card">
+            <div className="px-6 py-4 flex items-center gap-4">
+              <Button variant="ghost" size="sm" className="gap-2 bg-transparent" onClick={() => setSubType(null)}>
+                <ChevronLeft className="h-4 w-4" />
+                뒤로
+              </Button>
+              <div className="flex items-center gap-2">
+                <FlaskConical className="h-5 w-5 text-violet-500" />
+                <h1 className="text-lg font-semibold text-foreground">신규 모델 구성 요청</h1>
+              </div>
+            </div>
+          </header>
+          <main className="px-6 py-6 max-w-3xl">
+            <Card>
+              <CardHeader>
+                <CardTitle className="flex items-center gap-2">
+                  <FlaskConical className="h-5 w-5 text-violet-500" />
+                  신규 모델 정보
+                </CardTitle>
+                <CardDescription>새로운 AI/ML 예측 모델 구성에 필요한 정보를 입력해주세요</CardDescription>
+              </CardHeader>
+              <CardContent className="space-y-6">
+                {/* 모델명 */}
+                <div className="space-y-2">
+                  <Label>모델명 *</Label>
+                  <Input 
+                    placeholder="예: HCR Reactor Outlet Temp 예측 모델" 
+                    value={modelName}
+                    onChange={(e) => setModelName(e.target.value)}
+                  />
+                </div>
+
+                {/* 모델 목적 + Unit + 설비 */}
+                <div className="grid grid-cols-3 gap-4">
+                  <div className="space-y-2">
+                    <Label>모델 목적 *</Label>
+                    <Select value={modelPurpose} onValueChange={setModelPurpose}>
+                      <SelectTrigger><SelectValue placeholder="목적 선택" /></SelectTrigger>
+                      <SelectContent>
+                        {PURPOSE_OPTIONS.map(opt => (
+                          <SelectItem key={opt} value={opt}>{opt}</SelectItem>
+                        ))}
+                      </SelectContent>
+                    </Select>
+                  </div>
+                  <div className="space-y-2">
+                    <Label>관련 Unit *</Label>
+                    <Select value={selectedUnit} onValueChange={setSelectedUnit}>
+                      <SelectTrigger><SelectValue placeholder="Unit 선택" /></SelectTrigger>
+                      <SelectContent>
+                        {UNITS.map(u => (
+                          <SelectItem key={u} value={u}>{u}</SelectItem>
+                        ))}
+                      </SelectContent>
+                    </Select>
+                  </div>
+                  <div className="space-y-2">
+                    <Label>대상 설비</Label>
+                    <Input 
+                      placeholder="예: R-3001" 
+                      value={equipment}
+                      onChange={(e) => setEquipment(e.target.value)}
+                    />
+                  </div>
+                </div>
+
+                {/* 설명 */}
+                <div className="space-y-2">
+                  <Label>모델 설명</Label>
+                  <Textarea 
+                    placeholder="모델의 목적과 예측 대상에 대해 상세히 기술해주세요"
+                    className="min-h-20"
+                    value={description}
+                    onChange={(e) => setDescription(e.target.value)}
+                  />
+                </div>
+
+                {/* 입력 변수 (태그) */}
+                <div className="space-y-3">
+                  <Label>입력 변수 (태그) *</Label>
+                  <div className="flex gap-2">
+                    <Input 
+                      placeholder="태그 입력 후 Enter (예: TI-3001)"
+                      value={tagInput}
+                      onChange={(e) => setTagInput(e.target.value)}
+                      onKeyDown={(e) => { if (e.key === "Enter") { e.preventDefault(); addTag() } }}
+                    />
+                    <Button type="button" variant="outline" onClick={addTag}>추가</Button>
+                  </div>
+                  {inputTags.length > 0 && (
+                    <div className="flex flex-wrap gap-2">
+                      {inputTags.map(tag => (
+                        <Badge key={tag} variant="secondary" className="flex items-center gap-1 px-2 py-1">
+                          {tag}
+                          <button onClick={() => removeTag(tag)} className="ml-1 hover:bg-muted rounded-full">
+                            <CircleCheck className="h-3 w-3" />
+                          </button>
+                        </Badge>
+                      ))}
+                    </div>
+                  )}
+                </div>
+
+                {/* 학습 기간 */}
+                <div className="grid grid-cols-2 gap-4">
+                  <div className="space-y-2">
+                    <Label>학습 기간 (시작)</Label>
+                    <Input 
+                      type="date" 
+                      value={trainingFrom}
+                      onChange={(e) => setTrainingFrom(e.target.value)}
+                    />
+                  </div>
+                  <div className="space-y-2">
+                    <Label>학습 기간 (종료)</Label>
+                    <Input 
+                      type="date" 
+                      value={trainingTo}
+                      onChange={(e) => setTrainingTo(e.target.value)}
+                    />
+                  </div>
+                </div>
+
+                {/* 실측값 태그 및 가이드값 - 대시보드용 */}
+                <div className="p-4 bg-blue-50 border border-blue-200 rounded-lg space-y-4">
+                  <div className="flex items-center gap-2">
+                    <ArrowRight className="h-4 w-4 text-blue-600" />
+                    <span className="text-sm font-medium text-blue-800">실측값 비교 대시보드 설정</span>
+                  </div>
+                  <p className="text-xs text-blue-600">예측값과 실측값을 비교하는 대시보드 구성을 위해 아래 정보를 입력해주세요.</p>
+                  
+                  <div className="grid grid-cols-3 gap-4">
+                    <div className="space-y-2">
+                      <Label className="text-xs">실측값 태그 *</Label>
+                      <Input 
+                        placeholder="예: TI-3002"
+                        value={outputTag}
+                        onChange={(e) => setOutputTag(e.target.value)}
+                      />
+                    </div>
+                    <div className="space-y-2">
+                      <Label className="text-xs">가이드 최소값</Label>
+                      <Input 
+                        placeholder="예: 350"
+                        value={guideMin}
+                        onChange={(e) => setGuideMin(e.target.value)}
+                      />
+                    </div>
+                    <div className="space-y-2">
+                      <Label className="text-xs">가이드 최대값</Label>
+                      <Input 
+                        placeholder="예: 400"
+                        value={guideMax}
+                        onChange={(e) => setGuideMax(e.target.value)}
+                      />
+                    </div>
+                  </div>
+                </div>
+
+                <div className="flex justify-end gap-2 pt-4 border-t">
+                  <Button variant="outline" className="bg-transparent" onClick={() => setSubType(null)}>취소</Button>
+                  <Button 
+                    className="bg-violet-600 hover:bg-violet-700" 
+                    onClick={() => { 
+                      alert(`신규 모델 구성 요청이 생성되었습니다.\n\n모델명: ${modelName}\n목적: ${modelPurpose}\nUnit: ${selectedUnit}\n입력 태그: ${inputTags.join(", ")}\n실측값 태그: ${outputTag}\n가이드 범위: ${guideMin} ~ ${guideMax}`); 
+                      onBack() 
+                    }}
+                  >
+                    <FlaskConical className="h-4 w-4 mr-2" />
+                    모델 구성 요청
+                  </Button>
+                </div>
+              </CardContent>
+            </Card>
+          </main>
+        </div>
+      </AppShell>
+    )
+  }
+
+  // 기존 모델 개선 요청 폼 (기존 포맷 유지)
   return (
     <AppShell>
       <div className="min-h-screen bg-background">
         <header className="border-b border-border bg-card">
           <div className="px-6 py-4 flex items-center gap-4">
-            <Button variant="ghost" size="sm" className="gap-2 bg-transparent" onClick={onBack}>
+            <Button variant="ghost" size="sm" className="gap-2 bg-transparent" onClick={() => setSubType(null)}>
               <ChevronLeft className="h-4 w-4" />
-              유형 선택으로
+              뒤로
             </Button>
             <div className="flex items-center gap-2">
-              <Cpu className="h-5 w-5 text-violet-500" />
-              <h1 className="text-lg font-semibold text-foreground">모델 개선 요청</h1>
+              <Cpu className="h-5 w-5 text-orange-500" />
+              <h1 className="text-lg font-semibold text-foreground">기존 모델 개선 요청</h1>
             </div>
           </div>
         </header>
@@ -442,8 +750,8 @@ function ModelImprovementForm({ onBack }: { onBack: () => void }) {
           <Card>
             <CardHeader>
               <CardTitle className="flex items-center gap-2">
-                <Cpu className="h-5 w-5 text-violet-500" />
-                모델 개선 요청 정보
+                <Cpu className="h-5 w-5 text-orange-500" />
+                기존 모델 개선 요청 정보
               </CardTitle>
               <CardDescription>모델 성능 저하 또는 연동 문제에 대한 시정 요청을 작성해주세요</CardDescription>
             </CardHeader>
@@ -467,8 +775,8 @@ function ModelImprovementForm({ onBack }: { onBack: () => void }) {
                       className={cn(
                         "border rounded-lg p-4 text-left transition-all cursor-pointer",
                         requestCategory === cat.value
-                          ? "border-violet-500 bg-violet-50 ring-1 ring-violet-500"
-                          : "hover:border-violet-300 hover:bg-muted/30"
+                          ? "border-orange-500 bg-orange-50 ring-1 ring-orange-500"
+                          : "hover:border-orange-300 hover:bg-muted/30"
                       )}
                       onClick={() => setRequestCategory(cat.value)}
                     >
@@ -478,12 +786,12 @@ function ModelImprovementForm({ onBack }: { onBack: () => void }) {
                   ))}
                 </div>
                 {requestCategory && categoryInfo[requestCategory] && (
-                  <div className="bg-violet-50 border border-violet-200 rounded-lg p-3">
+                  <div className="bg-orange-50 border border-orange-200 rounded-lg p-3">
                     <div className="flex items-center justify-between mb-1">
-                      <span className="text-xs font-medium text-violet-700">자동 배정 수신팀</span>
-                      <Badge className="bg-violet-500 hover:bg-violet-500 text-xs">{categoryInfo[requestCategory].receivingTeam}</Badge>
+                      <span className="text-xs font-medium text-orange-700">자동 배정 수신팀</span>
+                      <Badge className="bg-orange-500 hover:bg-orange-500 text-xs">{categoryInfo[requestCategory].receivingTeam}</Badge>
                     </div>
-                    <p className="text-xs text-violet-600">{categoryInfo[requestCategory].description}</p>
+                    <p className="text-xs text-orange-600">{categoryInfo[requestCategory].description}</p>
                   </div>
                 )}
               </div>
@@ -554,8 +862,8 @@ function ModelImprovementForm({ onBack }: { onBack: () => void }) {
               </div>
 
               <div className="flex justify-end gap-2 pt-4 border-t">
-                <Button variant="outline" className="bg-transparent" onClick={onBack}>취소</Button>
-                <Button className="bg-violet-600 hover:bg-violet-700" onClick={() => { alert("모델 개선 요청이 생성되었습니다."); onBack() }}>
+                <Button variant="outline" className="bg-transparent" onClick={() => setSubType(null)}>취소</Button>
+                <Button className="bg-orange-600 hover:bg-orange-700" onClick={() => { alert("기존 모델 개선 요청이 생성되었습니다."); onBack() }}>
                   <Cpu className="h-4 w-4 mr-2" />
                   모델 개선 요청 생성
                 </Button>
