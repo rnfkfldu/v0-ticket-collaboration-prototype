@@ -272,7 +272,7 @@ const INITIAL_MODELS: ModelEntry[] = [
     accuracy: null, dropReason: "",
   },
   {
-    id: "MDL-005", name: "DHT Desulfurization Efficiency 예측", purpose: "품질 예측",
+    id: "MDL-005", name: "DHT Desulfurization Efficiency 예측", purpose: "품질 예��",
     unit: "DHT", equipment: "R-5001", description: "DHT 탈황효율 예측 모델 - 정확도 부족으로 Drop",
     status: "dropped", currentStep: 0, createdDate: "2025-08-01", creator: "이수진",
     endpointUrl: "https://runtime.sagemaker.ap-northeast-2.amazonaws.com/endpoints/dht-desulf-v1",
@@ -800,7 +800,7 @@ export default function ModelLabPage() {
               <Card className={cn(selectedModel.currentStep < 1 && "opacity-50")}>
                 <CardHeader className="pb-2">
                   <CardTitle className="text-sm flex items-center justify-between">
-                    <div className="flex items-center gap-2"><Database className="h-4 w-4 text-blue-600" />Step 2. 데이터 선정</div>
+                    <div className="flex items-center gap-2"><Database className="h-4 w-4 text-blue-600" />Step 2. 데이터 선��</div>
                     {selectedModel.status === "draft" && <Badge variant="outline" className="text-xs bg-yellow-50 text-yellow-700 border-yellow-300">작업 필요</Badge>}
                     {selectedModel.dataSource && <Badge variant="secondary" className="text-xs">완료</Badge>}
                   </CardTitle>
@@ -1610,35 +1610,139 @@ export default function ModelLabPage() {
           </DialogContent>
         </Dialog>
 
-        {/* 모델 구성 요청 */}
+        {/* 모델 구성 요청 - 이벤트 생성 > AI/ML 모델 관련 요청 > 신규 모델 생성 폼과 동일 */}
         <Dialog open={showConfigRequest} onOpenChange={setShowConfigRequest}>
-          <DialogContent className="max-w-lg">
+          <DialogContent className="max-w-2xl max-h-[85vh] overflow-y-auto">
             <DialogHeader>
-              <DialogTitle className="flex items-center gap-2"><Send className="h-5 w-5" />모델 구성 요청</DialogTitle>
+              <DialogTitle className="flex items-center gap-2"><Send className="h-5 w-5 text-violet-600" />모델 구성 요청</DialogTitle>
+              <p className="text-sm text-muted-foreground">DX추진팀에 End Point와 모델 정보를 전송합니다. Step 1~4에서 입력한 정보가 기본값으로 채워져 있습니다.</p>
             </DialogHeader>
             {selectedModel && (
-              <div className="space-y-4 py-2">
-                <div className="p-3 bg-muted/50 rounded-lg space-y-1 text-sm">
-                  <div className="flex justify-between"><span className="text-muted-foreground">모델명</span><span className="font-medium">{selectedModel.name}</span></div>
-                  <div className="flex justify-between"><span className="text-muted-foreground">관련 공정</span><span className="font-medium">{selectedModel.unit}</span></div>
-                  <div className="flex justify-between"><span className="text-muted-foreground">End Point</span><span className="font-mono text-xs truncate max-w-[250px]">{selectedModel.endpointUrl}</span></div>
+              <div className="space-y-5 py-2">
+                {/* 모델명 - Step 1 정보 */}
+                <div className="space-y-2">
+                  <Label className="text-sm font-medium">모델명 *</Label>
+                  <Input value={selectedModel.name} readOnly className="bg-muted/30" />
+                  <p className="text-xs text-muted-foreground">Step 1에서 입력한 모델명입니다.</p>
+                </div>
+
+                {/* 모델 목적 + Unit + 설비 - Step 1 정보 */}
+                <div className="grid grid-cols-3 gap-4">
+                  <div className="space-y-2">
+                    <Label className="text-sm font-medium">모델 목적 *</Label>
+                    <Input value={selectedModel.purpose} readOnly className="bg-muted/30" />
+                  </div>
+                  <div className="space-y-2">
+                    <Label className="text-sm font-medium">관련 Unit *</Label>
+                    <Input value={selectedModel.unit} readOnly className="bg-muted/30" />
+                  </div>
+                  <div className="space-y-2">
+                    <Label className="text-sm font-medium">대상 설비</Label>
+                    <Input value={selectedModel.equipment || "-"} readOnly className="bg-muted/30" />
+                  </div>
+                </div>
+
+                {/* 설명 - Step 1 정보 */}
+                <div className="space-y-2">
+                  <Label className="text-sm font-medium">모델 설명</Label>
+                  <Textarea value={selectedModel.description || ""} readOnly className="bg-muted/30 min-h-16" />
+                </div>
+
+                {/* 입력 변수 (태그) - Step 2 정보 */}
+                <div className="space-y-2">
+                  <Label className="text-sm font-medium">입력 변수 (태그) *</Label>
+                  <div className="p-3 bg-muted/30 rounded-lg border">
+                    {selectedModel.selectedTags.length > 0 ? (
+                      <div className="flex flex-wrap gap-2">
+                        {selectedModel.selectedTags.map(tag => (
+                          <Badge key={tag} variant="secondary" className="text-xs">{tag}</Badge>
+                        ))}
+                      </div>
+                    ) : (
+                      <p className="text-xs text-muted-foreground">선택된 태그가 없습니다.</p>
+                    )}
+                  </div>
+                  <p className="text-xs text-muted-foreground">Step 2에서 선택한 {selectedModel.selectedTags.length}개 태그입니다.</p>
+                </div>
+
+                {/* 학습 기간 - Step 2 정보 */}
+                <div className="grid grid-cols-2 gap-4">
+                  <div className="space-y-2">
+                    <Label className="text-sm font-medium">학습 기간 (시작)</Label>
+                    <Input value={selectedModel.trainingPeriod.from || "-"} readOnly className="bg-muted/30" />
+                  </div>
+                  <div className="space-y-2">
+                    <Label className="text-sm font-medium">학습 기간 (종료)</Label>
+                    <Input value={selectedModel.trainingPeriod.to || "-"} readOnly className="bg-muted/30" />
+                  </div>
+                </div>
+
+                {/* End Point URL - Step 4 정보 */}
+                <div className="space-y-2">
+                  <Label className="text-sm font-medium">End Point URL *</Label>
+                  <Input value={selectedModel.endpointUrl || ""} readOnly className="bg-muted/30 font-mono text-xs" />
+                  <p className="text-xs text-muted-foreground">Step 4에서 등록한 AWS CANVAS End Point입니다.</p>
+                </div>
+
+                {/* 모델 정확도 - Step 3 정보 */}
+                {selectedModel.accuracy && (
+                  <div className="p-3 bg-emerald-50 border border-emerald-200 rounded-lg space-y-2">
+                    <div className="flex items-center gap-2">
+                      <CheckCircle className="h-4 w-4 text-emerald-600" />
+                      <span className="text-sm font-medium text-emerald-800">모델 정확도 (Step 3)</span>
+                    </div>
+                    <div className="grid grid-cols-4 gap-4 text-sm">
+                      <div><span className="text-muted-foreground">RMSE:</span> <span className="font-medium">{selectedModel.accuracy.rmse}</span></div>
+                      <div><span className="text-muted-foreground">MAE:</span> <span className="font-medium">{selectedModel.accuracy.mae}</span></div>
+                      <div><span className="text-muted-foreground">R{'\u00B2'}:</span> <span className="font-medium">{selectedModel.accuracy.r2}</span></div>
+                      <div><span className="text-muted-foreground">MAPE:</span> <span className="font-medium">{selectedModel.accuracy.mape}%</span></div>
+                    </div>
+                  </div>
+                )}
+
+                <Separator />
+
+                {/* 실측값 비교 대시보드 설정 - 추가 정보 */}
+                <div className="p-4 bg-blue-50 border border-blue-200 rounded-lg space-y-4">
+                  <div className="flex items-center gap-2">
+                    <TrendingUp className="h-4 w-4 text-blue-600" />
+                    <span className="text-sm font-medium text-blue-800">실측값 비교 대시보드 설정</span>
+                  </div>
+                  <p className="text-xs text-blue-600">예측값과 실측값을 비교하는 대시보드 구성을 위해 아래 정보를 입력해주세요.</p>
+                  
+                  <div className="grid grid-cols-3 gap-4">
+                    <div className="space-y-2">
+                      <Label className="text-xs">실측값 태그 *</Label>
+                      <Input placeholder="예: TI-3002" className="bg-white" />
+                    </div>
+                    <div className="space-y-2">
+                      <Label className="text-xs">가이드 최소값</Label>
+                      <Input placeholder="예: 350" className="bg-white" />
+                    </div>
+                    <div className="space-y-2">
+                      <Label className="text-xs">가이드 최대값</Label>
+                      <Input placeholder="예: 400" className="bg-white" />
+                    </div>
+                  </div>
+                </div>
+
+                {/* 수신팀 및 요청 내용 */}
+                <div className="space-y-2">
+                  <Label className="text-sm font-medium">수신팀</Label>
+                  <Input value="DX추진팀" readOnly className="bg-muted/30" />
                 </div>
                 <div className="space-y-2">
-                  <Label className="text-sm">수신팀</Label>
-                  <Input value="DX추진팀" readOnly className="bg-muted/50" />
-                </div>
-                <div className="space-y-2">
-                  <Label className="text-sm">요청 내용</Label>
+                  <Label className="text-sm font-medium">요청 내용</Label>
                   <Textarea placeholder="모델 구성에 필요한 추가 요청사항을 입력하세요..." rows={3} />
                 </div>
               </div>
             )}
-            <DialogFooter>
+            <DialogFooter className="pt-4 border-t">
               <Button variant="outline" onClick={() => setShowConfigRequest(false)}>취소</Button>
               <Button onClick={() => {
                 if (selectedModel) advanceStep(selectedModel.id, "config-requested")
                 setShowConfigRequest(false)
-              }} className="gap-1.5">
+              }} className="gap-1.5 bg-violet-600 hover:bg-violet-700">
                 <Send className="h-3.5 w-3.5" />요청 전송
               </Button>
             </DialogFooter>
