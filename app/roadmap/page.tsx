@@ -16,7 +16,8 @@ import { ScrollArea } from "@/components/ui/scroll-area"
 import { Separator } from "@/components/ui/separator"
 import { Search, ChevronRight, Link, Layers, Plus, Users, Wrench, Calendar, Target, AlertTriangle, CheckCircle, X, GripVertical, Trash2 } from "lucide-react"
 import { cn } from "@/lib/utils"
-import { INITIAL_WORK_ITEMS, type WorkItem, type Milestone, type WorklistUseCase } from "@/lib/workbench-data"
+import { type WorkItem, type Milestone, type WorklistUseCase, type LinkedTicket } from "@/lib/workbench-data"
+import { getWorklists, saveWorklist, getTickets } from "@/lib/storage"
 import { useRouter } from "next/navigation"
 import { useUser } from "@/lib/user-context"
 
@@ -32,6 +33,7 @@ export default function WorkbenchPage() {
   // Worklist creation dialog state
   const [showCreateDialog, setShowCreateDialog] = useState(false)
   const [createStep, setCreateStep] = useState(1)
+  const [createMode, setCreateMode] = useState<"simple" | "advanced">("simple") // simple = 간편 모드, advanced = 상세 모드
   const [newWorklist, setNewWorklist] = useState<Partial<WorkItem>>({
     title: "",
     description: "",
@@ -43,11 +45,17 @@ export default function WorkbenchPage() {
     milestones: [],
     teamMembers: [],
     parallelTracks: [],
+    linkedTickets: [],
   })
-  const [newMilestone, setNewMilestone] = useState({ name: "", description: "", targetDate: "" })
+  const [newMilestone, setNewMilestone] = useState({ name: "", description: "", targetDate: "", assignee: "" })
+  
+  // Ticket linking state
+  const [showTicketLinkDialog, setShowTicketLinkDialog] = useState(false)
+  const [ticketSearchQuery, setTicketSearchQuery] = useState("")
+  const availableTickets = getTickets()
 
-  // Mutable work items list
-  const [items, setItems] = useState<WorkItem[]>(INITIAL_WORK_ITEMS)
+  // Mutable work items list from storage
+  const [items, setItems] = useState<WorkItem[]>(() => getWorklists())
   
   const categories = [...new Set(items.map(i => i.category))]
   const units = [...new Set(items.map(i => i.unit))]
@@ -97,8 +105,9 @@ export default function WorkbenchPage() {
 
   const handleCreateWorklist = () => {
     // Create new worklist item
+    const newId = `WL-${String(items.length + 1).padStart(3, "0")}`
     const newItem: WorkItem = {
-      id: `WL-${String(items.length + 1).padStart(3, "0")}`,
+      id: newId,
       title: newWorklist.title || "새 워크리스트",
       unit: newWorklist.unit || "Cross-Unit",
       category: newWorklist.category || "기타",
@@ -108,10 +117,10 @@ export default function WorkbenchPage() {
       description: newWorklist.description || "",
       progress: 0,
       startDate: new Date().toISOString().slice(0, 7),
-      targetDate: newWorklist.milestones?.length 
+      targetDate: newWorklist.targetDate || (newWorklist.milestones?.length 
         ? newWorklist.milestones[newWorklist.milestones.length - 1].targetDate 
-        : undefined,
-      linkedTickets: [],
+        : undefined),
+      linkedTickets: newWorklist.linkedTickets || [],
       notes: [{
         id: `n-${Date.now()}`,
         date: new Date().toISOString().slice(0, 10),
@@ -119,20 +128,24 @@ export default function WorkbenchPage() {
         content: "워크리스트가 생성되었습니다.",
         type: "status-change"
       }],
-      useCase: newWorklist.useCase,
-      milestones: newWorklist.milestones,
+      useCase: createMode === "simple" ? undefined : newWorklist.useCase,
+      milestones: createMode === "simple" ? [] : newWorklist.milestones,
       problemStatement: newWorklist.problemStatement,
       triedApproaches: [],
       teamMembers: newWorklist.teamMembers,
       parallelTracks: newWorklist.parallelTracks,
     }
     
-    // Add to items list
+    // Save to storage
+    saveWorklist(newItem)
+    
+    // Add to local items list
     setItems(prev => [newItem, ...prev])
     
     // Reset form and close dialog
     setShowCreateDialog(false)
     setCreateStep(1)
+    setCreateMode("simple")
     setNewWorklist({
       title: "",
       description: "",
@@ -144,7 +157,35 @@ export default function WorkbenchPage() {
       milestones: [],
       teamMembers: [],
       parallelTracks: [],
+      linkedTickets: [],
     })
+    
+    // Navigate to the detail page
+    router.push(`/roadmap/${newId}`)
+  }
+  
+  const handleLinkTicket = (ticketId: string) => {
+    const ticket = availableTickets.find(t => t.id === ticketId)
+    if (!ticket || newWorklist.linkedTickets?.some(lt => lt.id === ticketId)) return
+    const newLinked: LinkedTicket = { 
+      id: ticket.id, 
+      title: ticket.title, 
+      status: ticket.status, 
+      ticketType: ticket.ticketType 
+    }
+    setNewWorklist(prev => ({
+      ...prev,
+      linkedTickets: [...(prev.linkedTickets || []), newLinked]
+    }))
+    setShowTicketLinkDialog(false)
+    setTicketSearchQuery("")
+  }
+  
+  const handleUnlinkTicket = (ticketId: string) => {
+    setNewWorklist(prev => ({
+      ...prev,
+      linkedTickets: (prev.linkedTickets || []).filter(t => t.id !== ticketId)
+    }))
   }
 
   return (
@@ -159,9 +200,9 @@ export default function WorkbenchPage() {
               </div>
               <p className="text-sm text-muted-foreground mt-1">다양한 팀 / 공정 / 태스크가 공존하는 중장기 업무 관리 공간. 복수 이벤트 그룹핑을 통해 워크리스트를 종합 관리합니다.</p>
             </div>
-            <Button onClick={() => setShowCreateDialog(true)} className="gap-2">
-              <Plus className="h-4 w-4" />
-              워크리스트 생성
+<Button onClick={() => { setCreateStep(0); setShowCreateDialog(true) }} className="gap-2">
+  <Plus className="h-4 w-4" />
+  워크리스트 생성
             </Button>
           </div>
         </header>
@@ -279,7 +320,13 @@ export default function WorkbenchPage() {
       </div>
 
       {/* Create Worklist Dialog */}
-      <Dialog open={showCreateDialog} onOpenChange={setShowCreateDialog}>
+      <Dialog open={showCreateDialog} onOpenChange={(open) => {
+        setShowCreateDialog(open)
+        if (!open) {
+          setCreateStep(1)
+          setCreateMode("simple")
+        }
+      }}>
         <DialogContent className="max-w-2xl h-[85vh] max-h-[85vh] overflow-hidden flex flex-col">
           <DialogHeader className="shrink-0">
             <DialogTitle className="flex items-center gap-2">
@@ -287,27 +334,108 @@ export default function WorkbenchPage() {
               워크리스트 생성
             </DialogTitle>
             <DialogDescription>
-              새로운 워크리스트를 생성하고 마일스톤을 설계합니다
+              {createMode === "simple" 
+                ? "워크리스트를 생성하고 관련 이벤트를 연결합니다"
+                : "새로운 워크리스트를 생성하고 마일스톤을 설계합니다"}
             </DialogDescription>
           </DialogHeader>
           
-          {/* Step Indicator */}
-          <div className="flex items-center gap-2 py-2 border-b shrink-0">
-            {[1, 2, 3].map(step => (
-              <div key={step} className="flex items-center gap-2">
-                <div className={cn(
-                  "w-7 h-7 rounded-full flex items-center justify-center text-xs font-medium",
-                  createStep >= step ? "bg-primary text-primary-foreground" : "bg-muted text-muted-foreground"
-                )}>
-                  {createStep > step ? <CheckCircle className="h-4 w-4" /> : step}
-                </div>
-                <span className={cn("text-sm", createStep >= step ? "text-foreground" : "text-muted-foreground")}>
-                  {step === 1 ? "기본 정보" : step === 2 ? "유형 선택" : "마일스톤 설계"}
-                </span>
-                {step < 3 && <ChevronRight className="h-4 w-4 text-muted-foreground" />}
+          {/* Mode Selection - Step 0 */}
+          {createStep === 0 && (
+            <div className="flex-1 flex flex-col items-center justify-center gap-6 py-8">
+              <div className="text-center">
+                <h3 className="text-lg font-semibold mb-2">워크리스트 생성 방식 선택</h3>
+                <p className="text-sm text-muted-foreground">사용 목적에 맞는 방식을 선택하세요</p>
               </div>
-            ))}
-          </div>
+              <div className="grid grid-cols-2 gap-4 w-full max-w-lg">
+                <Card 
+                  className={cn(
+                    "cursor-pointer p-6 transition-all hover:border-primary",
+                    createMode === "simple" && "border-primary bg-primary/5"
+                  )}
+                  onClick={() => setCreateMode("simple")}
+                >
+                  <div className="text-center">
+                    <div className="w-12 h-12 mx-auto mb-3 rounded-full bg-blue-100 flex items-center justify-center">
+                      <Link className="h-6 w-6 text-blue-600" />
+                    </div>
+                    <h4 className="font-medium mb-1">간편 모드</h4>
+                    <p className="text-xs text-muted-foreground">
+                      워크리스트만 빠르게 생성하고 관련 이벤트를 연결합니다
+                    </p>
+                    <div className="flex flex-wrap gap-1 mt-3 justify-center">
+                      <Badge variant="secondary" className="text-[10px]">빠른 생성</Badge>
+                      <Badge variant="secondary" className="text-[10px]">이벤트 연결</Badge>
+                    </div>
+                  </div>
+                </Card>
+                <Card 
+                  className={cn(
+                    "cursor-pointer p-6 transition-all hover:border-primary",
+                    createMode === "advanced" && "border-primary bg-primary/5"
+                  )}
+                  onClick={() => setCreateMode("advanced")}
+                >
+                  <div className="text-center">
+                    <div className="w-12 h-12 mx-auto mb-3 rounded-full bg-purple-100 flex items-center justify-center">
+                      <Layers className="h-6 w-6 text-purple-600" />
+                    </div>
+                    <h4 className="font-medium mb-1">상세 모드</h4>
+                    <p className="text-xs text-muted-foreground">
+                      유형 선택, 마일스톤 설계, 팀원 배정까지 상세하게 설정합니다
+                    </p>
+                    <div className="flex flex-wrap gap-1 mt-3 justify-center">
+                      <Badge variant="secondary" className="text-[10px]">마일스톤</Badge>
+                      <Badge variant="secondary" className="text-[10px]">팀원 배정</Badge>
+                    </div>
+                  </div>
+                </Card>
+              </div>
+              <Button onClick={() => setCreateStep(1)} className="mt-4">
+                다음
+                <ChevronRight className="h-4 w-4 ml-1" />
+              </Button>
+            </div>
+          )}
+          
+          {/* Step Indicator - Only show for step 1+ */}
+          {createStep >= 1 && (
+            <div className="flex items-center gap-2 py-2 border-b shrink-0">
+              {createMode === "simple" ? (
+                // Simple mode steps
+                [1, 2].map(step => (
+                  <div key={step} className="flex items-center gap-2">
+                    <div className={cn(
+                      "w-7 h-7 rounded-full flex items-center justify-center text-xs font-medium",
+                      createStep >= step ? "bg-primary text-primary-foreground" : "bg-muted text-muted-foreground"
+                    )}>
+                      {createStep > step ? <CheckCircle className="h-4 w-4" /> : step}
+                    </div>
+                    <span className={cn("text-sm", createStep >= step ? "text-foreground" : "text-muted-foreground")}>
+                      {step === 1 ? "기본 정보" : "이벤트 연결"}
+                    </span>
+                    {step < 2 && <ChevronRight className="h-4 w-4 text-muted-foreground" />}
+                  </div>
+                ))
+              ) : (
+                // Advanced mode steps
+                [1, 2, 3].map(step => (
+                  <div key={step} className="flex items-center gap-2">
+                    <div className={cn(
+                      "w-7 h-7 rounded-full flex items-center justify-center text-xs font-medium",
+                      createStep >= step ? "bg-primary text-primary-foreground" : "bg-muted text-muted-foreground"
+                    )}>
+                      {createStep > step ? <CheckCircle className="h-4 w-4" /> : step}
+                    </div>
+                    <span className={cn("text-sm", createStep >= step ? "text-foreground" : "text-muted-foreground")}>
+                      {step === 1 ? "기본 정보" : step === 2 ? "유형 선택" : "마일스톤 설계"}
+                    </span>
+                    {step < 3 && <ChevronRight className="h-4 w-4 text-muted-foreground" />}
+                  </div>
+                ))
+              )}
+            </div>
+          )}
           
           <ScrollArea className="flex-1 min-h-0 pr-4">
             {/* Step 1: Basic Info */}
@@ -377,8 +505,88 @@ export default function WorkbenchPage() {
               </div>
             )}
 
-            {/* Step 2: Use Case Selection */}
-            {createStep === 2 && (
+            {/* Step 2 - Simple Mode: Ticket Linking */}
+            {createStep === 2 && createMode === "simple" && (
+              <div className="space-y-4 py-4">
+                <div>
+                  <Label className="text-base font-medium">관련 이벤트 연결 (선택)</Label>
+                  <p className="text-sm text-muted-foreground mt-1">이 워크리스트와 관련된 기존 이벤트를 연결할 수 있습니다.</p>
+                </div>
+                
+                {/* Linked tickets list */}
+                {(newWorklist.linkedTickets?.length || 0) > 0 && (
+                  <div className="space-y-2">
+                    {newWorklist.linkedTickets?.map(ticket => (
+                      <div key={ticket.id} className="flex items-center gap-3 p-3 rounded-lg border bg-muted/30">
+                        <Link className="h-4 w-4 text-muted-foreground" />
+                        <div className="flex-1 min-w-0">
+                          <p className="text-sm font-medium truncate">{ticket.title}</p>
+                          <p className="text-xs text-muted-foreground">#{ticket.id}</p>
+                        </div>
+                        <Badge variant="outline" className="text-xs">{ticket.ticketType}</Badge>
+                        <Button variant="ghost" size="icon" className="h-7 w-7" onClick={() => handleUnlinkTicket(ticket.id)}>
+                          <X className="h-3.5 w-3.5 text-muted-foreground" />
+                        </Button>
+                      </div>
+                    ))}
+                  </div>
+                )}
+                
+                {/* Search and add tickets */}
+                <Card className="border-dashed">
+                  <CardContent className="p-4 space-y-3">
+                    <div className="relative">
+                      <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
+                      <Input
+                        placeholder="이벤트 검색 (제목 또는 ID)"
+                        value={ticketSearchQuery}
+                        onChange={e => setTicketSearchQuery(e.target.value)}
+                        className="pl-9"
+                      />
+                    </div>
+                    {ticketSearchQuery && (
+                      <div className="max-h-48 overflow-y-auto space-y-1">
+                        {availableTickets
+                          .filter(t => 
+                            t.title.toLowerCase().includes(ticketSearchQuery.toLowerCase()) ||
+                            t.id.toLowerCase().includes(ticketSearchQuery.toLowerCase())
+                          )
+                          .filter(t => !newWorklist.linkedTickets?.some(lt => lt.id === t.id))
+                          .slice(0, 5)
+                          .map(ticket => (
+                            <div 
+                              key={ticket.id}
+                              className="flex items-center gap-2 p-2 rounded hover:bg-muted cursor-pointer"
+                              onClick={() => handleLinkTicket(ticket.id)}
+                            >
+                              <Plus className="h-4 w-4 text-primary" />
+                              <div className="flex-1 min-w-0">
+                                <p className="text-sm truncate">{ticket.title}</p>
+                                <p className="text-xs text-muted-foreground">#{ticket.id}</p>
+                              </div>
+                              <Badge variant="outline" className="text-xs">{ticket.ticketType}</Badge>
+                            </div>
+                          ))
+                        }
+                        {availableTickets.filter(t => 
+                          t.title.toLowerCase().includes(ticketSearchQuery.toLowerCase()) ||
+                          t.id.toLowerCase().includes(ticketSearchQuery.toLowerCase())
+                        ).filter(t => !newWorklist.linkedTickets?.some(lt => lt.id === t.id)).length === 0 && (
+                          <p className="text-sm text-muted-foreground text-center py-4">검색 결과가 없습니다</p>
+                        )}
+                      </div>
+                    )}
+                  </CardContent>
+                </Card>
+                
+                <p className="text-xs text-muted-foreground">
+                  이벤트 연결 없이 생성해도 됩니다. 워크리스트 상세 페이지에서 언제든 연결할 수 있습니다.
+                </p>
+              </div>
+            )}
+            
+            {/* Step 2 - Advanced Mode: Use Case Selection */}
+            {createStep === 2 && createMode === "advanced" && (
               <div className="space-y-4 py-4">
                 <Label className="text-base font-medium">워크리스트 유형 선택</Label>
                 <p className="text-sm text-muted-foreground">업무 시나리오에 맞는 유형을 선택하세요</p>
@@ -505,8 +713,8 @@ export default function WorkbenchPage() {
               </div>
             )}
 
-            {/* Step 3: Milestone Design */}
-            {createStep === 3 && (
+            {/* Step 3: Milestone Design (Advanced Mode Only) */}
+            {createStep === 3 && createMode === "advanced" && (
               <div className="space-y-4 py-4">
                 <div>
                   <Label className="text-base font-medium">마일스톤 설계</Label>
@@ -622,23 +830,40 @@ export default function WorkbenchPage() {
             )}
           </ScrollArea>
 
-          <DialogFooter className="border-t pt-4 shrink-0">
-            {createStep > 1 && (
-              <Button variant="outline" onClick={() => setCreateStep(prev => prev - 1)}>
-                이전
-              </Button>
-            )}
-            <div className="flex-1" />
-            {createStep < 3 ? (
-              <Button onClick={() => setCreateStep(prev => prev + 1)} disabled={createStep === 1 && !newWorklist.title?.trim()}>
-                다음
-              </Button>
-            ) : (
-              <Button onClick={handleCreateWorklist} disabled={!newWorklist.title?.trim()}>
-                워크리스트 생성
-              </Button>
-            )}
-          </DialogFooter>
+          {/* Dialog Footer - Only show for step 1+ */}
+          {createStep >= 1 && (
+            <DialogFooter className="border-t pt-4 shrink-0">
+              {createStep > 1 && (
+                <Button variant="outline" onClick={() => setCreateStep(prev => prev - 1)}>
+                  이전
+                </Button>
+              )}
+              <div className="flex-1" />
+              {/* Simple Mode: 2 steps (1: basic info, 2: ticket link) */}
+              {createMode === "simple" ? (
+                createStep < 2 ? (
+                  <Button onClick={() => setCreateStep(prev => prev + 1)} disabled={!newWorklist.title?.trim()}>
+                    다음
+                  </Button>
+                ) : (
+                  <Button onClick={handleCreateWorklist} disabled={!newWorklist.title?.trim()}>
+                    워크리스트 생성
+                  </Button>
+                )
+              ) : (
+                /* Advanced Mode: 3 steps */
+                createStep < 3 ? (
+                  <Button onClick={() => setCreateStep(prev => prev + 1)} disabled={createStep === 1 && !newWorklist.title?.trim()}>
+                    다음
+                  </Button>
+                ) : (
+                  <Button onClick={handleCreateWorklist} disabled={!newWorklist.title?.trim()}>
+                    워크리스트 생성
+                  </Button>
+                )
+              )}
+            </DialogFooter>
+          )}
         </DialogContent>
       </Dialog>
     </AppShell>

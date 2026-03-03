@@ -1,9 +1,60 @@
 import type { Ticket, WorkPackage, WorkPackageLog, WorkPackageAttachment, TicketMessage } from "./types"
+import type { WorkItem } from "./workbench-data"
 import { getMockTickets } from "./mock-data"
+import { INITIAL_WORK_ITEMS } from "./workbench-data"
 
 const STORAGE_KEY = "tickets"
 const STORAGE_VERSION_KEY = "tickets_version"
 const CURRENT_VERSION = "v3-event-redesign"
+
+// Worklist storage
+const WORKLIST_STORAGE_KEY = "worklists"
+const WORKLIST_VERSION_KEY = "worklists_version"
+const WORKLIST_CURRENT_VERSION = "v1-worklist"
+
+export function getWorklists(): WorkItem[] {
+  if (typeof window === "undefined") return INITIAL_WORK_ITEMS
+
+  const storedVersion = localStorage.getItem(WORKLIST_VERSION_KEY)
+  if (storedVersion !== WORKLIST_CURRENT_VERSION) {
+    localStorage.setItem(WORKLIST_STORAGE_KEY, JSON.stringify(INITIAL_WORK_ITEMS))
+    localStorage.setItem(WORKLIST_VERSION_KEY, WORKLIST_CURRENT_VERSION)
+    return INITIAL_WORK_ITEMS
+  }
+
+  const stored = localStorage.getItem(WORKLIST_STORAGE_KEY)
+  if (!stored) {
+    localStorage.setItem(WORKLIST_STORAGE_KEY, JSON.stringify(INITIAL_WORK_ITEMS))
+    return INITIAL_WORK_ITEMS
+  }
+
+  return JSON.parse(stored)
+}
+
+export function saveWorklist(worklist: WorkItem): void {
+  const worklists = getWorklists()
+  worklists.unshift(worklist)
+  localStorage.setItem(WORKLIST_STORAGE_KEY, JSON.stringify(worklists))
+}
+
+export function updateWorklist(worklistId: string, updates: Partial<WorkItem>): void {
+  const worklists = getWorklists()
+  const index = worklists.findIndex((w) => w.id === worklistId)
+  if (index !== -1) {
+    worklists[index] = { ...worklists[index], ...updates }
+    localStorage.setItem(WORKLIST_STORAGE_KEY, JSON.stringify(worklists))
+  }
+}
+
+export function getWorklistById(id: string): WorkItem | undefined {
+  return getWorklists().find((w) => w.id === id)
+}
+
+export function deleteWorklist(worklistId: string): void {
+  const worklists = getWorklists()
+  const filtered = worklists.filter((w) => w.id !== worklistId)
+  localStorage.setItem(WORKLIST_STORAGE_KEY, JSON.stringify(filtered))
+}
 
 export function getTickets(): Ticket[] {
   if (typeof window === "undefined") return getMockTickets()

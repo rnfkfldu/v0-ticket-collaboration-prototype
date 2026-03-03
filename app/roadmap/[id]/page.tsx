@@ -20,8 +20,7 @@ import {
   DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger
 } from "@/components/ui/dropdown-menu"
 import { cn } from "@/lib/utils"
-import { getTickets } from "@/lib/storage"
-import { INITIAL_WORK_ITEMS } from "@/lib/workbench-data"
+import { getTickets, getWorklistById, updateWorklist } from "@/lib/storage"
 import type { WorkItem, LinkedTicket, WorkNote, Milestone, WorklistUseCase } from "@/lib/workbench-data"
 import { ClosureReportDialog, requiresClosureReport } from "@/components/closure-report-dialog"
 import type { ClosureReport } from "@/components/closure-report-dialog"
@@ -30,9 +29,9 @@ import { useRouter, useParams } from "next/navigation"
 export default function WorkItemDetailPage() {
   const { id } = useParams<{ id: string }>()
   const router = useRouter()
-  const initialItem = INITIAL_WORK_ITEMS.find(i => i.id === id)
-
-  const [item, setItem] = useState<WorkItem | null>(initialItem || null)
+  
+  // Get worklist from storage
+  const [item, setItem] = useState<WorkItem | null>(() => getWorklistById(id) || null)
   const [showTicketSearch, setShowTicketSearch] = useState(false)
   const [ticketSearchQuery, setTicketSearchQuery] = useState("")
   const [newNote, setNewNote] = useState("")
@@ -56,33 +55,43 @@ export default function WorkItemDetailPage() {
     )
   }
 
+  // Helper to update both local state and storage
+  const updateItemAndStorage = (updates: Partial<WorkItem>) => {
+    setItem(prev => {
+      if (!prev) return null
+      const updated = { ...prev, ...updates }
+      updateWorklist(prev.id, updates)
+      return updated
+    })
+  }
+
   const handleLinkTicket = (ticketId: string) => {
     const ticket = allTickets.find(t => t.id === ticketId)
     if (!ticket || item.linkedTickets.some(lt => lt.id === ticketId)) return
     const newLinked: LinkedTicket = { id: ticket.id, title: ticket.title, status: ticket.status, ticketType: ticket.ticketType }
-    setItem(prev => prev ? {
-      ...prev,
-      linkedTickets: [...prev.linkedTickets, newLinked],
-      notes: [{ id: `n-${Date.now()}`, date: new Date().toISOString().split("T")[0], author: "시스템", content: `이벤트 #${ticket.id} "${ticket.title}" 연결됨`, type: "ticket-update" as const }, ...prev.notes]
-    } : null)
+    const newNote: WorkNote = { id: `n-${Date.now()}`, date: new Date().toISOString().split("T")[0], author: "시스템", content: `이벤트 #${ticket.id} "${ticket.title}" 연결됨`, type: "ticket-update" as const }
+    updateItemAndStorage({
+      linkedTickets: [...item.linkedTickets, newLinked],
+      notes: [newNote, ...item.notes]
+    })
     setShowTicketSearch(false)
     setTicketSearchQuery("")
   }
 
   const handleUnlinkTicket = (ticketId: string) => {
-    setItem(prev => prev ? {
-      ...prev,
-      linkedTickets: prev.linkedTickets.filter(t => t.id !== ticketId),
-      notes: [{ id: `n-${Date.now()}`, date: new Date().toISOString().split("T")[0], author: "시스템", content: `이벤트 #${ticketId} 연결 해제됨`, type: "ticket-update" as const }, ...prev.notes]
-    } : null)
+    const newNote: WorkNote = { id: `n-${Date.now()}`, date: new Date().toISOString().split("T")[0], author: "시스템", content: `이벤트 #${ticketId} 연결 해제됨`, type: "ticket-update" as const }
+    updateItemAndStorage({
+      linkedTickets: item.linkedTickets.filter(t => t.id !== ticketId),
+      notes: [newNote, ...item.notes]
+    })
   }
 
   const handleAddNote = () => {
     if (!newNote.trim()) return
-    setItem(prev => prev ? {
-      ...prev,
-      notes: [{ id: `n-${Date.now()}`, date: new Date().toISOString().split("T")[0], author: "김지수", content: newNote, type: "manual" as const }, ...prev.notes]
-    } : null)
+    const newNoteItem: WorkNote = { id: `n-${Date.now()}`, date: new Date().toISOString().split("T")[0], author: "김지수", content: newNote, type: "manual" as const }
+    updateItemAndStorage({
+      notes: [newNoteItem, ...item.notes]
+    })
     setNewNote("")
   }
 
@@ -96,16 +105,17 @@ export default function WorkItemDetailPage() {
     if (check.required) {
       setShowClosureReport(true)
     } else {
-      setItem(prev => prev ? { ...prev, status: "closed" } : null)
+      updateItemAndStorage({ status: "closed" })
       alert("워크리스트가 종결 처리되었습니다.")
     }
   }
 
   const handleClosureReportSubmit = (report: ClosureReport) => {
-    setItem(prev => prev ? {
-      ...prev, status: "closed",
-      notes: [{ id: `n-${Date.now()}`, date: new Date().toISOString().split("T")[0], author: "시스템", content: `종료 Report "${report.title}" 결재 제출됨 (승인 대기)`, type: "status-change" as const }, ...prev.notes]
-    } : null)
+    const newNote: WorkNote = { id: `n-${Date.now()}`, date: new Date().toISOString().split("T")[0], author: "시스템", content: `종료 Report "${report.title}" 결재 제출됨 (승인 대기)`, type: "status-change" as const }
+    updateItemAndStorage({
+      status: "closed",
+      notes: [newNote, ...item.notes]
+    })
     setShowClosureReport(false)
     alert("종료 Report가 조직장에게 결재 요청되었습니다.")
   }
@@ -139,33 +149,30 @@ export default function WorkItemDetailPage() {
   
   // Handle milestone status change
   const handleMilestoneStatusChange = (milestoneId: string, newStatus: Milestone["status"]) => {
-    setItem(prev => {
-      if (!prev || !prev.milestones) return prev
-      const updatedMilestones = prev.milestones.map(ms => {
-        if (ms.id === milestoneId) {
-          return {
-            ...ms,
-            status: newStatus,
-            completedDate: newStatus === "completed" ? new Date().toISOString().split("T")[0] : undefined
-          }
+    if (!item.milestones) return
+    const updatedMilestones = item.milestones.map(ms => {
+      if (ms.id === milestoneId) {
+        return {
+          ...ms,
+          status: newStatus,
+          completedDate: newStatus === "completed" ? new Date().toISOString().split("T")[0] : undefined
         }
-        return ms
-      })
-      // Add note for status change
-      const milestone = prev.milestones.find(ms => ms.id === milestoneId)
-      const statusLabel = newStatus === "completed" ? "완료" : newStatus === "in-progress" ? "진행 중" : newStatus === "blocked" ? "차단됨" : "대기"
-      const newNote: WorkNote = {
-        id: `n-${Date.now()}`,
-        date: new Date().toISOString().split("T")[0],
-        author: "김지수",
-        content: `마일스톤 "${milestone?.name}" 상태 변경: ${statusLabel}`,
-        type: "milestone-update"
       }
-      return {
-        ...prev,
-        milestones: updatedMilestones,
-        notes: [newNote, ...prev.notes]
-      }
+      return ms
+    })
+    // Add note for status change
+    const milestone = item.milestones.find(ms => ms.id === milestoneId)
+    const statusLabel = newStatus === "completed" ? "완료" : newStatus === "in-progress" ? "진행 중" : newStatus === "blocked" ? "차단됨" : "대기"
+    const newNote: WorkNote = {
+      id: `n-${Date.now()}`,
+      date: new Date().toISOString().split("T")[0],
+      author: "김지수",
+      content: `마일스톤 "${milestone?.name}" 상태 변경: ${statusLabel}`,
+      type: "milestone-update"
+    }
+    updateItemAndStorage({
+      milestones: updatedMilestones,
+      notes: [newNote, ...item.notes]
     })
   }
   
