@@ -1581,7 +1581,7 @@ const handleSelectAlert = (alert: AlertItem) => {
           <div className="p-4 border-b border-border">
             <div className="flex items-center gap-2">
               <Bell className="h-5 w-5 text-primary" />
-              <h1 className="text-lg font-semibold">My Alert</h1>
+              <h1 className="text-lg font-semibold">전체 알람</h1>
               <Badge variant="destructive" className="ml-auto">
                 {unreadCounts.alert + unreadCounts.notice + unreadCounts.event}
               </Badge>
@@ -2683,7 +2683,7 @@ const handleSelectAlert = (alert: AlertItem) => {
                           <Clock className="h-4 w-4" />
                           과거 알람 발생 이력 ({selectedAlert.data?.tagId})
                         </CardTitle>
-                        <p className="text-xs text-muted-foreground mt-1">이 태��에서 발생했던 과거 알람과 해결 방법</p>
+                        <p className="text-xs text-muted-foreground mt-1">이 태���에서 발생했던 과거 알람과 해결 방법</p>
                       </CardHeader>
                       <CardContent>
                         <div className="space-y-4">

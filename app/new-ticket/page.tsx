@@ -35,7 +35,7 @@ export default function NewTicketPage() {
                 </Button>
               </Link>
               <div>
-                <h1 className="text-lg font-semibold text-foreground">Event Request</h1>
+                <h1 className="text-lg font-semibold text-foreground">이벤트 생성</h1>
                 <p className="text-xs text-muted-foreground">목적에 맞는 요청 유형을 선택해주세요</p>
               </div>
             </div>

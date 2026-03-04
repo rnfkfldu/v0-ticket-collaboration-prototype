@@ -36,7 +36,7 @@ export default function AdminPage() {
         <header className="border-b bg-background/95 backdrop-blur px-6 py-4">
           <div className="flex items-center justify-between">
             <div>
-              <h1 className="text-2xl font-bold">Data Quality Monitoring</h1>
+              <h1 className="text-2xl font-bold">데이터 품질 현황</h1>
               <p className="text-sm text-muted-foreground">데이터 품질 모니터링 및 관리</p>
             </div>
             <Button variant="outline">

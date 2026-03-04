@@ -476,13 +476,13 @@ export function Sidebar({ unreadAlerts = 3 }: SidebarProps) {
   }
 
   const menuTitles: Record<string, string> = {
-    operations: "Operations",
-    actions: "Actions",
-    review: "Review",
-    optimization: "Optimization",
-    roadmap: "Workbench",
-    knowledge: "Knowledge",
-    "data-admin": "Data & Admin",
+    operations: "운전 현황",
+    actions: "운전 조치",
+    review: "리뷰/KPI",
+    optimization: "공정 최적화",
+    roadmap: "전략 과제",
+    knowledge: "지식/문서",
+    "data-admin": "데이터/설정",
     "oop-outside": "OOP Outside",
     "help": "게시판"
   }

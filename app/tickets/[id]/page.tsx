@@ -37,10 +37,10 @@ export default function TicketDetailPage() {
             <Link href="/actions/tickets">
               <Button variant="ghost" size="sm" className="gap-2">
                 <ChevronLeft className="h-4 w-4" />
-                Back to Tickets
+                이벤트 목록
               </Button>
             </Link>
-            <h1 className="text-lg font-semibold text-foreground">Ticket Not Found</h1>
+            <h1 className="text-lg font-semibold text-foreground">이벤트를 찾을 수 없음</h1>
           </div>
         </header>
         <main className="container mx-auto px-4 py-12 text-center">
@@ -62,10 +62,10 @@ export default function TicketDetailPage() {
           <Link href="/actions/tickets">
             <Button variant="ghost" size="sm" className="gap-2">
               <ChevronLeft className="h-4 w-4" />
-              Back to Tickets
+              이벤트 목록
             </Button>
           </Link>
-          <h1 className="text-lg font-semibold text-foreground">Ticket Details</h1>
+          <h1 className="text-lg font-semibold text-foreground">이벤트 상세</h1>
         </div>
       </header>
       <main className="container mx-auto px-4 py-6">

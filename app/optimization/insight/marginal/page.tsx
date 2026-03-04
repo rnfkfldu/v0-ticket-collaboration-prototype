@@ -36,7 +36,7 @@ export default function MarginalValuePage() {
     <AppShell>
       <div className="min-h-screen bg-background">
         <header className="border-b border-border bg-card px-6 py-4">
-          <h1 className="text-lg font-semibold">Marginal Value Analysis</h1>
+          <h1 className="text-lg font-semibold">한계가치 분석</h1>
           <p className="text-sm text-muted-foreground mt-1">Operation Guide 제약 조건을 단위만큼 Waive 시 예상 Margin - Optimization 우선순위 파악</p>
         </header>
 

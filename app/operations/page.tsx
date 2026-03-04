@@ -126,7 +126,7 @@ export default function OperationsPage() {
         <header className="border-b bg-card px-6 py-4">
           <div className="flex items-center justify-between mb-4">
             <div>
-              <h1 className="text-xl font-bold text-foreground">Daily Monitoring</h1>
+              <h1 className="text-xl font-bold text-foreground">일일 운전 현황</h1>
             </div>
             {/* Scope Toggle - 담당공정/전체공정 */}
             <div className="flex items-center gap-3 bg-muted/50 rounded-lg px-3 py-1.5">
@@ -321,7 +321,7 @@ export default function OperationsPage() {
                               <th className="text-left px-4 py-2 text-xs font-medium text-muted-foreground w-20">상태</th>
                               <th className="text-left px-4 py-2 text-xs font-medium text-muted-foreground w-24">공정 No.</th>
                               <th className="text-left px-4 py-2 text-xs font-medium text-muted-foreground">공정 Description</th>
-                              <th className="text-center px-4 py-2 text-xs font-medium text-muted-foreground w-28">처리�� Guide</th>
+                              <th className="text-center px-4 py-2 text-xs font-medium text-muted-foreground w-28">처리��� Guide</th>
                               <th className="text-center px-4 py-2 text-xs font-medium text-muted-foreground w-32">Product Spec Guide</th>
                               <th className="text-center px-4 py-2 text-xs font-medium text-muted-foreground w-28">Operation Guide</th>
                               <th className="text-center px-4 py-2 text-xs font-medium text-muted-foreground w-24">이상징후</th>

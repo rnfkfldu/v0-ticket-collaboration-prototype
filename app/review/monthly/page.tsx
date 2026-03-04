@@ -165,8 +165,8 @@ export default function MonthlyReviewPage() {
         <header className="border-b bg-background/95 backdrop-blur px-6 py-4">
           <div className="flex items-center justify-between">
             <div>
-              <h1 className="text-2xl font-bold text-foreground text-balance">Monthly Operation Review</h1>
-  <p className="text-sm text-muted-foreground">월간 운전 실적 리뷰</p>
+              <h1 className="text-2xl font-bold text-foreground text-balance">월간 운전 리뷰</h1>
+  <p className="text-sm text-muted-foreground">월간 운전 실적 및 KPI 리뷰</p>
   </div>
             <div className="flex items-center gap-3">
               <Select value={selectedDivision} onValueChange={(v) => setSelectedDivision(v as "all" | Division)}>

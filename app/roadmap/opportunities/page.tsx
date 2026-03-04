@@ -53,7 +53,7 @@ export default function OptimizationPage() {
         <header className="border-b bg-background/95 backdrop-blur px-6 py-4">
           <div className="flex items-center justify-between">
             <div>
-              <h1 className="text-2xl font-bold">Optimization Opportunities</h1>
+              <h1 className="text-2xl font-bold">최적화 기회 발굴</h1>
               <p className="text-sm text-muted-foreground">AI 기반 공정 최적화 기회 식별</p>
             </div>
             <Button>

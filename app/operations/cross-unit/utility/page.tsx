@@ -20,7 +20,7 @@ export default function UtilityInterconnectionPage() {
     <AppShell>
       <div className="p-6 space-y-6">
         <div>
-          <h1 className="text-2xl font-bold">Utility Interconnection</h1>
+          <h1 className="text-2xl font-bold">유틸리티 연계</h1>
           <p className="text-muted-foreground">유틸리티 공급 현황 및 공정 간 연계</p>
         </div>
 

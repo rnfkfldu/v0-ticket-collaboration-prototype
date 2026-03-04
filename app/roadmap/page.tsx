@@ -196,7 +196,7 @@ export default function WorkbenchPage() {
             <div>
               <div className="flex items-center gap-2">
                 <Layers className="h-5 w-5 text-primary" />
-                <h1 className="text-lg font-semibold">Worklist</h1>
+                <h1 className="text-lg font-semibold">과제 목록</h1>
               </div>
               <p className="text-sm text-muted-foreground mt-1">다양한 팀 / 공정 / 태스크가 공존하는 중장기 업무 관리 공간. 복수 이벤트 그룹핑을 통해 워크리스트를 종합 관리합니다.</p>
             </div>

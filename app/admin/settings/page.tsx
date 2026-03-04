@@ -23,7 +23,7 @@ export default function SystemSettingsPage() {
     <AppShell>
       <div className="p-6 space-y-6">
         <div>
-          <h1 className="text-2xl font-bold">System Settings</h1>
+          <h1 className="text-2xl font-bold">시스템 설정</h1>
           <p className="text-muted-foreground">시스템 설정 및 환경 구성</p>
         </div>
 

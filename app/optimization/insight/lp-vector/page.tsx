@@ -35,7 +35,7 @@ export default function LPVectorPage() {
     <AppShell>
       <div className="min-h-screen bg-background">
         <header className="border-b border-border bg-card px-6 py-4">
-          <h1 className="text-lg font-semibold">LP Vector Analysis</h1>
+          <h1 className="text-lg font-semibold">LP 벡터 분석</h1>
           <p className="text-sm text-muted-foreground mt-1">LP Model Vector vs 실제 공정 Correlation 괴리 분석 - LP Vector Update 우선순위 판단</p>
         </header>
 

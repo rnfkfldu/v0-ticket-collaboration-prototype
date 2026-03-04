@@ -48,7 +48,7 @@ export default function BindingConstraintPage() {
     <AppShell>
       <div className="min-h-screen bg-background">
         <header className="border-b border-border bg-card px-6 py-4">
-          <h1 className="text-lg font-semibold">Binding Constraint Analysis</h1>
+          <h1 className="text-lg font-semibold">제약조건 분석</h1>
           <p className="text-sm text-muted-foreground mt-1">Operation Guide Min/Max 근처에서 운전 중인 항목 분석 - Binding 지속 시간 기반 우선순위</p>
         </header>
 
