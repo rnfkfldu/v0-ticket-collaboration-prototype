@@ -1092,15 +1092,27 @@ function AdditionalReviewerSection({ ticket, onAssign }: { ticket: Ticket; onAss
       }
     }
     
-    // 상태 업데이트
-    updatedFlow = updatedFlow.map(s =>
-      s.step === "review" ? { ...s, status: "completed" as const, timestamp: new Date().toLocaleString("ko-KR") } :
-      s.step === "additional-review" ? { ...s, status: "current" as const, assignee: selectedPerson, team: selectedTeam } : s
-    )
+    // 의견 제출 여부 확인 - 의견이 없으면 기술검토도 current 유지
+    const hasSubmittedOpinion = (ticket.opinions || []).some(op => op.status === "submitted")
+    
+    // 상태 업데이트: 의견 미제출 시 기술검토는 current 유지, 추가검토는 upcoming
+    updatedFlow = updatedFlow.map(s => {
+      if (s.step === "review") {
+        return hasSubmittedOpinion 
+          ? { ...s, status: "completed" as const, timestamp: new Date().toLocaleString("ko-KR") }
+          : { ...s, status: "current" as const } // 의견 미제출 시 current 유지
+      }
+      if (s.step === "additional-review") {
+        return hasSubmittedOpinion
+          ? { ...s, status: "current" as const, assignee: selectedPerson, team: selectedTeam }
+          : { ...s, status: "upcoming" as const, assignee: selectedPerson, team: selectedTeam } // 의견 미제출 시 upcoming
+      }
+      return s
+    })
     
     updateTicket(ticket.id, {
       additionalReviewers: [...currentReviewers, newReviewer],
-      processStatus: "additional-review",
+      processStatus: hasSubmittedOpinion ? "additional-review" : "review", // 의견 미제출 시 review 유지
       processFlow: updatedFlow,
       messages: [...(ticket.messages || []), {
         id: `msg-${Date.now()}`, ticketId: ticket.id, author: "System", role: "system" as const,
@@ -1588,7 +1600,7 @@ function ThreadHistory({ ticket }: { ticket: Ticket }) {
                                 )}
                                 <div className="h-24 bg-gradient-to-r from-blue-50 to-cyan-50 rounded flex items-center justify-center text-xs text-muted-foreground border border-dashed border-blue-200">
                                   <Activity className="h-4 w-4 text-blue-400 mr-1.5" />
-                                  트렌드 그래프 영역
+                                  ���렌드 그래프 영역
                                 </div>
                               </div>
                             )}
@@ -1752,7 +1764,7 @@ function TeamOpinionsSummary({ ticket }: { ticket: Ticket }) {
                 </Badge>
               </div>
               <p className="text-xs text-muted-foreground mt-2">
-                배정일: {new Date(reviewer.assignedAt).toLocaleDateString("ko-KR")}
+                배정���: {new Date(reviewer.assignedAt).toLocaleDateString("ko-KR")}
               </p>
             </Card>
           ))}
