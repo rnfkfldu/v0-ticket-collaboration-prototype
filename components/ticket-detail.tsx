@@ -24,7 +24,7 @@ import {
   Activity, Gauge, Info, Wrench, FileBarChart, Link2, MessageSquare, ChevronRight,
   Search, Users, UserPlus, ExternalLink, Boxes, ChevronDown, ArrowUpCircle, Shield,
   Globe, Lock, Eye, Settings, RefreshCcw, Paperclip, TrendingUp, Monitor, BarChart3,
-  Table as TableIcon
+  Table as TableIcon, Sparkles
 } from "lucide-react"
 import { useState, useEffect } from "react"
 import { useRouter } from "next/navigation"
@@ -2048,9 +2048,19 @@ export function TicketDetail({ ticket: initialTicket }: TicketDetailProps) {
 
   const handleClosureReportSubmit = (report: ClosureReport) => {
     closeTicket(ticket.id)
+    
+    // 프로세스 플로우 업데이트: review-complete와 closed 모두 완료 처리
+    const updatedFlow = (ticket.processFlow || []).map(s =>
+      s.step === "review-complete" ? { ...s, status: "completed" as const, timestamp: new Date().toLocaleString("ko-KR") } :
+      s.step === "closed" ? { ...s, status: "completed" as const, timestamp: new Date().toLocaleString("ko-KR") } :
+      { ...s, status: "completed" as const }
+    )
+    
     updateTicket(ticket.id, { 
-      processStatus: "closed", 
-      processFlow: ticket.processFlow?.map(s => ({ ...s, status: "completed" as const })),
+      processStatus: "closed",
+      status: "Closed",
+      closedDate: new Date().toISOString().split("T")[0],
+      processFlow: updatedFlow,
       closureReport: {
         id: report.id,
         title: report.title,
@@ -2065,6 +2075,11 @@ export function TicketDetail({ ticket: initialTicket }: TicketDetailProps) {
         author: report.author,
       },
       executiveSummary: report.summary, // 이전 호환성을 위해 유지
+      messages: [...(ticket.messages || []), {
+        id: `msg-${Date.now()}`, ticketId: ticket.id, author: "System", role: "system" as const,
+        messageType: "status_change" as const, content: `${ticket.owner}님이 AI 기반 종료 레포트를 작성하고 이벤트를 최종 종결했습니다.`,
+        timestamp: new Date().toISOString(),
+      }],
     })
     refreshTicket()
     setShowClosureReport(false)
@@ -2132,6 +2147,9 @@ export function TicketDetail({ ticket: initialTicket }: TicketDetailProps) {
   const allAdditionalReviewsCompleted = additionalReviewers.every(r => r.status === "completed")
   const isPublisherConfirm = ticket.processStatus === "publisher-confirm" && (!hasAdditionalReview || allAdditionalReviewsCompleted)
   
+  // 검토완료 단계: 담당자가 AI 레포트 작성 후 최종 종결
+  const isReviewComplete = ticket.processStatus === "review-complete"
+  
   const isClosed = ticket.processStatus === "closed" || ticket.processStatus === "rejected"
   
   // 재문의 상태
@@ -2164,21 +2182,19 @@ export function TicketDetail({ ticket: initialTicket }: TicketDetailProps) {
     refreshTicket()
   }
   
-  // 발행자 최종 확인 완료
+  // 발행자 최종 확인 완료 -> 검토완료 단계로 이동 (담당자가 AI 레포트 작성 후 종결)
   const handlePublisherConfirmComplete = () => {
     const updatedFlow = (ticket.processFlow || []).map(s =>
       s.step === "publisher-confirm" ? { ...s, status: "completed" as const, timestamp: new Date().toLocaleString("ko-KR") } :
-      s.step === "closed" ? { ...s, status: "current" as const } : s
+      s.step === "review-complete" ? { ...s, status: "current" as const, assignee: ticket.owner, team: "공정기술팀" } : s
     )
     
     updateTicket(ticket.id, {
-      processStatus: "closed",
-      status: "Closed",
-      closedDate: new Date().toISOString().split("T")[0],
+      processStatus: "review-complete",
       processFlow: updatedFlow,
       messages: [...(ticket.messages || []), {
         id: `msg-${Date.now()}`, ticketId: ticket.id, author: "System", role: "system" as const,
-        messageType: "status_change" as const, content: `${ticket.requester}님이 검토 결과를 최종 확인하고 이벤트를 종결했습니다.`,
+        messageType: "status_change" as const, content: `${ticket.requester}님이 검토 결과를 확인했습니다. 담당자의 최종 종결 처리가 필요합니다.`,
         timestamp: new Date().toISOString(),
       }],
     })
@@ -2231,6 +2247,27 @@ export function TicketDetail({ ticket: initialTicket }: TicketDetailProps) {
               <Button size="sm" className="gap-1.5 bg-emerald-600 hover:bg-emerald-700" onClick={handlePublisherConfirmComplete}>
                 <CheckCircle className="h-3.5 w-3.5" />
                 검토 완료
+              </Button>
+            </div>
+          </div>
+        </Card>
+      )}
+      
+      {/* Review Complete banner - 검토완료 단계 (담당자 최종 종결 처리) */}
+      {isReviewComplete && (
+        <Card className="p-4 bg-purple-50 border-purple-200">
+          <div className="flex items-center justify-between">
+            <div className="flex items-center gap-2">
+              <FileText className="h-4 w-4 text-purple-600" />
+              <div>
+                <p className="text-sm font-medium text-purple-800">발행자가 검토 결과를 확인했습니다. AI 기반 종료 레포트를 작성하고 최종 종결 처리해주세요.</p>
+                <p className="text-xs text-purple-600 mt-0.5">담당자: {ticket.owner}</p>
+              </div>
+            </div>
+            <div className="flex gap-2">
+              <Button size="sm" className="gap-1.5 bg-purple-600 hover:bg-purple-700" onClick={() => setShowClosureReport(true)}>
+                <Sparkles className="h-3.5 w-3.5" />
+                AI 레포트 작성 및 종결
               </Button>
             </div>
           </div>
@@ -2760,7 +2797,7 @@ export function TicketDetail({ ticket: initialTicket }: TicketDetailProps) {
         onSubmit={handleClosureReportSubmit}
       />
 
-      {/* Reinquiry Dialog - 재문의 */}
+      {/* Reinquiry Dialog - 재��의 */}
       <Dialog open={showReinquiryDialog} onOpenChange={setShowReinquiryDialog}>
         <DialogContent className="max-w-md">
           <DialogHeader>
@@ -2855,7 +2892,7 @@ export function TicketDetail({ ticket: initialTicket }: TicketDetailProps) {
                   <ul className="list-disc list-inside space-y-0.5 text-amber-700">
                     <li>대상자에게 즉시 알림 발송</li>
                     <li>대상자가 이벤트에 접근 가능하도록 권한 부여</li>
-                    <li>이벤트 타임라인에 에스컬레이션 이력 기록</li>
+                    <li>이��트 타임라인에 에스컬레이션 이력 기록</li>
                   </ul>
                 </div>
               </div>
