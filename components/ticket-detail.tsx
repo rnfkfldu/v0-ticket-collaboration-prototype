@@ -340,7 +340,6 @@ function generateKeyVariablesData(unit: string) {
 // --- Context Data Panel ---
 function ContextDataPanel({ ticket }: { ticket: Ticket }) {
   const [showKeyVariables, setShowKeyVariables] = useState(false)
-  const [showAdditionalData, setShowAdditionalData] = useState(false)
   const [variablesFromDate, setVariablesFromDate] = useState(ticket.fromTime || new Date(Date.now() - 7 * 24 * 60 * 60 * 1000).toISOString().split("T")[0])
   const [variablesToDate, setVariablesToDate] = useState(ticket.toTime || new Date().toISOString().split("T")[0])
   const [keyVariablesData, setKeyVariablesData] = useState(() => generateKeyVariablesData(ticket.unit || "HCR"))
@@ -356,8 +355,7 @@ function ContextDataPanel({ ticket }: { ticket: Ticket }) {
     setKeyVariablesData(generateKeyVariablesData(ticket.unit || "HCR"))
   }
   
-  const hasAdditionalData = ticket.additionalDetails && 
-    (ticket.additionalDetails.text || (ticket.additionalDetails.dataBoxes && ticket.additionalDetails.dataBoxes.length > 0))
+  // hasAdditionalData moved to left panel
 
   return (
     <Card className="p-6">
@@ -399,7 +397,7 @@ function ContextDataPanel({ ticket }: { ticket: Ticket }) {
               주요 운전변수 확인 ({keyVariablesData.length}개 항목)
             </Button>
           </DialogTrigger>
-          <DialogContent className="max-w-5xl w-[90vw] max-h-[90vh] overflow-hidden flex flex-col">
+          <DialogContent className="max-w-7xl w-[95vw] max-h-[90vh] overflow-hidden flex flex-col">
             <DialogHeader className="shrink-0">
               <DialogTitle className="flex items-center gap-2">
                 <Activity className="h-5 w-5 text-primary" />
@@ -494,120 +492,7 @@ function ContextDataPanel({ ticket }: { ticket: Ticket }) {
         </Dialog>
       </div>
       
-      {/* 추가 데이터 확인 버튼 */}
-      {hasAdditionalData && (
-        <div className="mb-4">
-          <Dialog open={showAdditionalData} onOpenChange={setShowAdditionalData}>
-            <DialogTrigger asChild>
-              <Button variant="outline" size="sm" className="w-full text-xs gap-2 h-9 justify-center bg-blue-50 border-blue-200 hover:bg-blue-100 text-blue-700">
-                <Paperclip className="h-3.5 w-3.5" />
-                추가 데이터 확인 ({ticket.additionalDetails?.dataBoxes?.length || 0}개 항목)
-              </Button>
-            </DialogTrigger>
-            <DialogContent className="max-w-3xl max-h-[80vh] overflow-y-auto">
-              <DialogHeader>
-                <DialogTitle className="flex items-center gap-2">
-                  <Paperclip className="h-5 w-5 text-blue-600" />
-                  추가 데이터
-                </DialogTitle>
-                <DialogDescription>
-                  이벤트 생성 시 첨부한 트렌드, DCS 화면, 표 등의 추가 데이터입니다.
-                </DialogDescription>
-              </DialogHeader>
-              
-              <div className="space-y-4 mt-2">
-                {/* 텍스트 설명 */}
-                {ticket.additionalDetails?.text && (
-                  <div className="p-4 bg-muted/30 rounded-lg">
-                    <p className="text-xs font-medium text-muted-foreground mb-2">추가 설명</p>
-                    <p className="text-sm whitespace-pre-wrap">{ticket.additionalDetails.text}</p>
-                  </div>
-                )}
-                
-                {/* 데이터 박스들 */}
-                {ticket.additionalDetails?.dataBoxes?.map((box, idx) => (
-                  <Card key={box.id || idx} className="p-4">
-                    <div className="flex items-center gap-2 mb-3">
-                      {box.type === "trend" && <TrendingUp className="h-4 w-4 text-blue-600" />}
-                      {box.type === "dcs" && <Monitor className="h-4 w-4 text-emerald-600" />}
-                      {box.type === "table" && <TableIcon className="h-4 w-4 text-purple-600" />}
-                      {box.type === "chart" && <BarChart3 className="h-4 w-4 text-orange-600" />}
-                      <span className="text-sm font-medium">
-                        {box.type === "trend" ? "트렌드 그래프" :
-                         box.type === "dcs" ? "DCS 화면" :
-                         box.type === "table" ? "데이터 표" :
-                         "차트"}
-                      </span>
-                      {box.config.title && (
-                        <span className="text-xs text-muted-foreground">- {box.config.title}</span>
-                      )}
-                    </div>
-                    
-                    {/* Trend */}
-                    {box.type === "trend" && (
-                      <div className="space-y-2">
-                        {box.config.tags && box.config.tags.length > 0 && (
-                          <div className="flex flex-wrap gap-1.5">
-                            {box.config.tags.map(tag => (
-                              <Badge key={tag} variant="outline" className="text-xs font-mono">{tag}</Badge>
-                            ))}
-                          </div>
-                        )}
-                        {box.config.fromDate && box.config.toDate && (
-                          <p className="text-xs text-muted-foreground">
-                            기간: {new Date(box.config.fromDate).toLocaleDateString("ko-KR")} ~ {new Date(box.config.toDate).toLocaleDateString("ko-KR")}
-                          </p>
-                        )}
-                        <div className="h-32 bg-muted/20 rounded flex items-center justify-center text-xs text-muted-foreground">
-                          [트렌드 그래프 영역]
-                        </div>
-                      </div>
-                    )}
-                    
-                    {/* DCS */}
-                    {box.type === "dcs" && (
-                      <div className="space-y-2">
-                        {box.config.graphicNumber && (
-                          <p className="text-xs"><span className="text-muted-foreground">Graphic #:</span> {box.config.graphicNumber}</p>
-                        )}
-                        {box.config.graphicType && (
-                          <p className="text-xs"><span className="text-muted-foreground">유형:</span> {box.config.graphicType}</p>
-                        )}
-                        <div className="h-40 bg-slate-100 rounded flex items-center justify-center text-xs text-muted-foreground border border-dashed">
-                          [DCS 화면 캡처 영역]
-                        </div>
-                      </div>
-                    )}
-                    
-                    {/* Table */}
-                    {box.type === "table" && box.config.tableData && (
-                      <div className="overflow-x-auto">
-                        <table className="w-full text-xs border-collapse">
-                          <tbody>
-                            {box.config.tableData.map((row, rIdx) => (
-                              <tr key={rIdx} className={rIdx === 0 ? "bg-muted/50 font-medium" : ""}>
-                                {row.map((cell, cIdx) => (
-                                  <td key={cIdx} className="border border-border px-2 py-1.5">{cell}</td>
-                                ))}
-                              </tr>
-                            ))}
-                          </tbody>
-                        </table>
-                      </div>
-                    )}
-                  </Card>
-                ))}
-                
-                {(!ticket.additionalDetails?.text && (!ticket.additionalDetails?.dataBoxes || ticket.additionalDetails.dataBoxes.length === 0)) && (
-                  <div className="text-center py-8 text-sm text-muted-foreground">
-                    추가 데이터가 없습니다.
-                  </div>
-                )}
-              </div>
-            </DialogContent>
-          </Dialog>
-        </div>
-      )}
+      
 
       {ticket.tags && ticket.tags.length > 0 && (() => {
         const tagTrends = ticket.tags.map(tag => ({ tag, ...generateTagTrend(tag) }))
@@ -932,16 +817,35 @@ function OpinionWritingCanvas({
       timestamp: new Date().toISOString(),
     }]
     
-    // 기술검토 완료 시 발행자 확인 단계로 이동
-    const updatedFlow = (ticket.processFlow || []).map(s =>
-      s.step === "review" ? { ...s, status: "completed" as const, timestamp: new Date().toLocaleString("ko-KR") } :
-      s.step === "publisher-confirm" ? { ...s, status: "current" as const, assignee: ticket.requester, team: "요청팀" } : s
-    )
+    // 추가검토가 있고 미완료인 경우 -> 추가검토 단계 유지
+    const additionalReviewers = ticket.additionalReviewers || []
+    const hasIncompleteAdditionalReview = additionalReviewers.some(r => r.status !== "completed")
+    const hasAdditionalReviewStep = ticket.processFlow?.some(s => s.step === "additional-review")
+    
+    let newProcessStatus: typeof ticket.processStatus
+    let updatedFlow = ticket.processFlow || []
+    
+    if (hasIncompleteAdditionalReview && hasAdditionalReviewStep) {
+      // 추가검토가 남아있으면 추가검토 단계로 이동
+      newProcessStatus = "additional-review"
+      updatedFlow = updatedFlow.map(s =>
+        s.step === "review" ? { ...s, status: "completed" as const, timestamp: new Date().toLocaleString("ko-KR") } :
+        s.step === "additional-review" ? { ...s, status: "current" as const } : s
+      )
+    } else {
+      // 추가검토가 없거나 모두 완료되면 발행자 확인으로 이동
+      newProcessStatus = "publisher-confirm"
+      updatedFlow = updatedFlow.map(s =>
+        s.step === "review" ? { ...s, status: "completed" as const, timestamp: new Date().toLocaleString("ko-KR") } :
+        s.step === "additional-review" ? { ...s, status: "completed" as const, timestamp: new Date().toLocaleString("ko-KR") } :
+        s.step === "publisher-confirm" ? { ...s, status: "current" as const, assignee: ticket.requester, team: "요청팀" } : s
+      )
+    }
     
     updateTicket(ticketId, { 
       opinions, 
       messages,
-      processStatus: "publisher-confirm",
+      processStatus: newProcessStatus,
       processFlow: updatedFlow,
     })
     onSuccess()
@@ -1602,7 +1506,7 @@ function ThreadHistory({ ticket }: { ticket: Ticket }) {
 
       {/* Thread Detail Popup */}
       <Dialog open={!!selectedMessage} onOpenChange={(open) => !open && setSelectedMessage(null)}>
-        <DialogContent className="max-w-lg">
+        <DialogContent className="max-w-2xl max-h-[85vh] overflow-y-auto">
           <DialogHeader>
             <DialogTitle className="flex items-center gap-2">
               {selectedMessage && getIcon(selectedMessage.messageType, selectedMessage.role)}
@@ -1652,14 +1556,76 @@ function ThreadHistory({ ticket }: { ticket: Ticket }) {
                   return (
                     <div className="mt-3 pt-3 border-t">
                       <Label className="text-xs text-muted-foreground mb-2 block">첨부 데이터 ({matchingOpinion.dataBoxes.length}개)</Label>
-                      <div className="space-y-2">
+                      <div className="space-y-3">
                         {matchingOpinion.dataBoxes.map((box, i) => (
-                          <div key={i} className="flex items-center gap-2 p-2 bg-muted/20 rounded text-xs">
-                            {box.type === "trend" && <Activity className="h-3.5 w-3.5 text-blue-600" />}
-                            {box.type === "dcs" && <Monitor className="h-3.5 w-3.5 text-emerald-600" />}
-                            {box.type === "table" && <TableIcon className="h-3.5 w-3.5 text-purple-600" />}
-                            <span>{box.config.title || `${box.type} 데이터`}</span>
-                          </div>
+                          <Card key={i} className="p-3">
+                            <div className="flex items-center gap-2 mb-2">
+                              {box.type === "trend" && <Activity className="h-4 w-4 text-blue-600" />}
+                              {box.type === "dcs" && <Monitor className="h-4 w-4 text-emerald-600" />}
+                              {box.type === "table" && <TableIcon className="h-4 w-4 text-purple-600" />}
+                              <span className="text-sm font-medium">
+                                {box.type === "trend" ? "트렌드" : box.type === "dcs" ? "DCS 화면" : "데이터 표"}
+                              </span>
+                              {box.config.title && (
+                                <span className="text-xs text-muted-foreground">- {box.config.title}</span>
+                              )}
+                            </div>
+                            
+                            {/* Trend details */}
+                            {box.type === "trend" && (
+                              <div className="space-y-2">
+                                {box.config.tags && box.config.tags.length > 0 && (
+                                  <div className="flex flex-wrap gap-1">
+                                    {box.config.tags.map(tag => (
+                                      <Badge key={tag} variant="outline" className="text-xs font-mono">{tag}</Badge>
+                                    ))}
+                                  </div>
+                                )}
+                                {box.config.fromDate && box.config.toDate && (
+                                  <p className="text-xs text-muted-foreground">
+                                    기간: {new Date(box.config.fromDate).toLocaleDateString("ko-KR")} ~ {new Date(box.config.toDate).toLocaleDateString("ko-KR")}
+                                  </p>
+                                )}
+                                <div className="h-24 bg-gradient-to-r from-blue-50 to-cyan-50 rounded flex items-center justify-center text-xs text-muted-foreground border border-dashed border-blue-200">
+                                  <Activity className="h-4 w-4 text-blue-400 mr-1.5" />
+                                  트렌드 그래프 영역
+                                </div>
+                              </div>
+                            )}
+                            
+                            {/* DCS details */}
+                            {box.type === "dcs" && (
+                              <div className="space-y-2">
+                                {box.config.graphicNumber && (
+                                  <p className="text-xs"><span className="text-muted-foreground">Graphic #:</span> {box.config.graphicNumber}</p>
+                                )}
+                                {box.config.graphicType && (
+                                  <p className="text-xs"><span className="text-muted-foreground">유형:</span> {box.config.graphicType}</p>
+                                )}
+                                <div className="h-24 bg-gradient-to-r from-slate-50 to-gray-100 rounded flex items-center justify-center text-xs text-muted-foreground border border-dashed border-slate-300">
+                                  <Monitor className="h-4 w-4 text-slate-400 mr-1.5" />
+                                  DCS 화면 캡처 영역
+                                </div>
+                              </div>
+                            )}
+                            
+                            {/* Table details */}
+                            {box.type === "table" && box.config.tableData && (
+                              <div className="overflow-x-auto">
+                                <table className="w-full text-xs border-collapse">
+                                  <tbody>
+                                    {box.config.tableData.map((row, rIdx) => (
+                                      <tr key={rIdx} className={rIdx === 0 ? "bg-muted/50 font-medium" : ""}>
+                                        {row.map((cell, cIdx) => (
+                                          <td key={cIdx} className="border border-border px-2 py-1">{cell}</td>
+                                        ))}
+                                      </tr>
+                                    ))}
+                                  </tbody>
+                                </table>
+                              </div>
+                            )}
+                          </Card>
                         ))}
                       </div>
                     </div>
@@ -1882,7 +1848,7 @@ function EventGroupView({ ticket }: { ticket: Ticket }) {
                         member.status === "in-progress" ? "bg-amber-100 text-amber-700" :
                         "bg-slate-100 text-slate-600"
                       }`}>
-                        {member.status === "completed" ? "완료" :
+                        {member.status === "completed" ? "���료" :
                          member.status === "in-progress" ? "검토 중" : "대기"}
                       </Badge>
                     </div>
@@ -2145,6 +2111,9 @@ export function TicketDetail({ ticket: initialTicket }: TicketDetailProps) {
   const isPending = ticket.processStatus === "issued"
   const isActive = ticket.processStatus === "review" || ticket.processStatus === "additional-review" || ticket.processStatus === "accepted"
   
+  // 추가검토가 진행중인지 확인 (processStatus와 별개로)
+  const hasIncompleteAdditionalReviews = (ticket.additionalReviewers || []).some(r => r.status !== "completed")
+  
   // 발행자 확인 단계: 추가검토가 있는 경우 모두 완료되어야 표시
   const additionalReviewers = ticket.additionalReviewers || []
   const hasAdditionalReview = additionalReviewers.length > 0
@@ -2369,6 +2338,121 @@ export function TicketDetail({ ticket: initialTicket }: TicketDetailProps) {
                 <SimilarReportsContent ticket={ticket} />
               </DialogContent>
             </Dialog>
+            
+            {/* 추가 데이터 확인 버튼 (티켓 생성 시 첨부 데이터) */}
+            {(ticket.additionalDetails?.text || (ticket.additionalDetails?.dataBoxes && ticket.additionalDetails.dataBoxes.length > 0)) && (
+              <Dialog>
+                <DialogTrigger asChild>
+                  <Button variant="outline" size="sm" className="text-xs gap-1.5 h-8 bg-blue-50 border-blue-200 hover:bg-blue-100 text-blue-700">
+                    <Paperclip className="h-3.5 w-3.5" />
+                    추가 데이터 확인 ({ticket.additionalDetails?.dataBoxes?.length || 0}개)
+                  </Button>
+                </DialogTrigger>
+                <DialogContent className="max-w-4xl max-h-[80vh] overflow-y-auto">
+                  <DialogHeader>
+                    <DialogTitle className="flex items-center gap-2">
+                      <Paperclip className="h-5 w-5 text-blue-600" />
+                      추가 데이터
+                    </DialogTitle>
+                    <DialogDescription>
+                      이벤트 생성 시 첨부한 트렌드, DCS 화면, 표 등의 추가 데이터입니다.
+                    </DialogDescription>
+                  </DialogHeader>
+                  
+                  <div className="space-y-4 mt-2">
+                    {/* 텍스트 설명 */}
+                    {ticket.additionalDetails?.text && (
+                      <div className="p-4 bg-muted/30 rounded-lg">
+                        <p className="text-xs font-medium text-muted-foreground mb-2">추가 설명</p>
+                        <p className="text-sm whitespace-pre-wrap">{ticket.additionalDetails.text}</p>
+                      </div>
+                    )}
+                    
+                    {/* 데이터 박스들 */}
+                    {ticket.additionalDetails?.dataBoxes?.map((box, idx) => (
+                      <Card key={box.id || idx} className="p-4">
+                        <div className="flex items-center gap-2 mb-3">
+                          {box.type === "trend" && <TrendingUp className="h-4 w-4 text-blue-600" />}
+                          {box.type === "dcs" && <Monitor className="h-4 w-4 text-emerald-600" />}
+                          {box.type === "table" && <TableIcon className="h-4 w-4 text-purple-600" />}
+                          {box.type === "chart" && <BarChart3 className="h-4 w-4 text-orange-600" />}
+                          <span className="text-sm font-medium">
+                            {box.type === "trend" ? "트렌드 그래프" :
+                             box.type === "dcs" ? "DCS 화면" :
+                             box.type === "table" ? "데이터 표" :
+                             "차트"}
+                          </span>
+                          {box.config.title && (
+                            <span className="text-xs text-muted-foreground">- {box.config.title}</span>
+                          )}
+                        </div>
+                        
+                        {/* Trend */}
+                        {box.type === "trend" && (
+                          <div className="space-y-2">
+                            {box.config.tags && box.config.tags.length > 0 && (
+                              <div className="flex flex-wrap gap-1.5">
+                                {box.config.tags.map(tag => (
+                                  <Badge key={tag} variant="outline" className="text-xs font-mono">{tag}</Badge>
+                                ))}
+                              </div>
+                            )}
+                            {box.config.fromDate && box.config.toDate && (
+                              <p className="text-xs text-muted-foreground">
+                                기간: {new Date(box.config.fromDate).toLocaleDateString("ko-KR")} ~ {new Date(box.config.toDate).toLocaleDateString("ko-KR")}
+                              </p>
+                            )}
+                            <div className="h-32 bg-gradient-to-r from-blue-50 to-cyan-50 rounded flex items-center justify-center text-xs text-muted-foreground border border-dashed border-blue-200">
+                              <Activity className="h-5 w-5 text-blue-400 mr-2" />
+                              트렌드 그래프 영역
+                            </div>
+                          </div>
+                        )}
+                        
+                        {/* DCS */}
+                        {box.type === "dcs" && (
+                          <div className="space-y-2">
+                            {box.config.graphicNumber && (
+                              <p className="text-xs"><span className="text-muted-foreground">Graphic #:</span> {box.config.graphicNumber}</p>
+                            )}
+                            {box.config.graphicType && (
+                              <p className="text-xs"><span className="text-muted-foreground">유형:</span> {box.config.graphicType}</p>
+                            )}
+                            <div className="h-40 bg-gradient-to-r from-slate-50 to-gray-100 rounded flex items-center justify-center text-xs text-muted-foreground border border-dashed border-slate-300">
+                              <Monitor className="h-5 w-5 text-slate-400 mr-2" />
+                              DCS 화면 캡처 영역
+                            </div>
+                          </div>
+                        )}
+                        
+                        {/* Table */}
+                        {box.type === "table" && box.config.tableData && (
+                          <div className="overflow-x-auto">
+                            <table className="w-full text-xs border-collapse">
+                              <tbody>
+                                {box.config.tableData.map((row, rIdx) => (
+                                  <tr key={rIdx} className={rIdx === 0 ? "bg-muted/50 font-medium" : ""}>
+                                    {row.map((cell, cIdx) => (
+                                      <td key={cIdx} className="border border-border px-2 py-1.5">{cell}</td>
+                                    ))}
+                                  </tr>
+                                ))}
+                              </tbody>
+                            </table>
+                          </div>
+                        )}
+                      </Card>
+                    ))}
+                    
+                    {(!ticket.additionalDetails?.text && (!ticket.additionalDetails?.dataBoxes || ticket.additionalDetails.dataBoxes.length === 0)) && (
+                      <div className="text-center py-8 text-sm text-muted-foreground">
+                        추가 데이터가 없습니다.
+                      </div>
+                    )}
+                  </div>
+                </DialogContent>
+              </Dialog>
+            )}
           </div>
         </Card>
 
@@ -2394,6 +2478,11 @@ export function TicketDetail({ ticket: initialTicket }: TicketDetailProps) {
           />
           <AdditionalReviewerSection ticket={ticket} onAssign={refreshTicket} />
         </>
+      )}
+      
+      {/* 추가검토가 진행 중일 때 AdditionalReviewerSection 항상 표시 (isActive가 false여도) */}
+      {!isActive && hasIncompleteAdditionalReviews && (
+        <AdditionalReviewerSection ticket={ticket} onAssign={refreshTicket} />
       )}
 
       {/* Thread / Event Group tabs + Comments Side Panel */}
