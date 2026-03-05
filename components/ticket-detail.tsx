@@ -400,7 +400,7 @@ function ContextDataPanel({ ticket }: { ticket: Ticket }) {
               주요 운전변수 확인 ({keyVariablesData.length}개 항목)
             </Button>
           </DialogTrigger>
-          <DialogContent className="max-w-[1400px] w-[98vw] max-h-[90vh] overflow-hidden flex flex-col">
+          <DialogContent className="!max-w-[1600px] w-[95vw] min-w-[900px] max-h-[85vh] overflow-hidden flex flex-col">
             <DialogHeader className="shrink-0">
               <DialogTitle className="flex items-center gap-2">
                 <Activity className="h-5 w-5 text-primary" />
@@ -443,53 +443,48 @@ function ContextDataPanel({ ticket }: { ticket: Ticket }) {
               </div>
             </div>
             
-            {/* 변수 목록 - 세로 리스트 */}
-            <div className="flex-1 overflow-y-auto mt-3">
-              <div className="space-y-2">
-                {keyVariablesData.map((v, i) => (
-                  <div key={v.tag} className={cn(
-                    "flex items-center gap-4 p-3 rounded-lg border",
-                    v.status === "Critical" ? "bg-red-50/50 border-red-200" :
-                    v.status === "Warning" ? "bg-amber-50/50 border-amber-200" :
-                    "bg-muted/20 border-border/50"
-                  )}>
-                    {/* Tag & Name */}
-                    <div className="flex items-center gap-3 min-w-[280px]">
-                      <span className="font-mono text-sm font-semibold text-primary w-[70px]">{v.tag}</span>
-                      <span className="text-sm text-foreground">{v.name}</span>
-                    </div>
-                    
-                    {/* Values - horizontal layout */}
-                    <div className="flex items-center gap-6 flex-1">
-                      <div className="text-center min-w-[90px]">
-                        <p className="text-[10px] text-muted-foreground mb-0.5">평균</p>
-                        <p className="text-sm font-medium">{v.avgValue} <span className="text-muted-foreground text-xs">{v.unit}</span></p>
-                      </div>
-                      <div className="text-center min-w-[90px]">
-                        <p className="text-[10px] text-muted-foreground mb-0.5">현재</p>
-                        <p className={`text-sm font-medium ${v.status !== "Normal" ? "text-red-600" : ""}`}>{v.currentValue} <span className="text-muted-foreground text-xs">{v.unit}</span></p>
-                      </div>
-                      <div className="text-center min-w-[90px]">
-                        <p className="text-[10px] text-muted-foreground mb-0.5">최소</p>
-                        <p className="text-sm font-medium text-blue-600">{v.minValue} <span className="text-muted-foreground text-xs">{v.unit}</span></p>
-                      </div>
-                      <div className="text-center min-w-[90px]">
-                        <p className="text-[10px] text-muted-foreground mb-0.5">최대</p>
-                        <p className="text-sm font-medium text-red-600">{v.maxValue} <span className="text-muted-foreground text-xs">{v.unit}</span></p>
-                      </div>
-                    </div>
-                    
-                    {/* Status badge */}
-                    <Badge variant="outline" className={`text-xs shrink-0 ${
-                      v.status === "Critical" ? "text-red-600 border-red-200 bg-red-50" :
-                      v.status === "Warning" ? "text-amber-600 border-amber-200 bg-amber-50" :
-                      "text-emerald-600 border-emerald-200 bg-emerald-50"
-                    }`}>
-                      {v.status}
-                    </Badge>
-                  </div>
-                ))}
-              </div>
+            {/* 변수 목록 - 테이블 형태 */}
+            <div className="flex-1 overflow-y-auto mt-3 border rounded-lg">
+              <table className="w-full text-sm">
+                <thead className="bg-muted/50 sticky top-0">
+                  <tr className="border-b">
+                    <th className="text-left p-3 font-medium text-muted-foreground w-[100px]">태그</th>
+                    <th className="text-left p-3 font-medium text-muted-foreground min-w-[180px]">변수명</th>
+                    <th className="text-center p-3 font-medium text-muted-foreground w-[120px]">평균</th>
+                    <th className="text-center p-3 font-medium text-muted-foreground w-[120px]">현재</th>
+                    <th className="text-center p-3 font-medium text-muted-foreground w-[120px]">최소</th>
+                    <th className="text-center p-3 font-medium text-muted-foreground w-[120px]">최대</th>
+                    <th className="text-center p-3 font-medium text-muted-foreground w-[100px]">상태</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  {keyVariablesData.map((v, i) => (
+                    <tr key={v.tag} className={cn(
+                      "border-b last:border-b-0 hover:bg-muted/30 transition-colors",
+                      v.status === "Critical" ? "bg-red-50/50" :
+                      v.status === "Warning" ? "bg-amber-50/50" : ""
+                    )}>
+                      <td className="p-3 font-mono font-semibold text-primary">{v.tag}</td>
+                      <td className="p-3">{v.name}</td>
+                      <td className="p-3 text-center">{v.avgValue} <span className="text-muted-foreground text-xs">{v.unit}</span></td>
+                      <td className={cn("p-3 text-center font-medium", v.status !== "Normal" && "text-red-600")}>
+                        {v.currentValue} <span className="text-muted-foreground text-xs">{v.unit}</span>
+                      </td>
+                      <td className="p-3 text-center text-blue-600">{v.minValue} <span className="text-muted-foreground text-xs">{v.unit}</span></td>
+                      <td className="p-3 text-center text-red-600">{v.maxValue} <span className="text-muted-foreground text-xs">{v.unit}</span></td>
+                      <td className="p-3 text-center">
+                        <Badge variant="outline" className={cn("text-xs",
+                          v.status === "Critical" ? "text-red-600 border-red-200 bg-red-50" :
+                          v.status === "Warning" ? "text-amber-600 border-amber-200 bg-amber-50" :
+                          "text-emerald-600 border-emerald-200 bg-emerald-50"
+                        )}>
+                          {v.status}
+                        </Badge>
+                      </td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
             </div>
           </DialogContent>
         </Dialog>
@@ -1868,7 +1863,7 @@ function EventGroupView({ ticket }: { ticket: Ticket }) {
   if (reviewers.length === 0) {
     return (
       <div className="text-center py-8 text-sm text-muted-foreground">
-        추가 검토자가 배정되지 않았습니다.
+        추가 검토���가 배정되지 않았습니다.
       </div>
     )
   }
