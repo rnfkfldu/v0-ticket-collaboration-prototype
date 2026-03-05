@@ -57,6 +57,46 @@ export function getMockTickets(): Ticket[] {
         { id: "cmt-001", author: "박성호", content: "현재 Quench 유량 증가시켜 임시 조치 중입니다. 기술검토 부탁드립니다.", timestamp: "2025-02-01T14:35:00Z" },
         { id: "cmt-002", author: "김지수", content: "접수했습니다. Feed 분석 데이터 확인 후 의견 드리겠습니다.", timestamp: "2025-02-01T15:05:00Z" },
       ],
+      additionalDetails: {
+        text: "이벤트 발생 전후 온도 추이를 확인할 수 있는 트렌드와 DCS 화면을 첨부합니다. 06:00부터 급격한 온도 상승이 관찰됩니다.",
+        dataBoxes: [
+          {
+            id: "db-001",
+            type: "trend",
+            config: {
+              tags: ["TI-2001", "TI-2002", "TI-2003"],
+              title: "Reactor Inlet Temperature Trend",
+              fromDate: "2025-02-01T06:00",
+              toDate: "2025-02-01T14:00",
+              unit: "°C",
+            },
+          },
+          {
+            id: "db-002",
+            type: "dcs",
+            config: {
+              graphicNumber: "HCR-001",
+              graphicType: "Process Overview",
+              title: "HCR Reactor Section DCS 화면",
+            },
+          },
+          {
+            id: "db-003",
+            type: "table",
+            config: {
+              title: "이벤트 발생 전후 주요 변수 비교",
+              rows: 4,
+              columns: 4,
+              tableData: [
+                ["변수", "정상 운전", "이벤트 시", "차이"],
+                ["TI-2001 (°C)", "395", "412", "+17"],
+                ["PI-3001 (kg/cm²)", "152", "155", "+3"],
+                ["FI-4001 (BPD)", "12,500", "12,800", "+300"],
+              ],
+            },
+          },
+        ],
+      },
     },
     {
       id: "EVT-002",

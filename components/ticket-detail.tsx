@@ -23,7 +23,8 @@ import {
   FileSearch, FileText, Send, Save, PlusCircle, Trash2, FileUp, X, RotateCcw,
   Activity, Gauge, Info, Wrench, FileBarChart, Link2, MessageSquare, ChevronRight,
   Search, Users, UserPlus, ExternalLink, Boxes, ChevronDown, ArrowUpCircle, Shield,
-  Globe, Lock, Eye, Settings
+  Globe, Lock, Eye, Settings, RefreshCcw, Paperclip, TrendingUp, Monitor, BarChart3,
+  Table as TableIcon
 } from "lucide-react"
 import { useState, useEffect } from "react"
 import { useRouter } from "next/navigation"
@@ -274,19 +275,89 @@ function SimilarReportsContent({ ticket }: { ticket: Ticket }) {
   )
 }
 
+// --- Key Variables Data (주요 운전변수 데이터 생성) ---
+function generateKeyVariablesData(unit: string) {
+  const baseVariables = [
+    // 온도 관련
+    { tag: "TI-101", name: "Feed 입구 온도", unit: "°C", baseValue: 245 },
+    { tag: "TI-102", name: "1단 반응기 온도", unit: "°C", baseValue: 380 },
+    { tag: "TI-103", name: "2단 반응기 온도", unit: "°C", baseValue: 395 },
+    { tag: "TI-104", name: "분리기 온도", unit: "°C", baseValue: 280 },
+    { tag: "TI-105", name: "탈기기 상부 온도", unit: "°C", baseValue: 125 },
+    { tag: "TI-106", name: "탈기기 하부 온도", unit: "°C", baseValue: 185 },
+    { tag: "TI-107", name: "스트리퍼 온도", unit: "°C", baseValue: 220 },
+    { tag: "TI-108", name: "제품 출구 온도", unit: "°C", baseValue: 95 },
+    // 압력 관련
+    { tag: "PI-201", name: "반응기 입구 압력", unit: "kg/cm²", baseValue: 155 },
+    { tag: "PI-202", name: "반응기 출구 압력", unit: "kg/cm²", baseValue: 148 },
+    { tag: "PI-203", name: "분리기 압력", unit: "kg/cm²", baseValue: 52 },
+    { tag: "PI-204", name: "흡수탑 압력", unit: "kg/cm²", baseValue: 28 },
+    { tag: "PI-205", name: "스트리퍼 압력", unit: "kg/cm²", baseValue: 8.5 },
+    { tag: "PI-206", name: "제품 탱크 압력", unit: "kg/cm²", baseValue: 1.2 },
+    // 유량 관련
+    { tag: "FI-301", name: "Feed 유량", unit: "BPD", baseValue: 12500 },
+    { tag: "FI-302", name: "수소 유량", unit: "Nm³/h", baseValue: 45000 },
+    { tag: "FI-303", name: "리사이클 유량", unit: "BPD", baseValue: 8500 },
+    { tag: "FI-304", name: "퍼지 가스 유량", unit: "Nm³/h", baseValue: 2500 },
+    { tag: "FI-305", name: "스팀 유량", unit: "kg/h", baseValue: 3200 },
+    { tag: "FI-306", name: "냉각수 유량", unit: "m³/h", baseValue: 850 },
+    { tag: "FI-307", name: "제품 유량", unit: "BPD", baseValue: 11800 },
+    { tag: "FI-308", name: "오프가스 유량", unit: "Nm³/h", baseValue: 1200 },
+    // 레벨 관련
+    { tag: "LI-401", name: "분리기 레벨", unit: "%", baseValue: 55 },
+    { tag: "LI-402", name: "탈기기 레벨", unit: "%", baseValue: 48 },
+    { tag: "LI-403", name: "스트리퍼 레벨", unit: "%", baseValue: 52 },
+    { tag: "LI-404", name: "제품 탱크 레벨", unit: "%", baseValue: 65 },
+    // 분석 관련
+    { tag: "AI-501", name: "H2S 농도", unit: "ppm", baseValue: 15 },
+    { tag: "AI-502", name: "NH3 농도", unit: "ppm", baseValue: 8 },
+    { tag: "AI-503", name: "수소 순도", unit: "%", baseValue: 99.5 },
+    { tag: "AI-504", name: "제품 황 함량", unit: "ppm", baseValue: 5 },
+    { tag: "AI-505", name: "제품 질소 함량", unit: "ppm", baseValue: 2 },
+    // 기타 운전변수
+    { tag: "XI-601", name: "촉매 활성도", unit: "%", baseValue: 92 },
+    { tag: "XI-602", name: "히터 Duty", unit: "MMkcal/h", baseValue: 28.5 },
+    { tag: "XI-603", name: "컴프레서 부하", unit: "%", baseValue: 78 },
+    { tag: "XI-604", name: "열교환기 효율", unit: "%", baseValue: 85 },
+    { tag: "XI-605", name: "반응 전환율", unit: "%", baseValue: 94 },
+    { tag: "XI-606", name: "수율", unit: "%", baseValue: 88.5 },
+    { tag: "XI-607", name: "에너지 소비", unit: "kWh/bbl", baseValue: 12.5 },
+    { tag: "XI-608", name: "스팀 소비", unit: "kg/bbl", baseValue: 8.2 },
+    { tag: "XI-609", name: "냉각수 소비", unit: "m³/bbl", baseValue: 0.15 },
+    { tag: "XI-610", name: "수소 소비", unit: "Nm³/bbl", baseValue: 180 },
+  ]
+  
+  return baseVariables.map(v => ({
+    ...v,
+    currentValue: +(v.baseValue * (0.95 + Math.random() * 0.1)).toFixed(2),
+    avgValue: +(v.baseValue * (0.97 + Math.random() * 0.06)).toFixed(2),
+    minValue: +(v.baseValue * 0.92).toFixed(2),
+    maxValue: +(v.baseValue * 1.08).toFixed(2),
+    status: Math.random() > 0.9 ? "Warning" : Math.random() > 0.95 ? "Critical" : "Normal",
+  }))
+}
+
 // --- Context Data Panel ---
 function ContextDataPanel({ ticket }: { ticket: Ticket }) {
+  const [showKeyVariables, setShowKeyVariables] = useState(false)
+  const [showAdditionalData, setShowAdditionalData] = useState(false)
+  const [variablesFromDate, setVariablesFromDate] = useState(ticket.fromTime || new Date(Date.now() - 7 * 24 * 60 * 60 * 1000).toISOString().split("T")[0])
+  const [variablesToDate, setVariablesToDate] = useState(ticket.toTime || new Date().toISOString().split("T")[0])
+  const [keyVariablesData, setKeyVariablesData] = useState(() => generateKeyVariablesData(ticket.unit || "HCR"))
+  
   const contextData = {
     operatingMode: ticket.unit === "HCR" ? "W600N" : ticket.unit === "VDU" ? "Normal" : "Mixed",
     feedRate: ticket.unit === "CDU" ? "48,500 BPD" : ticket.unit === "HCR" ? "12,200 BPD" : "8,500 BPD",
     productOnSpec: ticket.processStatus === "rejected" ? "Off-Spec" : "On-Spec",
     guideCompliance: ticket.priority === "P1" ? "비준수" : "준수",
-    keyVariables: [
-      { name: "주요 온도", value: ticket.unit === "HCR" ? "412 C" : "128 C", status: ticket.priority === "P1" ? "Critical" : "Normal" },
-      { name: "주요 압력", value: ticket.unit === "HCR" ? "155 kg/cm2" : "1.2 kg/cm2", status: "Normal" },
-      { name: "유량", value: ticket.unit === "CDU" ? "48,500 BPD" : "12,200 BPD", status: "Normal" },
-    ],
   }
+  
+  const handleRefreshVariables = () => {
+    setKeyVariablesData(generateKeyVariablesData(ticket.unit || "HCR"))
+  }
+  
+  const hasAdditionalData = ticket.additionalDetails && 
+    (ticket.additionalDetails.text || (ticket.additionalDetails.dataBoxes && ticket.additionalDetails.dataBoxes.length > 0))
 
   return (
     <Card className="p-6">
@@ -319,22 +390,221 @@ function ContextDataPanel({ ticket }: { ticket: Ticket }) {
         </div>
       </div>
 
+      {/* 주요 운전변수 버튼 */}
       <div className="mb-4">
-        <p className="text-xs font-medium text-muted-foreground mb-2">주요 운전변수</p>
-        <div className="space-y-1.5">
-          {contextData.keyVariables.map((v, i) => (
-            <div key={i} className="flex items-center justify-between py-1.5 px-3 bg-muted/20 rounded">
-              <span className="text-xs text-muted-foreground">{v.name}</span>
+        <Dialog open={showKeyVariables} onOpenChange={setShowKeyVariables}>
+          <DialogTrigger asChild>
+            <Button variant="outline" size="sm" className="w-full text-xs gap-2 h-9 justify-center bg-primary/5 border-primary/20 hover:bg-primary/10">
+              <Activity className="h-3.5 w-3.5" />
+              주요 운전변수 확인 ({keyVariablesData.length}개 항목)
+            </Button>
+          </DialogTrigger>
+          <DialogContent className="max-w-4xl max-h-[85vh] overflow-hidden flex flex-col">
+            <DialogHeader className="shrink-0">
+              <DialogTitle className="flex items-center gap-2">
+                <Activity className="h-5 w-5 text-primary" />
+                주요 운전변수 ({keyVariablesData.length}개)
+              </DialogTitle>
+              <DialogDescription>
+                이벤트 발생 기간 내 주요 운전변수의 평균값 및 현재 상태입니다.
+              </DialogDescription>
+            </DialogHeader>
+            
+            {/* 시간 설정 */}
+            <div className="flex items-center gap-4 p-3 bg-muted/30 rounded-lg shrink-0">
               <div className="flex items-center gap-2">
-                <span className="text-xs font-medium text-foreground">{v.value}</span>
-                <Badge variant="outline" className={`text-[10px] ${v.status === "Critical" ? "text-red-600 border-red-200 bg-red-50" : v.status === "Warning" ? "text-amber-600 border-amber-200 bg-amber-50" : "text-emerald-600 border-emerald-200 bg-emerald-50"}`}>
-                  {v.status}
-                </Badge>
+                <Settings className="h-4 w-4 text-muted-foreground" />
+                <span className="text-xs font-medium">조회 기간</span>
+              </div>
+              <div className="flex items-center gap-2">
+                <Input
+                  type="date"
+                  value={variablesFromDate.split("T")[0]}
+                  onChange={(e) => setVariablesFromDate(e.target.value)}
+                  className="h-8 text-xs w-36"
+                />
+                <span className="text-muted-foreground">~</span>
+                <Input
+                  type="date"
+                  value={variablesToDate.split("T")[0]}
+                  onChange={(e) => setVariablesToDate(e.target.value)}
+                  className="h-8 text-xs w-36"
+                />
+              </div>
+              <Button size="sm" variant="outline" className="h-8 text-xs gap-1.5" onClick={handleRefreshVariables}>
+                <RefreshCcw className="h-3.5 w-3.5" />
+                조회
+              </Button>
+              <div className="ml-auto flex items-center gap-2 text-xs text-muted-foreground">
+                <span className="flex items-center gap-1"><span className="w-2 h-2 rounded-full bg-emerald-500" /> Normal</span>
+                <span className="flex items-center gap-1"><span className="w-2 h-2 rounded-full bg-amber-500" /> Warning</span>
+                <span className="flex items-center gap-1"><span className="w-2 h-2 rounded-full bg-red-500" /> Critical</span>
               </div>
             </div>
-          ))}
-        </div>
+            
+            {/* 변수 목록 */}
+            <div className="flex-1 overflow-y-auto mt-3">
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-2">
+                {keyVariablesData.map((v, i) => (
+                  <div key={v.tag} className={cn(
+                    "p-3 rounded-lg border",
+                    v.status === "Critical" ? "bg-red-50/50 border-red-200" :
+                    v.status === "Warning" ? "bg-amber-50/50 border-amber-200" :
+                    "bg-muted/20 border-border/50"
+                  )}>
+                    <div className="flex items-center justify-between mb-1">
+                      <div className="flex items-center gap-2">
+                        <span className="font-mono text-xs font-semibold text-primary">{v.tag}</span>
+                        <span className="text-xs text-muted-foreground truncate max-w-[140px]">{v.name}</span>
+                      </div>
+                      <Badge variant="outline" className={`text-[10px] ${
+                        v.status === "Critical" ? "text-red-600 border-red-200 bg-red-50" :
+                        v.status === "Warning" ? "text-amber-600 border-amber-200 bg-amber-50" :
+                        "text-emerald-600 border-emerald-200 bg-emerald-50"
+                      }`}>
+                        {v.status}
+                      </Badge>
+                    </div>
+                    <div className="grid grid-cols-4 gap-2 text-xs">
+                      <div>
+                        <p className="text-[10px] text-muted-foreground">평균</p>
+                        <p className="font-medium">{v.avgValue} <span className="text-muted-foreground text-[10px]">{v.unit}</span></p>
+                      </div>
+                      <div>
+                        <p className="text-[10px] text-muted-foreground">현재</p>
+                        <p className={`font-medium ${v.status !== "Normal" ? "text-red-600" : ""}`}>{v.currentValue}</p>
+                      </div>
+                      <div>
+                        <p className="text-[10px] text-muted-foreground">최소</p>
+                        <p className="font-medium text-blue-600">{v.minValue}</p>
+                      </div>
+                      <div>
+                        <p className="text-[10px] text-muted-foreground">최대</p>
+                        <p className="font-medium text-red-600">{v.maxValue}</p>
+                      </div>
+                    </div>
+                  </div>
+                ))}
+              </div>
+            </div>
+          </DialogContent>
+        </Dialog>
       </div>
+      
+      {/* 추가 데이터 확인 버튼 */}
+      {hasAdditionalData && (
+        <div className="mb-4">
+          <Dialog open={showAdditionalData} onOpenChange={setShowAdditionalData}>
+            <DialogTrigger asChild>
+              <Button variant="outline" size="sm" className="w-full text-xs gap-2 h-9 justify-center bg-blue-50 border-blue-200 hover:bg-blue-100 text-blue-700">
+                <Paperclip className="h-3.5 w-3.5" />
+                추가 데이터 확인 ({ticket.additionalDetails?.dataBoxes?.length || 0}개 항목)
+              </Button>
+            </DialogTrigger>
+            <DialogContent className="max-w-3xl max-h-[80vh] overflow-y-auto">
+              <DialogHeader>
+                <DialogTitle className="flex items-center gap-2">
+                  <Paperclip className="h-5 w-5 text-blue-600" />
+                  추가 데이터
+                </DialogTitle>
+                <DialogDescription>
+                  이벤트 생성 시 첨부한 트렌드, DCS 화면, 표 등의 추가 데이터입니다.
+                </DialogDescription>
+              </DialogHeader>
+              
+              <div className="space-y-4 mt-2">
+                {/* 텍스트 설명 */}
+                {ticket.additionalDetails?.text && (
+                  <div className="p-4 bg-muted/30 rounded-lg">
+                    <p className="text-xs font-medium text-muted-foreground mb-2">추가 설명</p>
+                    <p className="text-sm whitespace-pre-wrap">{ticket.additionalDetails.text}</p>
+                  </div>
+                )}
+                
+                {/* 데이터 박스들 */}
+                {ticket.additionalDetails?.dataBoxes?.map((box, idx) => (
+                  <Card key={box.id || idx} className="p-4">
+                    <div className="flex items-center gap-2 mb-3">
+                      {box.type === "trend" && <TrendingUp className="h-4 w-4 text-blue-600" />}
+                      {box.type === "dcs" && <Monitor className="h-4 w-4 text-emerald-600" />}
+                      {box.type === "table" && <TableIcon className="h-4 w-4 text-purple-600" />}
+                      {box.type === "chart" && <BarChart3 className="h-4 w-4 text-orange-600" />}
+                      <span className="text-sm font-medium">
+                        {box.type === "trend" ? "트렌드 그래프" :
+                         box.type === "dcs" ? "DCS 화면" :
+                         box.type === "table" ? "데이터 표" :
+                         "차트"}
+                      </span>
+                      {box.config.title && (
+                        <span className="text-xs text-muted-foreground">- {box.config.title}</span>
+                      )}
+                    </div>
+                    
+                    {/* Trend */}
+                    {box.type === "trend" && (
+                      <div className="space-y-2">
+                        {box.config.tags && box.config.tags.length > 0 && (
+                          <div className="flex flex-wrap gap-1.5">
+                            {box.config.tags.map(tag => (
+                              <Badge key={tag} variant="outline" className="text-xs font-mono">{tag}</Badge>
+                            ))}
+                          </div>
+                        )}
+                        {box.config.fromDate && box.config.toDate && (
+                          <p className="text-xs text-muted-foreground">
+                            기간: {new Date(box.config.fromDate).toLocaleDateString("ko-KR")} ~ {new Date(box.config.toDate).toLocaleDateString("ko-KR")}
+                          </p>
+                        )}
+                        <div className="h-32 bg-muted/20 rounded flex items-center justify-center text-xs text-muted-foreground">
+                          [트렌드 그래프 영역]
+                        </div>
+                      </div>
+                    )}
+                    
+                    {/* DCS */}
+                    {box.type === "dcs" && (
+                      <div className="space-y-2">
+                        {box.config.graphicNumber && (
+                          <p className="text-xs"><span className="text-muted-foreground">Graphic #:</span> {box.config.graphicNumber}</p>
+                        )}
+                        {box.config.graphicType && (
+                          <p className="text-xs"><span className="text-muted-foreground">유형:</span> {box.config.graphicType}</p>
+                        )}
+                        <div className="h-40 bg-slate-100 rounded flex items-center justify-center text-xs text-muted-foreground border border-dashed">
+                          [DCS 화면 캡처 영역]
+                        </div>
+                      </div>
+                    )}
+                    
+                    {/* Table */}
+                    {box.type === "table" && box.config.tableData && (
+                      <div className="overflow-x-auto">
+                        <table className="w-full text-xs border-collapse">
+                          <tbody>
+                            {box.config.tableData.map((row, rIdx) => (
+                              <tr key={rIdx} className={rIdx === 0 ? "bg-muted/50 font-medium" : ""}>
+                                {row.map((cell, cIdx) => (
+                                  <td key={cIdx} className="border border-border px-2 py-1.5">{cell}</td>
+                                ))}
+                              </tr>
+                            ))}
+                          </tbody>
+                        </table>
+                      </div>
+                    )}
+                  </Card>
+                ))}
+                
+                {(!ticket.additionalDetails?.text && (!ticket.additionalDetails?.dataBoxes || ticket.additionalDetails.dataBoxes.length === 0)) && (
+                  <div className="text-center py-8 text-sm text-muted-foreground">
+                    추가 데이터가 없습니다.
+                  </div>
+                )}
+              </div>
+            </DialogContent>
+          </Dialog>
+        </div>
+      )}
 
       {ticket.tags && ticket.tags.length > 0 && (() => {
         const tagTrends = ticket.tags.map(tag => ({ tag, ...generateTagTrend(tag) }))
