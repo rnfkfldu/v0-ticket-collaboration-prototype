@@ -1062,11 +1062,14 @@ function OpinionWritingCanvas({
   )
 }
 
-// --- Additional Reviewer Assignment (다중 검토자 지원) ---
+// --- Additional Reviewer Assignment (다중 검토자 지원 + 의견 입력) ---
 function AdditionalReviewerSection({ ticket, onAssign }: { ticket: Ticket; onAssign: () => void }) {
   const [showAssign, setShowAssign] = useState(false)
   const [selectedTeam, setSelectedTeam] = useState("")
   const [selectedPerson, setSelectedPerson] = useState("")
+  const [reviewerOpinions, setReviewerOpinions] = useState<Record<string, string>>({})
+  const [showDataConfig, setShowDataConfig] = useState<string | null>(null)
+  const [reviewerDataBoxes, setReviewerDataBoxes] = useState<Record<string, DataInsertBox[]>>({})
 
   const teamOptions = [
     { team: "장치기술팀", members: ["최영호", "한진수", "이재현"] },
@@ -1078,6 +1081,78 @@ function AdditionalReviewerSection({ ticket, onAssign }: { ticket: Ticket; onAss
   ]
 
   const currentReviewers = ticket.additionalReviewers || []
+  
+  // 검토 의견 제출 핸들러
+  const handleSubmitReviewerOpinion = (reviewerId: string, reviewerName: string, reviewerTeam: string) => {
+    const opinion = reviewerOpinions[reviewerId]
+    if (!opinion?.trim()) {
+      alert("검토 의견을 입력해주세요.")
+      return
+    }
+    
+    const updatedReviewers = currentReviewers.map(r =>
+      r.id === reviewerId 
+        ? { ...r, status: "completed" as const, opinion, completedAt: new Date().toISOString() }
+        : r
+    )
+    
+    // 모든 추가 검토자가 완료했는지 확인
+    const allCompleted = updatedReviewers.every(r => r.status === "completed")
+    
+    // 프로세스 플로우 업데이트 (추가검토 완료 시 발행자 확인으로)
+    let updatedFlow = ticket.processFlow || []
+    let newProcessStatus = ticket.processStatus
+    
+    if (allCompleted) {
+      updatedFlow = updatedFlow.map(s =>
+        s.step === "additional-review" ? { ...s, status: "completed" as const, timestamp: new Date().toLocaleString("ko-KR") } :
+        s.step === "publisher-confirm" ? { ...s, status: "current" as const, assignee: ticket.requester, team: "요청팀" } : s
+      )
+      newProcessStatus = "publisher-confirm"
+    }
+    
+    // 의견 내용에 실제 텍스트 저장
+    const opinionFields = [
+      { key: "analysis", label: "검토 분석", value: opinion },
+    ]
+    const dataBoxes = reviewerDataBoxes[reviewerId] || []
+    
+    updateTicket(ticket.id, {
+      additionalReviewers: updatedReviewers,
+      processStatus: newProcessStatus,
+      processFlow: updatedFlow,
+      opinions: [...(ticket.opinions || []), {
+        id: `op-${Date.now()}`,
+        author: reviewerName,
+        team: reviewerTeam,
+        templateType: "additional-review",
+        templateLabel: "추가검토 의견",
+        fields: opinionFields,
+        dataBoxes: dataBoxes.length > 0 ? dataBoxes : undefined,
+        status: "submitted",
+        createdAt: new Date().toISOString(),
+        submittedAt: new Date().toISOString(),
+      }],
+      messages: [...(ticket.messages || []), {
+        id: `msg-${Date.now()}`, ticketId: ticket.id, author: reviewerName, role: "assignee" as const,
+        messageType: "opinion" as const, content: `[추가검토 완료 - ${reviewerTeam}]\n\n${opinion}`,
+        timestamp: new Date().toISOString(),
+      }],
+    })
+    
+    // Clear the input
+    setReviewerOpinions(prev => ({ ...prev, [reviewerId]: "" }))
+    setReviewerDataBoxes(prev => ({ ...prev, [reviewerId]: [] }))
+    onAssign()
+  }
+  
+  const handleAddDataBox = (reviewerId: string, box: DataInsertBox) => {
+    setReviewerDataBoxes(prev => ({
+      ...prev,
+      [reviewerId]: [...(prev[reviewerId] || []), box]
+    }))
+    setShowDataConfig(null)
+  }
 
   const handleAssign = () => {
     if (!selectedTeam || !selectedPerson) return
@@ -1134,30 +1209,134 @@ function AdditionalReviewerSection({ ticket, onAssign }: { ticket: Ticket; onAss
 
   return (
     <Card className="p-4">
-      {/* 기존 배정된 검토자 목록 */}
+      {/* 기존 배정된 검토자 목록 + 의견 입력 */}
       {currentReviewers.length > 0 && (
         <div className="mb-4">
           <div className="flex items-center gap-2 mb-3">
             <Users className="h-4 w-4 text-orange-600" />
             <p className="text-sm font-medium text-orange-800">추가 검토 배정 ({currentReviewers.length}명)</p>
+            <span className="text-xs text-muted-foreground ml-auto">
+              {currentReviewers.filter(r => r.status === "completed").length}/{currentReviewers.length} 완료
+            </span>
           </div>
-          <div className="space-y-2">
+          <div className="space-y-3">
             {currentReviewers.map((reviewer) => (
-              <div key={reviewer.id} className="flex items-center gap-3 p-2 bg-orange-50/50 rounded-lg border border-orange-100">
-                <Badge variant="outline" className="text-xs">{reviewer.team}</Badge>
-                <span className="text-sm text-foreground">{reviewer.name}</span>
-                <Badge variant="secondary" className={`text-xs ml-auto ${
-                  reviewer.status === "completed" ? "bg-emerald-100 text-emerald-700" :
-                  reviewer.status === "in-progress" ? "bg-amber-100 text-amber-700" :
-                  "bg-slate-100 text-slate-600"
-                }`}>
-                  {reviewer.status === "completed" ? "검토 완료" :
-                   reviewer.status === "in-progress" ? "검토 중" : "배정됨"}
-                </Badge>
+              <div key={reviewer.id} className={cn(
+                "rounded-lg border overflow-hidden",
+                reviewer.status === "completed" ? "bg-emerald-50/30 border-emerald-200" :
+                "bg-orange-50/30 border-orange-200"
+              )}>
+                {/* 검토자 정보 헤더 */}
+                <div className="flex items-center gap-3 p-3 border-b border-inherit bg-inherit">
+                  <Badge variant="outline" className="text-xs">{reviewer.team}</Badge>
+                  <span className="text-sm font-medium text-foreground">{reviewer.name}</span>
+                  <Badge variant="secondary" className={`text-xs ml-auto ${
+                    reviewer.status === "completed" ? "bg-emerald-100 text-emerald-700" :
+                    reviewer.status === "in-progress" ? "bg-amber-100 text-amber-700" :
+                    "bg-slate-100 text-slate-600"
+                  }`}>
+                    {reviewer.status === "completed" ? "검토 완료" :
+                     reviewer.status === "in-progress" ? "검토 중" : "배정됨"}
+                  </Badge>
+                </div>
+                
+                {/* 완료된 검토자: 제출된 의견 표시 */}
+                {reviewer.status === "completed" && reviewer.opinion && (
+                  <div className="p-3 bg-white/50">
+                    <p className="text-xs text-muted-foreground mb-1">제출된 검토 의견</p>
+                    <p className="text-sm text-foreground whitespace-pre-wrap">{reviewer.opinion}</p>
+                  </div>
+                )}
+                
+                {/* 미완료 검토자: 의견 입력 필드 (본인만) */}
+                {reviewer.status !== "completed" && reviewer.name === CURRENT_USER && (
+                  <div className="p-3 space-y-3 bg-white/50">
+                    <div>
+                      <Label className="text-xs font-medium text-foreground mb-1.5 block">검토 의견 작성</Label>
+                      <Textarea
+                        value={reviewerOpinions[reviewer.id] || ""}
+                        onChange={(e) => setReviewerOpinions(prev => ({ ...prev, [reviewer.id]: e.target.value }))}
+                        placeholder="기술 검토 의견을 작성해주세요. 분석 결과, 권장 사항, 참고 사항 등을 포함할 수 있습니다..."
+                        className="min-h-[100px] text-sm"
+                      />
+                    </div>
+                    
+                    {/* 데이터 매핑 영역 */}
+                    {(reviewerDataBoxes[reviewer.id] || []).length > 0 && (
+                      <div className="space-y-2">
+                        <p className="text-xs font-medium text-muted-foreground">첨부된 데이터</p>
+                        {(reviewerDataBoxes[reviewer.id] || []).map((box, idx) => (
+                          <div key={box.id || idx} className="flex items-center gap-2 p-2 bg-muted/30 rounded text-xs">
+                            {box.type === "trend" && <Activity className="h-3.5 w-3.5 text-blue-600" />}
+                            {box.type === "dcs" && <Monitor className="h-3.5 w-3.5 text-emerald-600" />}
+                            {box.type === "table" && <TableIcon className="h-3.5 w-3.5 text-purple-600" />}
+                            <span>{box.config.title || `${box.type} 데이터`}</span>
+                            <Button
+                              variant="ghost"
+                              size="sm"
+                              className="h-5 w-5 p-0 ml-auto text-muted-foreground hover:text-red-600"
+                              onClick={() => setReviewerDataBoxes(prev => ({
+                                ...prev,
+                                [reviewer.id]: (prev[reviewer.id] || []).filter((_, i) => i !== idx)
+                              }))}
+                            >
+                              <X className="h-3 w-3" />
+                            </Button>
+                          </div>
+                        ))}
+                      </div>
+                    )}
+                    
+                    <div className="flex items-center justify-between pt-1">
+                      <Button
+                        variant="outline"
+                        size="sm"
+                        className="text-xs gap-1.5 h-8"
+                        onClick={() => setShowDataConfig(reviewer.id)}
+                      >
+                        <PlusCircle className="h-3.5 w-3.5" />
+                        데이터 추가
+                      </Button>
+                      <Button
+                        size="sm"
+                        className="text-xs gap-1.5 h-8 bg-orange-600 hover:bg-orange-700"
+                        onClick={() => handleSubmitReviewerOpinion(reviewer.id, reviewer.name, reviewer.team)}
+                        disabled={!reviewerOpinions[reviewer.id]?.trim()}
+                      >
+                        <Send className="h-3.5 w-3.5" />
+                        검토 의견 제출
+                      </Button>
+                    </div>
+                  </div>
+                )}
+                
+                {/* 미완료 검토자: 대기 상태 표시 (본인 외) */}
+                {reviewer.status !== "completed" && reviewer.name !== CURRENT_USER && (
+                  <div className="p-3 bg-white/50">
+                    <p className="text-xs text-muted-foreground">검토 대기 중...</p>
+                  </div>
+                )}
               </div>
             ))}
           </div>
         </div>
+      )}
+      
+      {/* 데이터 추가 다이얼로그 */}
+      {showDataConfig && (
+        <Dialog open={!!showDataConfig} onOpenChange={(open) => !open && setShowDataConfig(null)}>
+          <DialogContent className="max-w-2xl">
+            <DialogHeader>
+              <DialogTitle>데이터 연동 설정</DialogTitle>
+              <DialogDescription>검토 의견에 트렌드, DCS 화면, 표 등을 첨부할 수 있습니다.</DialogDescription>
+            </DialogHeader>
+            <DataInsertBoxConfig 
+              onConfirm={(box) => handleAddDataBox(showDataConfig, box)} 
+              onCancel={() => setShowDataConfig(null)} 
+              defaultUnit={ticket.unit} 
+            />
+          </DialogContent>
+        </Dialog>
       )}
 
       {/* 추가 검토자 배정 버튼 */}
@@ -1364,6 +1543,28 @@ function ThreadHistory({ ticket }: { ticket: Ticket }) {
     const labels: Record<string, string> = { requester: "요청자", assignee: "담당자", system: "시스템" }
     return labels[role] || role
   }
+  
+  // 메시지 내용에서 실제 의견 찾기 (opinions 배열에서)
+  const getDetailedContent = (msg: typeof ticket.messages[0]) => {
+    // 의견 메시지인 경우 opinions 배열에서 상세 내용 찾기
+    if (msg.messageType === "opinion" && msg.role === "assignee") {
+      // 해당 시간대에 제출된 의견 찾기
+      const matchingOpinion = (ticket.opinions || []).find(op => {
+        const opTime = op.submittedAt ? new Date(op.submittedAt).getTime() : 0
+        const msgTime = new Date(msg.timestamp).getTime()
+        // 30초 이내에 제출된 의견 매칭
+        return Math.abs(opTime - msgTime) < 30000 && op.author === msg.author
+      })
+      
+      if (matchingOpinion && matchingOpinion.fields.length > 0) {
+        // 제출된 의견의 실제 내용 반환
+        return matchingOpinion.fields.map(f => `[${f.label}]\n${f.value}`).join('\n\n')
+      }
+    }
+    
+    // 기본 메시지 내용 반환
+    return msg.content
+  }
 
   return (
     <>
@@ -1431,10 +1632,38 @@ function ThreadHistory({ ticket }: { ticket: Ticket }) {
               <Separator />
               <div>
                 <Label className="text-xs text-muted-foreground mb-2 block">내용</Label>
-                <div className="bg-muted/30 rounded-lg p-4">
-                  <p className="text-sm text-foreground whitespace-pre-wrap">{selectedMessage.content}</p>
+                <div className="bg-muted/30 rounded-lg p-4 max-h-[300px] overflow-y-auto">
+                  <p className="text-sm text-foreground whitespace-pre-wrap">{getDetailedContent(selectedMessage)}</p>
                 </div>
               </div>
+              
+              {/* 관련 데이터 박스가 있으면 표시 */}
+              {selectedMessage.messageType === "opinion" && selectedMessage.role === "assignee" && (() => {
+                const matchingOpinion = (ticket.opinions || []).find(op => {
+                  const opTime = op.submittedAt ? new Date(op.submittedAt).getTime() : 0
+                  const msgTime = new Date(selectedMessage.timestamp).getTime()
+                  return Math.abs(opTime - msgTime) < 30000 && op.author === selectedMessage.author
+                })
+                
+                if (matchingOpinion?.dataBoxes && matchingOpinion.dataBoxes.length > 0) {
+                  return (
+                    <div className="mt-3 pt-3 border-t">
+                      <Label className="text-xs text-muted-foreground mb-2 block">첨부 데이터 ({matchingOpinion.dataBoxes.length}개)</Label>
+                      <div className="space-y-2">
+                        {matchingOpinion.dataBoxes.map((box, i) => (
+                          <div key={i} className="flex items-center gap-2 p-2 bg-muted/20 rounded text-xs">
+                            {box.type === "trend" && <Activity className="h-3.5 w-3.5 text-blue-600" />}
+                            {box.type === "dcs" && <Monitor className="h-3.5 w-3.5 text-emerald-600" />}
+                            {box.type === "table" && <TableIcon className="h-3.5 w-3.5 text-purple-600" />}
+                            <span>{box.config.title || `${box.type} 데이터`}</span>
+                          </div>
+                        ))}
+                      </div>
+                    </div>
+                  )
+                }
+                return null
+              })()}
             </div>
           )}
         </DialogContent>
@@ -1912,7 +2141,13 @@ export function TicketDetail({ ticket: initialTicket }: TicketDetailProps) {
 
   const isPending = ticket.processStatus === "issued"
   const isActive = ticket.processStatus === "review" || ticket.processStatus === "additional-review" || ticket.processStatus === "accepted"
-  const isPublisherConfirm = ticket.processStatus === "publisher-confirm"
+  
+  // 발행자 확인 단계: 추가검토가 있는 경우 모두 완료되어야 표시
+  const additionalReviewers = ticket.additionalReviewers || []
+  const hasAdditionalReview = additionalReviewers.length > 0
+  const allAdditionalReviewsCompleted = additionalReviewers.every(r => r.status === "completed")
+  const isPublisherConfirm = ticket.processStatus === "publisher-confirm" && (!hasAdditionalReview || allAdditionalReviewsCompleted)
+  
   const isClosed = ticket.processStatus === "closed" || ticket.processStatus === "rejected"
   
   // 재문의 상태

@@ -134,7 +134,11 @@ export function getMockTickets(): Ticket[] {
         { step: "publisher-confirm", label: "발행자 확인", status: "upcoming" },
         { step: "closed", label: "종결", status: "upcoming" },
       ],
-      additionalReviewers: [{ id: "rev-001", name: "최영호", team: "장치기술팀", status: "in-progress", assignedAt: "2025-01-29T14:30:00Z" }],
+      additionalReviewers: [
+        { id: "rev-001", name: "최영호", team: "장치기술팀", status: "completed", assignedAt: "2025-01-29T14:30:00Z", opinion: "장치 측면 검토 완료. Overhead 온도 상향 조정 시 응력 측면에서 문제 없음. 다만 급격한 온도 변화는 피해주시기 바랍니다.", completedAt: "2025-01-30T10:00:00Z" },
+        { id: "rev-002", name: "김기동", team: "장치팀", status: "in-progress", assignedAt: "2025-01-30T11:00:00Z" },
+        { id: "rev-003", name: "이승환", team: "에너지관리팀", status: "pending", assignedAt: "2025-01-30T11:00:00Z" },
+      ],
       workPackages: [],
       messages: [
         { id: "msg-010", ticketId: "EVT-002", author: "이민석", role: "requester", messageType: "opinion", content: "W600N 모드 전환 후 VDU Overhead 온도가 기존 가이드에서 자주 벗어나고 있습니다.", timestamp: "2025-01-28T09:00:00Z" },
@@ -147,11 +151,19 @@ export function getMockTickets(): Ticket[] {
           id: "op-010", author: "김지수", team: "공정기술팀",
           templateType: "improvement", templateLabel: "개선아이템",
           fields: [
-            { label: "현상", value: "VDU Overhead Temp 기존 가이드(118~124C) 대비 2~4C 상승 운전 중" },
-            { label: "분석 결과", value: "Feed 변경(W600N) 이후 컬럼 열수지 변화. 시뮬레이션 결과 122~128C가 적정." },
-            { label: "개선 제안", value: "Operation Guide 상 Overhead Temp 가이드를 122~128C로 조정 권고" },
+            { key: "status", label: "현상", value: "VDU Overhead Temp 기존 가이드(118~124C) 대비 2~4C 상승 운전 중" },
+            { key: "analysis", label: "분석 결과", value: "Feed 변경(W600N) 이후 컬럼 열수지 변화. 시뮬레이션 결과 122~128C가 적정." },
+            { key: "proposal", label: "개선 제안", value: "Operation Guide 상 Overhead Temp 가이드를 122~128C로 조정 권고" },
           ],
           status: "submitted", createdAt: "2025-01-29T13:00:00Z", submittedAt: "2025-01-29T14:00:00Z",
+        },
+        {
+          id: "op-011", author: "최영호", team: "장치기술팀",
+          templateType: "additional-review", templateLabel: "추가검토 의견",
+          fields: [
+            { key: "analysis", label: "검토 분석", value: "장치 측면 검토 완료. Overhead 온도 상향 조정 시 응력 측면에서 문제 없음. 다만 급격한 온도 변화는 피해주시기 바랍니다." },
+          ],
+          status: "submitted", createdAt: "2025-01-30T09:00:00Z", submittedAt: "2025-01-30T10:00:00Z",
         },
       ],
       comments: [
