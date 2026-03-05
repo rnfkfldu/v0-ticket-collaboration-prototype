@@ -753,6 +753,11 @@ function OpinionWritingCanvas({
   const [attachments, setAttachments] = useState<{ fileName: string; fileUrl: string }[]>([])
   const [showTemplateDialog, setShowTemplateDialog] = useState(false)
   const [showDataBoxConfig, setShowDataBoxConfig] = useState(false)
+  
+  // 이미 제출된 의견 확인
+  const ticket = getTicketById(ticketId)
+  const submittedOpinion = ticket?.opinions?.find(op => op.author === currentUser && op.status === "submitted")
+  const hasSubmittedOpinion = !!submittedOpinion
 
   const handleSelectTemplate = (category: string) => {
     const templateLabels: Record<string, string> = {
@@ -796,6 +801,49 @@ function OpinionWritingCanvas({
     const opinions = [...(ticket.opinions || []), opinion]
     updateTicket(ticketId, { opinions })
     alert("임시 저장되었습니다.")
+  }
+  
+  // 의견 수정 (롤백) 핸들러
+  const handleEditOpinion = () => {
+    const ticket = getTicketById(ticketId)
+    if (!ticket) return
+    
+    // 기존 제출된 의견을 draft 상태로 변경
+    const updatedOpinions = (ticket.opinions || []).map(op => 
+      op.author === currentUser && op.status === "submitted" 
+        ? { ...op, status: "draft" as const, submittedAt: undefined }
+        : op
+    )
+    
+    // 프로세스를 기술검토 단계로 롤백
+    const updatedFlow = (ticket.processFlow || []).map(s =>
+      s.step === "review" ? { ...s, status: "current" as const } :
+      s.step === "additional-review" ? { ...s, status: "upcoming" as const } :
+      s.step === "publisher-confirm" ? { ...s, status: "upcoming" as const } :
+      s.step === "closed" ? { ...s, status: "upcoming" as const } : s
+    )
+    
+    updateTicket(ticketId, {
+      opinions: updatedOpinions,
+      processStatus: "review",
+      processFlow: updatedFlow,
+      messages: [...(ticket.messages || []), {
+        id: `msg-${Date.now()}`, ticketId, author: currentUser, role: "assignee" as const,
+        messageType: "status_change" as const, content: `${currentUser}님이 의견을 수정하기 위해 기술검토 단계로 되돌렸습니다.`,
+        timestamp: new Date().toISOString(),
+      }],
+    })
+    
+    // 폼에 기존 의견 데이터 로드
+    if (submittedOpinion) {
+      setTemplateType(submittedOpinion.templateType || "")
+      setTemplateLabel(submittedOpinion.templateLabel || "")
+      setFields(submittedOpinion.fields || [])
+      setDataBoxes(submittedOpinion.dataBoxes || [])
+      setAttachments(submittedOpinion.attachments || [])
+    }
+    
+    onSuccess()
   }
 
   const handleSubmit = () => {
@@ -852,6 +900,39 @@ function OpinionWritingCanvas({
       processFlow: updatedFlow,
     })
     onSuccess()
+  }
+
+  // 이미 의견이 제출된 경우 수정 버튼만 표시
+  if (hasSubmittedOpinion && !templateType) {
+    return (
+      <Card className="p-6 bg-emerald-50/50 border-emerald-200">
+        <h3 className="text-sm font-semibold text-foreground mb-3 flex items-center gap-2">
+          <CheckCircle className="h-4 w-4 text-emerald-600" />
+          기술검토 의견 제출 완료
+        </h3>
+        <div className="space-y-3">
+          <div className="p-3 bg-white rounded-lg border">
+            <p className="text-xs text-muted-foreground mb-1">제출된 의견 유형</p>
+            <Badge variant="secondary" className="text-xs">{submittedOpinion?.templateLabel || "의견"}</Badge>
+            <p className="text-xs text-muted-foreground mt-2">
+              제출일시: {submittedOpinion?.submittedAt ? new Date(submittedOpinion.submittedAt).toLocaleString("ko-KR") : "-"}
+            </p>
+          </div>
+          <Button 
+            variant="outline" 
+            size="sm" 
+            className="gap-1.5 bg-white text-amber-600 border-amber-200 hover:bg-amber-50" 
+            onClick={handleEditOpinion}
+          >
+            <RotateCcw className="h-3.5 w-3.5" />
+            의견 수정하기
+          </Button>
+          <p className="text-xs text-muted-foreground">
+            의견을 수정하면 프로세스가 기술검토 단계로 되돌아갑니다.
+          </p>
+        </div>
+      </Card>
+    )
   }
 
   if (!templateType) {
@@ -944,15 +1025,22 @@ function OpinionWritingCanvas({
 
         <Separator />
 
-        <div className="flex items-center justify-between">
+<div className="flex items-center justify-between">
           <Button variant="outline" size="sm" className="gap-1.5 bg-transparent" onClick={handleSaveDraft}>
             <Save className="h-3.5 w-3.5" />
-            임시 저���
+            임시 저장
           </Button>
-          <Button size="sm" className="gap-1.5" onClick={handleSubmit}>
-            <Send className="h-3.5 w-3.5" />
-            의견 제출
-          </Button>
+          {hasSubmittedOpinion ? (
+            <Button size="sm" className="gap-1.5 bg-amber-600 hover:bg-amber-700" onClick={handleEditOpinion}>
+              <RotateCcw className="h-3.5 w-3.5" />
+              의견 수정
+            </Button>
+          ) : (
+            <Button size="sm" className="gap-1.5" onClick={handleSubmit}>
+              <Send className="h-3.5 w-3.5" />
+              의견 제출
+            </Button>
+          )}
         </div>
       </div>
 
@@ -2520,7 +2608,7 @@ export function TicketDetail({ ticket: initialTicket }: TicketDetailProps) {
         </>
       )}
       
-      {/* 추가검토가 진행 중일 때 AdditionalReviewerSection 항상 표시 (isActive가 false여도) */}
+      {/* 추가검토가 진행 중�� 때 AdditionalReviewerSection 항상 표시 (isActive가 false여도) */}
       {!isActive && hasIncompleteAdditionalReviews && (
         <AdditionalReviewerSection ticket={ticket} onAssign={refreshTicket} />
       )}
@@ -2859,7 +2947,7 @@ export function TicketDetail({ ticket: initialTicket }: TicketDetailProps) {
               에스컬레이션 요청
             </DialogTitle>
             <DialogDescription>
-              이 이벤트를 팀장급 또는 상위 결재권자에게 에스컬레이션합니다.
+              이 이벤트를 ���장급 또는 상위 결재권자에게 에스컬레이션합니다.
             </DialogDescription>
           </DialogHeader>
           <div className="space-y-4 py-2">
