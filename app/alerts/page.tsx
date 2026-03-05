@@ -218,7 +218,7 @@ const INITIAL_STANDING_ISSUES: StandingIssue[] = [
     status: "watching",
     unit: "CDU",
     linkedTicketId: "2",
-    linkedTicketTitle: "E-101 세정 �����획",
+    linkedTicketTitle: "E-101 세정 �������획",
     registeredBy: "u-engineer-1",
     createdDate: "2024-11-20",
     lastUpdated: "2025-01-30",
@@ -1251,14 +1251,19 @@ const [approvalComment, setApprovalComment] = useState("")
 
   const handleSubmitTicket = () => {
     const unit = selectedAlert?.unit || "VDU"
+    const ticketId = `EVT-${Date.now().toString().slice(-6)}`
+    const timestamp = new Date().toLocaleString("ko-KR")
+    const CURRENT_USER = "김지수"
+    
     const newTicket = {
-      id: Date.now().toString(),
+      id: ticketId,
       title: ticketTitle,
       description: ticketDescription,
       ticketType: ticketType,
       priority: ticketPriority,
       impact: ticketImpact,
       owner: UNIT_OWNERS[unit] || "미배정",
+      requester: CURRENT_USER,
       status: "Open" as const,
       createdDate: new Date().toISOString().split("T")[0],
       dueDate: ticketDueDate,
@@ -1269,6 +1274,26 @@ const [approvalComment, setApprovalComment] = useState("")
         unit: unit,
       },
       workPackages: [],
+      messages: [{
+        id: `msg-${Date.now()}`,
+        ticketId: ticketId,
+        author: CURRENT_USER,
+        role: "requester" as const,
+        messageType: "opinion" as const,
+        content: `새로운 이벤트가 발행되었습니다: ${ticketTitle}`,
+        timestamp: new Date().toISOString(),
+      }],
+      // 이벤트 프로세스 플로우 초기화
+      processStatus: "issued" as const,
+      processFlow: [
+        { step: "issued" as const, label: "이벤트 발행", status: "current" as const, assignee: CURRENT_USER, team: "공정기술팀", timestamp },
+        { step: "accepted" as const, label: "접수", status: "upcoming" as const },
+        { step: "review" as const, label: "기술검토", status: "upcoming" as const },
+        { step: "publisher-confirm" as const, label: "발행자 확인", status: "upcoming" as const },
+        { step: "closed" as const, label: "종결", status: "upcoming" as const },
+      ],
+      opinions: [],
+      comments: [],
     }
 
     saveTicket(newTicket)

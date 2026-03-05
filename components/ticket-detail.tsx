@@ -658,7 +658,19 @@ function OpinionWritingCanvas({
       messageType: "opinion" as const, content: `[${templateLabel}] 의견이 제출되었습니다.`,
       timestamp: new Date().toISOString(),
     }]
-    updateTicket(ticketId, { opinions, messages })
+    
+    // 기술검토 완료 시 발행자 확인 단계로 이동
+    const updatedFlow = (ticket.processFlow || []).map(s =>
+      s.step === "review" ? { ...s, status: "completed" as const, timestamp: new Date().toLocaleString("ko-KR") } :
+      s.step === "publisher-confirm" ? { ...s, status: "current" as const, assignee: ticket.requester, team: "요청팀" } : s
+    )
+    
+    updateTicket(ticketId, { 
+      opinions, 
+      messages,
+      processStatus: "publisher-confirm",
+      processFlow: updatedFlow,
+    })
     onSuccess()
   }
 
@@ -811,13 +823,33 @@ function AdditionalReviewerSection({ ticket, onAssign }: { ticket: Ticket; onAss
       status: "pending" as const,
       assignedAt: new Date().toISOString(),
     }
+    
+    // 추가검토 단계가 없으면 processFlow에 추가
+    const hasAdditionalReviewStep = ticket.processFlow?.some(s => s.step === "additional-review")
+    let updatedFlow = ticket.processFlow || []
+    
+    if (!hasAdditionalReviewStep) {
+      // review 단계 다음에 additional-review 단계 삽입
+      const reviewIndex = updatedFlow.findIndex(s => s.step === "review")
+      if (reviewIndex !== -1) {
+        updatedFlow = [
+          ...updatedFlow.slice(0, reviewIndex + 1),
+          { step: "additional-review" as const, label: "추가검토", status: "upcoming" as const },
+          ...updatedFlow.slice(reviewIndex + 1),
+        ]
+      }
+    }
+    
+    // 상태 업데이트
+    updatedFlow = updatedFlow.map(s =>
+      s.step === "review" ? { ...s, status: "completed" as const, timestamp: new Date().toLocaleString("ko-KR") } :
+      s.step === "additional-review" ? { ...s, status: "current" as const, assignee: selectedPerson, team: selectedTeam } : s
+    )
+    
     updateTicket(ticket.id, {
       additionalReviewers: [...currentReviewers, newReviewer],
       processStatus: "additional-review",
-      processFlow: ticket.processFlow?.map(s =>
-        s.step === "review" ? { ...s, status: "completed" as const, timestamp: new Date().toLocaleString("ko-KR") } :
-        s.step === "additional-review" ? { ...s, status: "current" as const, assignee: selectedPerson, team: selectedTeam } : s
-      ) || [],
+      processFlow: updatedFlow,
       messages: [...(ticket.messages || []), {
         id: `msg-${Date.now()}`, ticketId: ticket.id, author: "System", role: "system" as const,
         messageType: "wp_assignment" as const, content: `${selectedPerson}님(${selectedTeam})에게 추가 검토가 요청되었습니다.`,
@@ -906,6 +938,85 @@ function AdditionalReviewerSection({ ticket, onAssign }: { ticket: Ticket; onAss
           </div>
         </DialogContent>
       </Dialog>
+    </Card>
+  )
+}
+
+// --- Additional Reviewer Opinion Section (추가검토자 의견 작성) ---
+function AdditionalReviewerOpinionSection({ ticket, onSuccess }: { ticket: Ticket; onSuccess: () => void }) {
+  const [opinion, setOpinion] = useState("")
+  
+  // 현재 사용자가 추가 검토자인지 확인
+  const currentReviewer = ticket.additionalReviewers?.find(r => 
+    r.name === CURRENT_USER && (r.status === "pending" || r.status === "in-progress")
+  )
+  
+  if (!currentReviewer) return null
+  
+  const handleSubmitOpinion = () => {
+    if (!opinion.trim()) {
+      alert("의견을 입력해주세요.")
+      return
+    }
+    
+    const updatedReviewers = (ticket.additionalReviewers || []).map(r =>
+      r.id === currentReviewer.id 
+        ? { ...r, status: "completed" as const, opinion, completedAt: new Date().toISOString() }
+        : r
+    )
+    
+    // 모든 추가 검토자가 완료했는지 확인
+    const allCompleted = updatedReviewers.every(r => r.status === "completed")
+    
+    // 프로세스 플로우 업데이트 (추가검토 완료 시 발행자 확인으로)
+    let updatedFlow = ticket.processFlow || []
+    let newProcessStatus = ticket.processStatus
+    
+    if (allCompleted) {
+      updatedFlow = updatedFlow.map(s =>
+        s.step === "additional-review" ? { ...s, status: "completed" as const, timestamp: new Date().toLocaleString("ko-KR") } :
+        s.step === "publisher-confirm" ? { ...s, status: "current" as const, assignee: ticket.requester, team: "요청팀" } : s
+      )
+      newProcessStatus = "publisher-confirm"
+    }
+    
+    updateTicket(ticket.id, {
+      additionalReviewers: updatedReviewers,
+      processStatus: newProcessStatus,
+      processFlow: updatedFlow,
+      messages: [...(ticket.messages || []), {
+        id: `msg-${Date.now()}`, ticketId: ticket.id, author: CURRENT_USER, role: "assignee" as const,
+        messageType: "opinion" as const, content: `[추가검토 완료 - ${currentReviewer.team}]\n\n${opinion}`,
+        timestamp: new Date().toISOString(),
+      }],
+    })
+    
+    setOpinion("")
+    onSuccess()
+  }
+  
+  return (
+    <Card className="p-4 bg-orange-50 border-orange-200">
+      <div className="flex items-center gap-2 mb-3">
+        <Users className="h-4 w-4 text-orange-600" />
+        <h3 className="text-sm font-semibold text-orange-800">추가검토 배정됨</h3>
+        <Badge variant="outline" className="text-xs">{currentReviewer.team}</Badge>
+      </div>
+      <p className="text-xs text-orange-600 mb-3">
+        {currentReviewer.name}님에게 추가 검토가 요청되었습니다. 의견을 작성해주세요.
+      </p>
+      <Textarea
+        value={opinion}
+        onChange={(e) => setOpinion(e.target.value)}
+        placeholder="추가 검토 의견을 입력해주세요..."
+        className="min-h-[100px] text-sm mb-3 bg-white"
+      />
+      <div className="flex justify-end">
+        <Button size="sm" className="gap-1.5 bg-orange-600 hover:bg-orange-700" onClick={handleSubmitOpinion}>
+          <Send className="h-3.5 w-3.5" />
+          의견 제출
+        </Button>
+      </div>
     </Card>
   )
 }
@@ -1183,6 +1294,173 @@ function TeamOpinionsSummary({ ticket }: { ticket: Ticket }) {
   )
 }
 
+// --- Event Group View (이벤트 그룹보기) ---
+function EventGroupView({ ticket }: { ticket: Ticket }) {
+  const [viewMode, setViewMode] = useState<"team" | "category">("team")
+  const reviewers = ticket.additionalReviewers || []
+  
+  if (reviewers.length === 0) {
+    return (
+      <div className="text-center py-8 text-sm text-muted-foreground">
+        추가 검토자가 배정되지 않았습니다.
+      </div>
+    )
+  }
+
+  // 팀별 그룹화
+  const groupByTeam = () => {
+    const grouped: Record<string, typeof reviewers> = {}
+    reviewers.forEach(r => {
+      if (!grouped[r.team]) grouped[r.team] = []
+      grouped[r.team].push(r)
+    })
+    return grouped
+  }
+
+  // 상태별 그룹화
+  const groupByStatus = () => {
+    const grouped = {
+      completed: reviewers.filter(r => r.status === "completed"),
+      "in-progress": reviewers.filter(r => r.status === "in-progress"),
+      pending: reviewers.filter(r => r.status === "pending"),
+    }
+    return grouped
+  }
+
+  const teamGroups = groupByTeam()
+  const statusGroups = groupByStatus()
+
+  return (
+    <div className="space-y-4">
+      {/* View Mode Toggle */}
+      <div className="flex items-center gap-2">
+        <Button
+          variant={viewMode === "team" ? "default" : "outline"}
+          size="sm"
+          onClick={() => setViewMode("team")}
+          className="text-xs gap-1.5"
+        >
+          <Users className="h-3.5 w-3.5" />
+          팀별 보기
+        </Button>
+        <Button
+          variant={viewMode === "category" ? "default" : "outline"}
+          size="sm"
+          onClick={() => setViewMode("category")}
+          className="text-xs gap-1.5"
+        >
+          <Boxes className="h-3.5 w-3.5" />
+          상태별 보기
+        </Button>
+      </div>
+
+      {/* Team View */}
+      {viewMode === "team" && (
+        <div className="space-y-4">
+          {Object.entries(teamGroups).map(([team, members]) => (
+            <Card key={team} className="p-4">
+              <div className="flex items-center gap-2 mb-3">
+                <Badge variant="outline" className="text-xs font-medium">{team}</Badge>
+                <span className="text-xs text-muted-foreground">
+                  {members.filter(m => m.status === "completed").length}/{members.length} 완료
+                </span>
+              </div>
+              <div className="space-y-2">
+                {members.map(member => (
+                  <div key={member.id} className={cn(
+                    "p-3 rounded-lg border",
+                    member.status === "completed" ? "bg-emerald-50/50 border-emerald-100" :
+                    member.status === "in-progress" ? "bg-amber-50/50 border-amber-100" :
+                    "bg-muted/30 border-border"
+                  )}>
+                    <div className="flex items-center gap-2 mb-1">
+                      <span className="text-sm font-medium">{member.name}</span>
+                      <Badge variant="secondary" className={`text-xs ml-auto ${
+                        member.status === "completed" ? "bg-emerald-100 text-emerald-700" :
+                        member.status === "in-progress" ? "bg-amber-100 text-amber-700" :
+                        "bg-slate-100 text-slate-600"
+                      }`}>
+                        {member.status === "completed" ? "완료" :
+                         member.status === "in-progress" ? "검토 중" : "대기"}
+                      </Badge>
+                    </div>
+                    {member.opinion && (
+                      <p className="text-sm text-foreground mt-2 whitespace-pre-wrap">{member.opinion}</p>
+                    )}
+                  </div>
+                ))}
+              </div>
+            </Card>
+          ))}
+        </div>
+      )}
+
+      {/* Category/Status View */}
+      {viewMode === "category" && (
+        <div className="space-y-4">
+          {statusGroups.completed.length > 0 && (
+            <div>
+              <h4 className="text-xs font-semibold text-emerald-600 mb-2 flex items-center gap-1.5">
+                <CheckCircle className="h-3.5 w-3.5" />
+                검토 완료 ({statusGroups.completed.length})
+              </h4>
+              <div className="space-y-2">
+                {statusGroups.completed.map(r => (
+                  <Card key={r.id} className="p-3 bg-emerald-50/30 border-emerald-100">
+                    <div className="flex items-center gap-2 mb-1">
+                      <Badge variant="outline" className="text-xs">{r.team}</Badge>
+                      <span className="text-sm font-medium">{r.name}</span>
+                    </div>
+                    {r.opinion && <p className="text-sm text-foreground mt-1 whitespace-pre-wrap">{r.opinion}</p>}
+                  </Card>
+                ))}
+              </div>
+            </div>
+          )}
+          
+          {statusGroups["in-progress"].length > 0 && (
+            <div>
+              <h4 className="text-xs font-semibold text-amber-600 mb-2 flex items-center gap-1.5">
+                <Clock className="h-3.5 w-3.5" />
+                검토 중 ({statusGroups["in-progress"].length})
+              </h4>
+              <div className="space-y-2">
+                {statusGroups["in-progress"].map(r => (
+                  <Card key={r.id} className="p-3 bg-amber-50/30 border-amber-100">
+                    <div className="flex items-center gap-2">
+                      <Badge variant="outline" className="text-xs">{r.team}</Badge>
+                      <span className="text-sm">{r.name}</span>
+                    </div>
+                  </Card>
+                ))}
+              </div>
+            </div>
+          )}
+          
+          {statusGroups.pending.length > 0 && (
+            <div>
+              <h4 className="text-xs font-semibold text-muted-foreground mb-2 flex items-center gap-1.5">
+                <Clock className="h-3.5 w-3.5" />
+                대기 중 ({statusGroups.pending.length})
+              </h4>
+              <div className="space-y-2">
+                {statusGroups.pending.map(r => (
+                  <Card key={r.id} className="p-3 border-dashed">
+                    <div className="flex items-center gap-2">
+                      <Badge variant="outline" className="text-xs">{r.team}</Badge>
+                      <span className="text-sm text-muted-foreground">{r.name}</span>
+                    </div>
+                  </Card>
+                ))}
+              </div>
+            </div>
+          )}
+        </div>
+      )}
+    </div>
+  )
+}
+
 // Team leaders for escalation
 const TEAM_LEADERS = [
   { id: "leader-1", name: "박영희", team: "공정기술팀", role: "팀장" },
@@ -1364,8 +1642,59 @@ export function TicketDetail({ ticket: initialTicket }: TicketDetailProps) {
 
   const isPending = ticket.processStatus === "issued"
   const isActive = ticket.processStatus === "review" || ticket.processStatus === "additional-review" || ticket.processStatus === "accepted"
-  const isReviewComplete = ticket.processStatus === "review-complete"
+  const isPublisherConfirm = ticket.processStatus === "publisher-confirm"
   const isClosed = ticket.processStatus === "closed" || ticket.processStatus === "rejected"
+  
+  // 재문의 상태
+  const [showReinquiryDialog, setShowReinquiryDialog] = useState(false)
+  const [reinquiryTarget, setReinquiryTarget] = useState("")
+  const [reinquiryContent, setReinquiryContent] = useState("")
+  
+  // 재문의 처리 핸들러
+  const handleReinquiry = () => {
+    if (!reinquiryTarget || !reinquiryContent.trim()) return
+    
+    const targetProcess = reinquiryTarget === "review" ? "기술검토" : "추가검토"
+    const updatedFlow = (ticket.processFlow || []).map(s =>
+      s.step === "publisher-confirm" ? { ...s, status: "completed" as const, timestamp: new Date().toLocaleString("ko-KR") } :
+      s.step === reinquiryTarget ? { ...s, status: "current" as const } : s
+    )
+    
+    updateTicket(ticket.id, {
+      processStatus: reinquiryTarget as "review" | "additional-review",
+      processFlow: updatedFlow,
+      messages: [...(ticket.messages || []), {
+        id: `msg-${Date.now()}`, ticketId: ticket.id, author: CURRENT_USER, role: "requester" as const,
+        messageType: "inquiry" as const, content: `[재문의] ${targetProcess}로 재검토 요청\n\n${reinquiryContent}`,
+        timestamp: new Date().toISOString(),
+      }],
+    })
+    setShowReinquiryDialog(false)
+    setReinquiryTarget("")
+    setReinquiryContent("")
+    refreshTicket()
+  }
+  
+  // 발행자 최종 확인 완료
+  const handlePublisherConfirmComplete = () => {
+    const updatedFlow = (ticket.processFlow || []).map(s =>
+      s.step === "publisher-confirm" ? { ...s, status: "completed" as const, timestamp: new Date().toLocaleString("ko-KR") } :
+      s.step === "closed" ? { ...s, status: "current" as const } : s
+    )
+    
+    updateTicket(ticket.id, {
+      processStatus: "closed",
+      status: "Closed",
+      closedDate: new Date().toISOString().split("T")[0],
+      processFlow: updatedFlow,
+      messages: [...(ticket.messages || []), {
+        id: `msg-${Date.now()}`, ticketId: ticket.id, author: "System", role: "system" as const,
+        messageType: "status_change" as const, content: `${ticket.requester}님이 검토 결과를 최종 확인하고 이벤트를 종결했습니다.`,
+        timestamp: new Date().toISOString(),
+      }],
+    })
+    refreshTicket()
+  }
 
   return (
     <div className="space-y-6">
@@ -1388,6 +1717,31 @@ export function TicketDetail({ ticket: initialTicket }: TicketDetailProps) {
               <Button size="sm" className="gap-1.5" onClick={() => setShowAcceptDialog(true)}>
                 <CheckCircle className="h-3.5 w-3.5" />
                 접수
+              </Button>
+            </div>
+          </div>
+        </Card>
+      )}
+
+      {/* Publisher Confirm banner - 발행자 확인 단계 */}
+      {isPublisherConfirm && (
+        <Card className="p-4 bg-emerald-50 border-emerald-200">
+          <div className="flex items-center justify-between">
+            <div className="flex items-center gap-2">
+              <CheckCircle className="h-4 w-4 text-emerald-600" />
+              <div>
+                <p className="text-sm font-medium text-emerald-800">기술검토가 완료되었습니다. 최종 확인 후 종결하거나 추가 문의를 요청하세요.</p>
+                <p className="text-xs text-emerald-600 mt-0.5">발행자: {ticket.requester}</p>
+              </div>
+            </div>
+            <div className="flex gap-2">
+              <Button variant="outline" size="sm" className="gap-1.5 bg-white text-amber-600 border-amber-200 hover:bg-amber-50" onClick={() => setShowReinquiryDialog(true)}>
+                <MessageSquare className="h-3.5 w-3.5" />
+                재문의
+              </Button>
+              <Button size="sm" className="gap-1.5 bg-emerald-600 hover:bg-emerald-700" onClick={handlePublisherConfirmComplete}>
+                <CheckCircle className="h-3.5 w-3.5" />
+                검토 완료
               </Button>
             </div>
           </div>
@@ -1520,6 +1874,9 @@ export function TicketDetail({ ticket: initialTicket }: TicketDetailProps) {
       {/* Active working area */}
       {isActive && (
         <>
+          {/* 추가 검토자 의견 작성 섹션 (추가검토 배정된 경우) */}
+          <AdditionalReviewerOpinionSection ticket={ticket} onSuccess={refreshTicket} />
+          
           <OpinionWritingCanvas
             ticketId={ticket.id}
             ticketType={ticket.ticketType}
@@ -1531,45 +1888,41 @@ export function TicketDetail({ ticket: initialTicket }: TicketDetailProps) {
         </>
       )}
 
-      {/* Review complete -> close */}
-      {isReviewComplete && (
-        <Card className="p-4 bg-emerald-50 border-emerald-200">
-          <div className="flex items-center justify-between">
-            <div className="flex items-center gap-2">
-              <CheckCircle className="h-4 w-4 text-emerald-600" />
-              <p className="text-sm font-medium text-emerald-800">검토가 완료되었습니다. 종결 처리하세요.</p>
-            </div>
-            <Button size="sm" className="gap-1.5" onClick={() => setShowCloseDialog(true)}>
-              <CheckCircle className="h-3.5 w-3.5" />
-              종결
-            </Button>
-          </div>
-        </Card>
-      )}
-
-      {/* Thread / Comments / Team Opinions tabs */}
-      <Card className="p-6">
-        <Tabs defaultValue="thread">
-          <TabsList className="mb-4">
-            <TabsTrigger value="thread">이벤트 히스토리</TabsTrigger>
-            <TabsTrigger value="comments">댓글</TabsTrigger>
-            {(ticket.additionalReviewers?.length || 0) > 0 && (
-              <TabsTrigger value="team-opinions">
-                타 팀 의견 종합 ({ticket.additionalReviewers?.filter(r => r.status === "completed").length || 0}/{ticket.additionalReviewers?.length || 0})
-              </TabsTrigger>
-            )}
-          </TabsList>
-          <TabsContent value="thread">
-            <ThreadHistory ticket={ticket} />
-          </TabsContent>
-          <TabsContent value="comments">
+      {/* Thread / Event Group tabs + Comments Side Panel */}
+      <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
+        {/* Main Content - History & Group View */}
+        <div className="lg:col-span-2">
+          <Card className="p-6">
+            <Tabs defaultValue="thread">
+              <TabsList className="mb-4">
+                <TabsTrigger value="thread">이벤트 히스토리</TabsTrigger>
+                {(ticket.additionalReviewers?.length || 0) > 0 && (
+                  <TabsTrigger value="event-group">
+                    이벤트 그룹보기 ({ticket.additionalReviewers?.filter(r => r.status === "completed").length || 0}/{ticket.additionalReviewers?.length || 0})
+                  </TabsTrigger>
+                )}
+              </TabsList>
+              <TabsContent value="thread">
+                <ThreadHistory ticket={ticket} />
+              </TabsContent>
+              <TabsContent value="event-group">
+                <EventGroupView ticket={ticket} />
+              </TabsContent>
+            </Tabs>
+          </Card>
+        </div>
+        
+        {/* Side Panel - Comments */}
+        <div className="lg:col-span-1">
+          <Card className="p-4 sticky top-6">
+            <h3 className="text-sm font-semibold text-foreground mb-4 flex items-center gap-2">
+              <MessageSquare className="h-4 w-4 text-primary" />
+              댓글 ({ticket.comments?.length || 0})
+            </h3>
             <CommentsSection ticket={ticket} onUpdate={refreshTicket} />
-          </TabsContent>
-          <TabsContent value="team-opinions">
-            <TeamOpinionsSummary ticket={ticket} />
-          </TabsContent>
-        </Tabs>
-      </Card>
+          </Card>
+        </div>
+      </div>
 
       {/* Closed event - Full Report View */}
       {isClosed && (ticket.closureReport || ticket.executiveSummary) && (
@@ -1797,6 +2150,53 @@ export function TicketDetail({ ticket: initialTicket }: TicketDetailProps) {
           .map(r => ({ team: r.team, reviewer: r.name, opinion: r.opinion! }))}
         onSubmit={handleClosureReportSubmit}
       />
+
+      {/* Reinquiry Dialog - 재문의 */}
+      <Dialog open={showReinquiryDialog} onOpenChange={setShowReinquiryDialog}>
+        <DialogContent className="max-w-md">
+          <DialogHeader>
+            <DialogTitle className="flex items-center gap-2">
+              <MessageSquare className="h-5 w-5 text-amber-600" />
+              재문의 요청
+            </DialogTitle>
+            <DialogDescription>
+              추가 검토가 필요한 경우 해당 단계로 재문의를 요청할 수 있습니다.
+            </DialogDescription>
+          </DialogHeader>
+          <div className="space-y-4 py-2">
+            <div className="space-y-2">
+              <Label className="text-sm font-medium">재문의 대상</Label>
+              <Select value={reinquiryTarget} onValueChange={setReinquiryTarget}>
+                <SelectTrigger>
+                  <SelectValue placeholder="재문의 대상 선택" />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="review">기술검토 (담당자)</SelectItem>
+                  {(ticket.additionalReviewers?.length || 0) > 0 && (
+                    <SelectItem value="additional-review">추가검토 (타 팀)</SelectItem>
+                  )}
+                </SelectContent>
+              </Select>
+            </div>
+            <div className="space-y-2">
+              <Label className="text-sm font-medium">재문의 내용</Label>
+              <Textarea
+                value={reinquiryContent}
+                onChange={(e) => setReinquiryContent(e.target.value)}
+                placeholder="추가로 확인이 필요한 내용을 작성해주세요..."
+                className="min-h-[100px]"
+              />
+            </div>
+          </div>
+          <div className="flex justify-end gap-2">
+            <Button variant="outline" onClick={() => setShowReinquiryDialog(false)}>취소</Button>
+            <Button onClick={handleReinquiry} disabled={!reinquiryTarget || !reinquiryContent.trim()} className="gap-1.5 bg-amber-600 hover:bg-amber-700">
+              <MessageSquare className="h-4 w-4" />
+              재문의 요청
+            </Button>
+          </div>
+        </DialogContent>
+      </Dialog>
 
       {/* Escalation Dialog */}
       <Dialog open={showEscalationDialog} onOpenChange={setShowEscalationDialog}>

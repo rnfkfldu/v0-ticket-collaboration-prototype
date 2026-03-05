@@ -221,14 +221,19 @@ export function TicketForm() {
       }
     }
 
+    const CURRENT_USER = "김지수"
+    const ticketId = `EVT-${Date.now().toString().slice(-6)}`
+    const timestamp = new Date().toLocaleString("ko-KR")
+    
     const newTicket = {
-      id: Date.now().toString(),
+      id: ticketId,
       title: formData.title,
       description: finalDescription,
       ticketType: autoPriority.priority === "P1" ? "Trouble" : autoEvent.type as "Improvement" | "Trouble" | "Change" | "Analysis",
       priority: autoPriority.priority as "P1" | "P2" | "P3" | "P4",
       impact: autoEvent.impact as "Safety" | "Quality" | "Throughput" | "Cost" | "Energy",
       owner: formData.owner || "미배정",
+      requester: CURRENT_USER,
       status: "Open" as const,
       createdDate: new Date().toISOString().split("T")[0],
       dueDate: "",
@@ -256,6 +261,28 @@ export function TicketForm() {
               dataBoxes: additionalDataBoxes,
             }
           : undefined,
+      // 이벤트 프로세스 플로우 초기화
+      processStatus: "issued" as const,
+      processFlow: [
+        { step: "issued" as const, label: "이벤트 발행", status: "current" as const, assignee: CURRENT_USER, team: "공정기술팀", timestamp },
+        { step: "accepted" as const, label: "접수", status: "upcoming" as const },
+        { step: "review" as const, label: "기술검토", status: "upcoming" as const },
+        { step: "publisher-confirm" as const, label: "발행자 확인", status: "upcoming" as const },
+        { step: "closed" as const, label: "종결", status: "upcoming" as const },
+      ],
+      messages: [
+        {
+          id: `msg-${Date.now()}`,
+          ticketId: ticketId,
+          author: CURRENT_USER,
+          role: "requester" as const,
+          messageType: "opinion" as const,
+          content: `새로운 이벤트가 발행되었습니다: ${formData.title}`,
+          timestamp: new Date().toISOString(),
+        },
+      ],
+      opinions: [],
+      comments: [],
     }
 
     saveTicket(newTicket)
@@ -303,7 +330,8 @@ export function TicketForm() {
       addWorkPackageToTicket(newTicket.id, wp)
     })
 
-    router.push("/")
+    // 생성된 이벤트 상세 페이지로 이동
+    router.push(`/tickets/${newTicket.id}`)
   }
 
   return (
@@ -401,7 +429,7 @@ export function TicketForm() {
           <Label htmlFor="description">상세 설명</Label>
           <Textarea
             id="description"
-            placeholder="세부내용을 입력하여 주십시오."
+            placeholder="세부내용을 입력하여 ���십시오."
             rows={4}
             value={formData.description}
             onChange={(e) => setFormData({ ...formData, description: e.target.value })}
