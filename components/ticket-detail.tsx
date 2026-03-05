@@ -399,7 +399,7 @@ function ContextDataPanel({ ticket }: { ticket: Ticket }) {
               주요 운전변수 확인 ({keyVariablesData.length}개 항목)
             </Button>
           </DialogTrigger>
-          <DialogContent className="max-w-4xl max-h-[85vh] overflow-hidden flex flex-col">
+          <DialogContent className="max-w-5xl w-[90vw] max-h-[90vh] overflow-hidden flex flex-col">
             <DialogHeader className="shrink-0">
               <DialogTitle className="flex items-center gap-2">
                 <Activity className="h-5 w-5 text-primary" />
@@ -435,54 +435,57 @@ function ContextDataPanel({ ticket }: { ticket: Ticket }) {
                 <RefreshCcw className="h-3.5 w-3.5" />
                 조회
               </Button>
-              <div className="ml-auto flex items-center gap-2 text-xs text-muted-foreground">
+              <div className="ml-auto flex items-center gap-3 text-xs text-muted-foreground">
                 <span className="flex items-center gap-1"><span className="w-2 h-2 rounded-full bg-emerald-500" /> Normal</span>
                 <span className="flex items-center gap-1"><span className="w-2 h-2 rounded-full bg-amber-500" /> Warning</span>
                 <span className="flex items-center gap-1"><span className="w-2 h-2 rounded-full bg-red-500" /> Critical</span>
               </div>
             </div>
             
-            {/* 변수 목록 */}
+            {/* 변수 목록 - 세로 리스트 */}
             <div className="flex-1 overflow-y-auto mt-3">
-              <div className="grid grid-cols-1 md:grid-cols-2 gap-2">
+              <div className="space-y-2">
                 {keyVariablesData.map((v, i) => (
                   <div key={v.tag} className={cn(
-                    "p-3 rounded-lg border",
+                    "flex items-center gap-4 p-3 rounded-lg border",
                     v.status === "Critical" ? "bg-red-50/50 border-red-200" :
                     v.status === "Warning" ? "bg-amber-50/50 border-amber-200" :
                     "bg-muted/20 border-border/50"
                   )}>
-                    <div className="flex items-center justify-between mb-1">
-                      <div className="flex items-center gap-2">
-                        <span className="font-mono text-xs font-semibold text-primary">{v.tag}</span>
-                        <span className="text-xs text-muted-foreground truncate max-w-[140px]">{v.name}</span>
-                      </div>
-                      <Badge variant="outline" className={`text-[10px] ${
-                        v.status === "Critical" ? "text-red-600 border-red-200 bg-red-50" :
-                        v.status === "Warning" ? "text-amber-600 border-amber-200 bg-amber-50" :
-                        "text-emerald-600 border-emerald-200 bg-emerald-50"
-                      }`}>
-                        {v.status}
-                      </Badge>
+                    {/* Tag & Name */}
+                    <div className="flex items-center gap-3 min-w-[280px]">
+                      <span className="font-mono text-sm font-semibold text-primary w-[70px]">{v.tag}</span>
+                      <span className="text-sm text-foreground">{v.name}</span>
                     </div>
-                    <div className="grid grid-cols-4 gap-2 text-xs">
-                      <div>
-                        <p className="text-[10px] text-muted-foreground">평균</p>
-                        <p className="font-medium">{v.avgValue} <span className="text-muted-foreground text-[10px]">{v.unit}</span></p>
+                    
+                    {/* Values - horizontal layout */}
+                    <div className="flex items-center gap-6 flex-1">
+                      <div className="text-center min-w-[90px]">
+                        <p className="text-[10px] text-muted-foreground mb-0.5">평균</p>
+                        <p className="text-sm font-medium">{v.avgValue} <span className="text-muted-foreground text-xs">{v.unit}</span></p>
                       </div>
-                      <div>
-                        <p className="text-[10px] text-muted-foreground">현재</p>
-                        <p className={`font-medium ${v.status !== "Normal" ? "text-red-600" : ""}`}>{v.currentValue}</p>
+                      <div className="text-center min-w-[90px]">
+                        <p className="text-[10px] text-muted-foreground mb-0.5">현재</p>
+                        <p className={`text-sm font-medium ${v.status !== "Normal" ? "text-red-600" : ""}`}>{v.currentValue} <span className="text-muted-foreground text-xs">{v.unit}</span></p>
                       </div>
-                      <div>
-                        <p className="text-[10px] text-muted-foreground">최소</p>
-                        <p className="font-medium text-blue-600">{v.minValue}</p>
+                      <div className="text-center min-w-[90px]">
+                        <p className="text-[10px] text-muted-foreground mb-0.5">최소</p>
+                        <p className="text-sm font-medium text-blue-600">{v.minValue} <span className="text-muted-foreground text-xs">{v.unit}</span></p>
                       </div>
-                      <div>
-                        <p className="text-[10px] text-muted-foreground">최대</p>
-                        <p className="font-medium text-red-600">{v.maxValue}</p>
+                      <div className="text-center min-w-[90px]">
+                        <p className="text-[10px] text-muted-foreground mb-0.5">최대</p>
+                        <p className="text-sm font-medium text-red-600">{v.maxValue} <span className="text-muted-foreground text-xs">{v.unit}</span></p>
                       </div>
                     </div>
+                    
+                    {/* Status badge */}
+                    <Badge variant="outline" className={`text-xs shrink-0 ${
+                      v.status === "Critical" ? "text-red-600 border-red-200 bg-red-50" :
+                      v.status === "Warning" ? "text-amber-600 border-amber-200 bg-amber-50" :
+                      "text-emerald-600 border-emerald-200 bg-emerald-50"
+                    }`}>
+                      {v.status}
+                    </Badge>
                   </div>
                 ))}
               </div>
@@ -1540,7 +1543,7 @@ function ThreadHistory({ ticket }: { ticket: Ticket }) {
   }
 
   const getRoleLabel = (role: string) => {
-    const labels: Record<string, string> = { requester: "요청자", assignee: "담당자", system: "시스템" }
+    const labels: Record<string, string> = { requester: "요���자", assignee: "담당자", system: "시스템" }
     return labels[role] || role
   }
   
