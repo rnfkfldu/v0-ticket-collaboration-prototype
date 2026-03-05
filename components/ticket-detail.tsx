@@ -400,7 +400,7 @@ function ContextDataPanel({ ticket }: { ticket: Ticket }) {
               주요 운전변수 확인 ({keyVariablesData.length}개 항목)
             </Button>
           </DialogTrigger>
-          <DialogContent className="max-w-7xl w-[95vw] max-h-[90vh] overflow-hidden flex flex-col">
+          <DialogContent className="max-w-[1400px] w-[98vw] max-h-[90vh] overflow-hidden flex flex-col">
             <DialogHeader className="shrink-0">
               <DialogTitle className="flex items-center gap-2">
                 <Activity className="h-5 w-5 text-primary" />
@@ -2232,7 +2232,7 @@ export function TicketDetail({ ticket: initialTicket }: TicketDetailProps) {
             <div className="flex items-center gap-2">
               <CheckCircle className="h-4 w-4 text-emerald-600" />
               <div>
-                <p className="text-sm font-medium text-emerald-800">기술검토가 완료되었습니다. 최종 확인 후 종결하거나 추가 문의를 요청하세요.</p>
+                <p className="text-sm font-medium text-emerald-800">기술검토가 완료되었습니다. 최종 확인 후 종결하거나 추가 문의를 요청��세요.</p>
                 <p className="text-xs text-emerald-600 mt-0.5">발행자: {ticket.requester}</p>
               </div>
             </div>
@@ -2645,7 +2645,7 @@ export function TicketDetail({ ticket: initialTicket }: TicketDetailProps) {
               )} />
               <div>
                 <div className="flex items-center gap-2 mb-1">
-                  <span className="text-sm font-medium">에스컬레이션</span>
+                  <span className="text-sm font-medium">에스��레이션</span>
                   <Badge variant="secondary" className={cn("text-xs",
                     ticket.escalation.status === "pending" ? "bg-orange-100 text-orange-700" :
                     ticket.escalation.status === "acknowledged" ? "bg-blue-100 text-blue-700" :
