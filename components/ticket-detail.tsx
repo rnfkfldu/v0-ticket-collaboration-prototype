@@ -82,6 +82,9 @@ function ProcessFlowBar({ steps, processStatus }: { steps?: EventProcessStep[]; 
   const [expandedSteps, setExpandedSteps] = useState<Record<number, boolean>>({})
 
   if (!steps || steps.length === 0) return null
+  
+  // 스킵된 단계는 숨김 처리
+  const visibleSteps = steps.filter(s => s.status !== "skipped")
 
   const toggleStep = (idx: number) => {
     setExpandedSteps(prev => ({ ...prev, [idx]: !prev[idx] }))
@@ -124,11 +127,11 @@ function ProcessFlowBar({ steps, processStatus }: { steps?: EventProcessStep[]; 
           업무 프로세스
         </h3>
         <Badge variant="outline" className="text-[10px] font-medium">
-          {steps.filter(s => s.status === "completed").length} / {steps.length} 완료
+          {visibleSteps.filter(s => s.status === "completed").length} / {visibleSteps.length} 완료
         </Badge>
       </div>
-      <div className="grid gap-2" style={{ gridTemplateColumns: `repeat(${steps.length}, minmax(0, 1fr))` }}>
-        {steps.map((step, index) => {
+      <div className="grid gap-2" style={{ gridTemplateColumns: `repeat(${visibleSteps.length}, minmax(0, 1fr))` }}>
+        {visibleSteps.map((step, index) => {
           const isExpanded = expandedSteps[index] !== false
           const details = hasDetails(step)
           return (
@@ -944,7 +947,7 @@ function OpinionWritingCanvas({
         <div className="flex items-center justify-between">
           <Button variant="outline" size="sm" className="gap-1.5 bg-transparent" onClick={handleSaveDraft}>
             <Save className="h-3.5 w-3.5" />
-            임시 저장
+            임시 저���
           </Button>
           <Button size="sm" className="gap-1.5" onClick={handleSubmit}>
             <Send className="h-3.5 w-3.5" />
@@ -1167,11 +1170,13 @@ function AdditionalReviewerSection({ ticket, onAssign }: { ticket: Ticket; onAss
                   </div>
                 )}
                 
-                {/* 미완료 검토자: 의견 입력 필드 (본인만) */}
-                {reviewer.status !== "completed" && reviewer.name === CURRENT_USER && (
+                {/* 미완료 검토자: 의견 입력 필드 (모든 배정된 검토자) */}
+                {reviewer.status !== "completed" && (
                   <div className="p-3 space-y-3 bg-white/50">
                     <div>
-                      <Label className="text-xs font-medium text-foreground mb-1.5 block">검토 의견 작성</Label>
+                      <Label className="text-xs font-medium text-foreground mb-1.5 block">
+                        {reviewer.name}님 검토 의견 작성
+                      </Label>
                       <Textarea
                         value={reviewerOpinions[reviewer.id] || ""}
                         onChange={(e) => setReviewerOpinions(prev => ({ ...prev, [reviewer.id]: e.target.value }))}
@@ -1223,16 +1228,9 @@ function AdditionalReviewerSection({ ticket, onAssign }: { ticket: Ticket; onAss
                         disabled={!reviewerOpinions[reviewer.id]?.trim()}
                       >
                         <Send className="h-3.5 w-3.5" />
-                        검토 의견 제출
+                        의견 제출
                       </Button>
                     </div>
-                  </div>
-                )}
-                
-                {/* 미완료 검토자: 대기 상태 표시 (본인 외) */}
-                {reviewer.status !== "completed" && reviewer.name !== CURRENT_USER && (
-                  <div className="p-3 bg-white/50">
-                    <p className="text-xs text-muted-foreground">검토 대기 중...</p>
                   </div>
                 )}
               </div>
@@ -1946,7 +1944,7 @@ const TEAM_LEADERS = [
   { id: "leader-1", name: "박영희", team: "공정기술팀", role: "팀장" },
   { id: "leader-2", name: "정수민", team: "장치기술팀", role: "팀장" },
   { id: "leader-3", name: "강동원", team: "운전팀", role: "팀장" },
-  { id: "leader-4", name: "김현수", team: "안전환경팀", role: "팀장" },
+  { id: "leader-4", name: "김현수", team: "안전환경팀", role: "팀��" },
   { id: "leader-5", name: "유재석", team: "DX팀", role: "팀장" },
   { id: "leader-6", name: "이상훈", team: "Hydroprocessing기술팀", role: "팀장" },
 ]
@@ -2049,9 +2047,8 @@ export function TicketDetail({ ticket: initialTicket }: TicketDetailProps) {
   const handleClosureReportSubmit = (report: ClosureReport) => {
     closeTicket(ticket.id)
     
-    // 프로세스 플로우 업데이트: review-complete와 closed 모두 완료 처리
+    // 프로세스 플로우 업데이트: closed 완료 처리
     const updatedFlow = (ticket.processFlow || []).map(s =>
-      s.step === "review-complete" ? { ...s, status: "completed" as const, timestamp: new Date().toLocaleString("ko-KR") } :
       s.step === "closed" ? { ...s, status: "completed" as const, timestamp: new Date().toLocaleString("ko-KR") } :
       { ...s, status: "completed" as const }
     )
@@ -2182,15 +2179,15 @@ export function TicketDetail({ ticket: initialTicket }: TicketDetailProps) {
     refreshTicket()
   }
   
-  // 발행자 최종 확인 완료 -> 검토완료 단계로 이동 (담당자가 AI 레포트 작성 후 종결)
+  // 발행자 최종 확인 완료 -> 종결 단계로 이동 (담당자가 티켓 종결 버튼으로 최종 종결)
   const handlePublisherConfirmComplete = () => {
     const updatedFlow = (ticket.processFlow || []).map(s =>
       s.step === "publisher-confirm" ? { ...s, status: "completed" as const, timestamp: new Date().toLocaleString("ko-KR") } :
-      s.step === "review-complete" ? { ...s, status: "current" as const, assignee: ticket.owner, team: "공정기술팀" } : s
+      s.step === "closed" ? { ...s, status: "current" as const, assignee: ticket.owner, team: "공정기술팀" } : s
     )
     
     updateTicket(ticket.id, {
-      processStatus: "review-complete",
+      processStatus: "review-complete", // 종결 대기 상태 (발행자 확인 완료, 최종 종결 전)
       processFlow: updatedFlow,
       messages: [...(ticket.messages || []), {
         id: `msg-${Date.now()}`, ticketId: ticket.id, author: "System", role: "system" as const,
@@ -2255,20 +2252,14 @@ export function TicketDetail({ ticket: initialTicket }: TicketDetailProps) {
       
       {/* Review Complete banner - 검토완료 단계 (담당자 최종 종결 처리) */}
       {isReviewComplete && (
-        <Card className="p-4 bg-purple-50 border-purple-200">
+        <Card className="p-4 bg-amber-50 border-amber-200">
           <div className="flex items-center justify-between">
             <div className="flex items-center gap-2">
-              <FileText className="h-4 w-4 text-purple-600" />
+              <Clock className="h-4 w-4 text-amber-600" />
               <div>
-                <p className="text-sm font-medium text-purple-800">발행자가 검토 결과를 확인했습니다. AI 기반 종료 레포트를 작성하고 최종 종결 처리해주세요.</p>
-                <p className="text-xs text-purple-600 mt-0.5">담당자: {ticket.owner}</p>
+                <p className="text-sm font-medium text-amber-800">발행자가 검토 결과를 확인했습니다. 페이지 하단의 "티켓 종결" 버튼을 통해 AI 레포트를 작성하고 최종 종결해주세요.</p>
+                <p className="text-xs text-amber-600 mt-0.5">담당자: {ticket.owner}</p>
               </div>
-            </div>
-            <div className="flex gap-2">
-              <Button size="sm" className="gap-1.5 bg-purple-600 hover:bg-purple-700" onClick={() => setShowClosureReport(true)}>
-                <Sparkles className="h-3.5 w-3.5" />
-                AI 레포트 작성 및 종결
-              </Button>
             </div>
           </div>
         </Card>
@@ -2716,15 +2707,30 @@ export function TicketDetail({ ticket: initialTicket }: TicketDetailProps) {
 
       {/* Close/Reopen for active events */}
       {!isClosed && !isPending && (
-        <Card className="p-4 bg-muted/30">
+        <Card className={cn(
+          "p-4",
+          isReviewComplete ? "bg-amber-50 border-amber-200" : "bg-muted/30"
+        )}>
+          {isReviewComplete && (
+            <p className="text-sm text-amber-800 text-center mb-3 font-medium">
+              발행자 확인이 완료되었습니다. AI 레포트를 작성하고 티켓을 최종 종결해주세요.
+            </p>
+          )}
           <div className="flex gap-2 justify-center">
             <Button variant="outline" className="gap-2 bg-transparent" onClick={() => setShowEscalationDialog(true)}>
               <ArrowUpCircle className="h-4 w-4" />
               에스컬레이션
             </Button>
-            <Button variant="default" className="gap-2" onClick={() => setShowCloseDialog(true)}>
+            <Button 
+              variant="default" 
+              className={cn(
+                "gap-2",
+                isReviewComplete && "bg-amber-600 hover:bg-amber-700"
+              )} 
+              onClick={() => setShowCloseDialog(true)}
+            >
               <CheckCircle className="h-4 w-4" />
-              종결
+              티켓 종결
             </Button>
           </div>
         </Card>
@@ -2914,7 +2920,7 @@ export function TicketDetail({ ticket: initialTicket }: TicketDetailProps) {
           <DialogHeader>
             <DialogTitle className="flex items-center gap-2">
               <Shield className="h-5 w-5" />
-              접근 권한 설정
+              ���근 권한 설정
             </DialogTitle>
             <DialogDescription>
               이 이벤트의 접근 권한을 관리합니다.
