@@ -257,7 +257,7 @@ function SimilarEventsDialog({ ticket }: { ticket: Ticket }) {
 function SimilarReportsContent({ ticket }: { ticket: Ticket }) {
   const reports = [
     { id: "RPT-041", title: `${ticket.unit} 열교환기 성능 점검 보고서`, date: "2024-12-15", similarity: 78 },
-    { id: "RPT-038", title: `${ticket.unit} 운전 가이��� 개정 보고서`, date: "2024-11-20", similarity: 65 },
+    { id: "RPT-038", title: `${ticket.unit} 운전 가이드 개정 보고서`, date: "2024-11-20", similarity: 65 },
     { id: "RPT-022", title: `${ticket.unit || "CDU"} 공정 효율 분석 보고서`, date: "2024-09-10", similarity: 52 },
   ]
   return (
@@ -1573,7 +1573,7 @@ function ThreadHistory({ ticket }: { ticket: Ticket }) {
   }
 
   const getRoleLabel = (role: string) => {
-    const labels: Record<string, string> = { requester: "요���자", assignee: "담당자", system: "시스템" }
+    const labels: Record<string, string> = { requester: "요청자", assignee: "담당자", system: "시스템" }
     return labels[role] || role
   }
   
@@ -1714,7 +1714,7 @@ function ThreadHistory({ ticket }: { ticket: Ticket }) {
                                 )}
                                 <div className="h-24 bg-gradient-to-r from-blue-50 to-cyan-50 rounded flex items-center justify-center text-xs text-muted-foreground border border-dashed border-blue-200">
                                   <Activity className="h-4 w-4 text-blue-400 mr-1.5" />
-                                  ���렌드 그래프 영역
+                                  트렌드 그래프 영역
                                 </div>
                               </div>
                             )}
@@ -1878,7 +1878,7 @@ function TeamOpinionsSummary({ ticket }: { ticket: Ticket }) {
                 </Badge>
               </div>
               <p className="text-xs text-muted-foreground mt-2">
-                배정���: {new Date(reviewer.assignedAt).toLocaleDateString("ko-KR")}
+                배정일: {new Date(reviewer.assignedAt).toLocaleDateString("ko-KR")}
               </p>
             </Card>
           ))}
@@ -1896,7 +1896,7 @@ function EventGroupView({ ticket }: { ticket: Ticket }) {
   if (reviewers.length === 0) {
     return (
       <div className="text-center py-8 text-sm text-muted-foreground">
-        추가 검토���가 배정되지 않았습니다.
+        추가 검토자가 배정되지 않았습니다.
       </div>
     )
   }
@@ -1974,7 +1974,7 @@ function EventGroupView({ ticket }: { ticket: Ticket }) {
                         member.status === "in-progress" ? "bg-amber-100 text-amber-700" :
                         "bg-slate-100 text-slate-600"
                       }`}>
-                        {member.status === "completed" ? "���료" :
+                        {member.status === "completed" ? "완료" :
                          member.status === "in-progress" ? "검토 중" : "대기"}
                       </Badge>
                     </div>
@@ -2254,7 +2254,7 @@ export function TicketDetail({ ticket: initialTicket }: TicketDetailProps) {
   // 추가검토가 진행중인지 확인 (processStatus와 별개로)
   const hasIncompleteAdditionalReviews = (ticket.additionalReviewers || []).some(r => r.status !== "completed")
   
-  // 발행자 확인 단계: 추가검토가 있는 경우 모두 완료되어야 표시
+  // 발행자 확�� 단계: 추가검토가 있는 경우 모두 완료되어야 표시
   const additionalReviewers = ticket.additionalReviewers || []
   const hasAdditionalReview = additionalReviewers.length > 0
   const allAdditionalReviewsCompleted = additionalReviewers.every(r => r.status === "completed")
@@ -2348,7 +2348,7 @@ export function TicketDetail({ ticket: initialTicket }: TicketDetailProps) {
             <div className="flex items-center gap-2">
               <CheckCircle className="h-4 w-4 text-emerald-600" />
               <div>
-                <p className="text-sm font-medium text-emerald-800">기술검토가 완료되었습니다. 최종 확인 후 종결하거나 추가 문의를 요청��세요.</p>
+                <p className="text-sm font-medium text-emerald-800">기술검토가 완료되었습니다. 최종 확인 후 종결하거나 추가 문의를 요청하세요.</p>
                 <p className="text-xs text-emerald-600 mt-0.5">발행자: {ticket.requester}</p>
               </div>
             </div>
@@ -2975,7 +2975,7 @@ export function TicketDetail({ ticket: initialTicket }: TicketDetailProps) {
               에스컬레이션 요청
             </DialogTitle>
             <DialogDescription>
-              이 이벤트를 ���장급 또는 상위 결재권자에게 에스컬레이션합니다.
+              이 이벤트를 팀장급 또는 상위 결재권자에게 에스컬레이션합니다.
             </DialogDescription>
           </DialogHeader>
           <div className="space-y-4 py-2">
@@ -3036,7 +3036,7 @@ export function TicketDetail({ ticket: initialTicket }: TicketDetailProps) {
           <DialogHeader>
             <DialogTitle className="flex items-center gap-2">
               <Shield className="h-5 w-5" />
-              ���근 권한 설정
+              접근 권한 설정
             </DialogTitle>
             <DialogDescription>
               이 이벤트의 접근 권한을 관리합니다.

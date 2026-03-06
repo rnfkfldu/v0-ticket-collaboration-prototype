@@ -218,7 +218,7 @@ const INITIAL_STANDING_ISSUES: StandingIssue[] = [
     status: "watching",
     unit: "CDU",
     linkedTicketId: "2",
-    linkedTicketTitle: "E-101 세정 �������획",
+    linkedTicketTitle: "E-101 세정 계획",
     registeredBy: "u-engineer-1",
     createdDate: "2024-11-20",
     lastUpdated: "2025-01-30",
@@ -428,13 +428,13 @@ const SAMPLE_ALERTS: AlertItem[] = [
         top3: [
           { tagId: "TI-2001", description: "HCR Reactor Inlet Temp", severity: "high", deviation: "+8.2C vs 동일 피드조건 평균", detail: "Arabian Medium 처리 시 과거 6회 평균 대비 온도가 유의미하게 높음. WABT 상승 추세와 연계 가능." },
           { tagId: "FI-1001", description: "CDU Feed Flow Rate", severity: "medium", deviation: "-3.5% vs 동일 모드 평균", detail: "Full Rate 운전 모드에서 Feed Flow가 과거 대비 소폭 낮음. 계기 Drift 가능성 검토 필요." },
-          { tagId: "PI-3001", description: "CCR Regenerator Pressure", severity: "low", deviation: "-0.2 bar vs 동일 조건", detail: "정상 편차 범위 내이나 모니���링 지속 필요." },
+          { tagId: "PI-3001", description: "CCR Regenerator Pressure", severity: "low", deviation: "-0.2 bar vs 동일 조건", detail: "정상 편차 범위 내이나 모니터링 지속 필요." },
         ]
       },
       {
         id: "cat-2",
         name: "갑작스런 Peak / Oscillation 감지",
-        description: "계기 이상 탐지 목적 - 급격한 스파이크 또는 진동 패턴을 감지하��� 계기 이상 여부 판단",
+        description: "계기 이상 탐지 목적 - 급격한 스파이크 또는 진동 패턴을 감지하여 계기 이상 여부 판단",
         top3: [
           { tagId: "FV-2001", description: "HCR Feed Control Valve", severity: "high", deviation: "Opening 92% (정상: 60-80%)", detail: "Control Valve Opening이 지속적으로 높은 상태. Sticking 또는 Positioner 이상 의심. Oscillation 패턴도 감지됨." },
           { tagId: "TI-4501", description: "VDU Column Bottom Temp", severity: "medium", deviation: "30분 주기 ±2C 진동", detail: "온도 제어루프에서 주기적 진동 패턴 감지. PID Tuning 검토 권장." },
@@ -468,7 +468,7 @@ const SAMPLE_ALERTS: AlertItem[] = [
     type: "notice",
     subType: "long-term",
     title: "장기 모니터링 리포트 (주간)",
-    description: "촉매 성능 및 열교환기 효율에 대한 장기 ���렌드 분석 결과입니다.",
+    description: "촉매 성능 및 열교환기 효율에 대한 장기 트렌드 분석 결과입니다.",
     timestamp: "2025-02-02 09:00",
     status: "unread",
     severity: "info",
@@ -542,7 +542,7 @@ const SAMPLE_ALERTS: AlertItem[] = [
     id: "NTC-007",
     type: "notice",
     subType: "auto-calc",
-    title: "자동 계산 완료: 월��� Operation Cost",
+    title: "자동 계산 완료: 월간 Operation Cost",
     description: "2025년 1월 운영비용 자동 계산이 완료되었습니다. 데이터 정합성 검토가 필요합니다.",
     timestamp: "2025-02-01 08:00",
     status: "unread",
@@ -575,7 +575,7 @@ const SAMPLE_ALERTS: AlertItem[] = [
       ]
     },
     dailyMonitoringDetail: {
-      aiSummary: "금일 전체 공정은 ����정적인 Full Rate 운전을 유지하고 있습니다. 다만, 02/01부터 진행된 Arabian Light → Arabian Medium 원유 전환으로 인해 HCR Unit의 WABT가 1.5°C 상승하였으며, 이는 피드 황함량 증가(+0.3%p)에 대한 정상적인 대응입니다. VDU Heater Outlet 온도는 안정적이며, CDU Overhead 시스템 부식 지표도 정상 범위입니다.\n\n현장 특이사항으로 P-201B Seal Oil Leak이 발견되었으나 경미한 수준으로, 정비팀에서 모니터�� ���입니다. 환경 배출 지표(SO2, NOx, 폐수 COD)는 모두 허용 범위 내에 있습니다.\n\n종합 판정: 정상 운전 유지, P-201B 상태 지속 관찰 권장",
+      aiSummary: "금일 전체 공정은 안정적인 Full Rate 운전을 유지하고 있습니다. 다만, 02/01부터 진행된 Arabian Light → Arabian Medium 원유 전환으로 인해 HCR Unit의 WABT가 1.5°C 상승하였으며, 이는 피드 황함량 증가(+0.3%p)에 대한 정상적인 대응입니다. VDU Heater Outlet 온도는 안정적이며, CDU Overhead 시스템 부식 지표도 정상 범위입니다.\n\n현장 특이사항으로 P-201B Seal Oil Leak이 발견되었으나 경미한 수준으로, 정비팀에서 모니터링 중입니다. 환경 배출 지표(SO2, NOx, 폐수 COD)는 모두 허용 범위 내에 있습니다.\n\n종합 판정: 정상 운전 유지, P-201B 상태 지속 관찰 권장",
       keyVariables: [
         { name: "CDU Feed Rate", value: "1,180 m3/hr", change: "+0.5%", status: "normal" },
         { name: "HCR WABT", value: "396.5°C", change: "+1.5°C", status: "warning" },
@@ -619,7 +619,7 @@ const SAMPLE_ALERTS: AlertItem[] = [
     data: {
       items: [
         { name: "변경 DCS 화면", status: "warning", value: "HCR-001: Reactor Temperature Control" },
-        { name: "변경 ���용", status: "warning", value: "TIC-2001 PID: P=2.5→3.0, I=120→90s, D=0→5s" },
+        { name: "변경 적용", status: "warning", value: "TIC-2001 PID: P=2.5→3.0, I=120→90s, D=0→5s" },
         { name: "연결 ESR", status: "normal", value: "ESR-2025-0042: HCR APC 고도화 프로젝트" },
         { name: "변경 요청자", status: "normal", value: "DX팀 이민수 (ESR 담당)" },
         { name: "적용 일시", status: "normal", value: "2025-02-02 06:00 (야간 작업)" }
@@ -661,7 +661,7 @@ const SAMPLE_ALERTS: AlertItem[] = [
         { title: "2. 에너지 효율 (EII)", content: "EII: 98.2 (목표 97 이하 - 미달). CDU Heater Efficiency 91.3%. 한파로 인한 증기 소모량 증가가 주요 원인.", hasChange: true },
         { title: "3. 안전/환경", content: "무사고 연속 432일. SO2 배출 월평균 12.3 ppm (허용 35 ppm). 폐수 COD 85 mg/L (허용 120 mg/L).", hasChange: false },
         { title: "4. 주요 이슈 및 대응", content: "HCR WABT 상승 추세 지속 (月末 395C). E-101 Fouling 진행 UA값 88%. P-201B Seal Oil Leak 발견 (경미).", hasChange: true },
-        { title: "5. 다음 달 계획", content: "Arabian Medium 전��� 운전 예정. HCR 촉매 활성 모니터링 강화. E-101 ���정 시기 검토.", hasChange: false }
+        { title: "5. 다음 달 계획", content: "Arabian Medium 전환 운전 예정. HCR 촉매 활성 모니터링 강화. E-101 세정 시기 검토.", hasChange: false }
       ],
       reviewHistory: [
         { date: "2025-01-06", reviewer: "김철수", version: "2024년 12월 Report v1.0", comment: "CDU 처리량 소폭 증가 확인, 에너지 효율 개선 필요" },
@@ -689,7 +689,7 @@ const SAMPLE_ALERTS: AlertItem[] = [
       deadline: "2025-02-15",
       sections: [
         { title: "1. 적용 범위", content: "HCR Unit (Reactor Section, Fractionation Section, H2 System) 비상 상황 발생 시 대응 절차.", hasChange: false },
-        { title: "2. 비상 시나리오별 대응", content: "Scenario A: Reactor Runaway - WABT 급���승 시 Quench Gas 주입 및 Feed Cut 절차. Scenario B: H2 Compressor Trip - 단계별 Reactor Depressuring 절차.", hasChange: true },
+        { title: "2. 비상 시나리오별 대응", content: "Scenario A: Reactor Runaway - WABT 급상승 시 Quench Gas 주입 및 Feed Cut 절차. Scenario B: H2 Compressor Trip - 단계별 Reactor Depressuring 절차.", hasChange: true },
         { title: "3. 운전 조건 변경 반영", content: "2024년 하반기 촉매 교체 후 Max WABT 한계 변경: 405C -> 410C. Quench Gas 주입 기준 WABT 변경: 395C -> 400C.", hasChange: true },
         { title: "4. 비상 연락 체계", content: "1차: 당직 Operation Supervisor → 2차: Process Engineer → 3차: Plant Manager. 외부: 소방서, 환경부 신고 기준 유지.", hasChange: false },
         { title: "5. 훈련 이력", content: "최근 훈련: 2024-11-15 (Reactor Runaway Drill). 참여 인원: 생산팀 A/B조, 공정기술팀. 결과: 양호 (대응시간 12분, 목표 15분 이내).", hasChange: false }
@@ -736,7 +736,7 @@ const SAMPLE_ALERTS: AlertItem[] = [
   }
 ]
 
-// 팀장용 운영 KPI 목��� 데이터
+// 팀장용 운영 KPI 목표 데이터
 const TEAM_KPI_DATA = {
   engineers: [
     { id: "u-engineer-1", name: "김철수", team: "생산팀", processes: ["HCR", "VGOFCC"], dailyMonitoring: 92, weeklyMonitoring: 88, liveDocsUpdated: true, alertsHandled: 12, alertsPending: 2, ticketsActive: 3, avgResponseTime: "2.1h" },
@@ -1557,7 +1557,7 @@ const handleSelectAlert = (alert: AlertItem) => {
     for (const [key, group] of Object.entries(MONITORING_GROUPS)) {
       if (group.tags.some(t => t.id === tagId)) return { key, ...group }
     }
-    // 태그 prefix로 유닛 추론 후 가��� 적합한 그룹 반환
+    // 태그 prefix로 유닛 추론 후 가장 적합한 그룹 반환
     const prefix = tagId?.split("-")[0]
     const unitNum = tagId?.match(/-(\d)/)?.[1]
     if (unitNum === "3") return { key: "HCR-Reactor", ...MONITORING_GROUPS["HCR-Reactor"] }
@@ -1566,7 +1566,7 @@ const handleSelectAlert = (alert: AlertItem) => {
     return { key: "HCR-Reactor", ...MONITORING_GROUPS["HCR-Reactor"] }
   }
 
-  // 모의 트렌드 데���터 생성 (태그별)
+  // 모의 트렌드 데이터 생성 (태그별)
   function generateMockTrend(tagId: string, tagType: string): { values: number[]; limit: number | null; lowLimit: number | null; unit: string } {
     const seed = tagId.split("").reduce((a, c) => a + c.charCodeAt(0), 0)
     const rand = (s: number) => ((Math.sin(s) * 10000) % 1 + 1) % 1
@@ -2708,7 +2708,7 @@ const handleSelectAlert = (alert: AlertItem) => {
                           <Clock className="h-4 w-4" />
                           과거 알람 발생 이력 ({selectedAlert.data?.tagId})
                         </CardTitle>
-                        <p className="text-xs text-muted-foreground mt-1">이 태���에서 발생했던 과거 알람과 해결 방법</p>
+                        <p className="text-xs text-muted-foreground mt-1">이 태그에서 발생했던 과거 알람과 해결 방법</p>
                       </CardHeader>
                       <CardContent>
                         <div className="space-y-4">
@@ -4176,7 +4176,7 @@ const handleSelectAlert = (alert: AlertItem) => {
                                       {isExpanded ? <ChevronDown className="h-3.5 w-3.5 text-muted-foreground" /> : <ChevronRight className="h-3.5 w-3.5 text-muted-foreground" />}
                                       <span className="text-sm font-medium">{section.title}</span>
                                       {section.hasChange && (
-                                        <Badge variant="outline" className="text-xs h-5 border-amber-400 text-amber-700 bg-amber-50">���경사항</Badge>
+                                        <Badge variant="outline" className="text-xs h-5 border-amber-400 text-amber-700 bg-amber-50">변경사항</Badge>
                                       )}
                                     </div>
                                   </button>
@@ -4431,7 +4431,7 @@ const handleSelectAlert = (alert: AlertItem) => {
                     </Card>
                   )}
 
-                  {/* 커스텀 알람: 기본 알람 정보 + 트렌드 + 과거 이력 (Alert 컴포넌��� 차용) */}
+                  {/* 커스텀 알람: 기본 알람 정보 + 트렌드 + 과거 이력 (Alert 컴포넌트 차용) */}
                   {selectedAlert.subType === "custom-alarm" && (
                     <>
                       {/* 알람 기본 정보 */}
@@ -4474,7 +4474,7 @@ const handleSelectAlert = (alert: AlertItem) => {
                         </CardContent>
                       </Card>
 
-                      {/* 관련 트���드 (Alert 컴포넌트 차용) */}
+                      {/* 관련 트렌드 (Alert 컴포넌트 차용) */}
                       {selectedAlert.data?.trend && (
                         <Card>
                           <CardHeader className="pb-2">
@@ -4552,7 +4552,7 @@ const handleSelectAlert = (alert: AlertItem) => {
                         <CardHeader className="pb-2">
                           <CardTitle className="text-sm flex items-center gap-2">
                             <Clock className="h-4 w-4" />
-                            과거 알람 발��� 이력 ({selectedAlert.data?.tagId})
+                            과거 알람 발생 이력 ({selectedAlert.data?.tagId})
                           </CardTitle>
                           <p className="text-xs text-muted-foreground mt-1">이 커스텀 알람 조건에서 과거 발생 이력</p>
                         </CardHeader>
@@ -4691,7 +4691,7 @@ const handleSelectAlert = (alert: AlertItem) => {
                 </div>
               </ScrollArea>
 
-              {/* ���션 버튼 영역 */}
+              {/* 액션 버튼 영역 */}
               <div className="p-4 border-t border-border bg-card">
                 <div className="flex justify-end gap-2">
                   {/* Alert 타입: New Alert인 ��우 - 인지 버튼 (Bold 강조) (health-monitoring 제외) */}
@@ -4759,7 +4759,7 @@ const handleSelectAlert = (alert: AlertItem) => {
                     <span className="text-sm text-muted-foreground">이 알람은 Shelved 상태입니다. ({selectedAlert.shelvedUntil}까지)</span>
                   )}
 
-                  {/* Notice 타입 (이상징후/장기/효율성): 엔지니어 의견으로 대체됨 - 위 섹션에서 ���리 */}
+                  {/* Notice 타입 (이상징후/장기/효율성): 엔지니어 의견으로 대체됨 - 위 섹션에서 처리 */}
                   {selectedAlert.type === "notice" && ["anomaly", "long-term", "efficiency"].includes(selectedAlert.subType) && (
                     <span className="text-sm text-muted-foreground">위의 엔지니어 의견 섹션에서 판정을 선택하세요</span>
                   )}
@@ -5743,7 +5743,7 @@ const handleSelectAlert = (alert: AlertItem) => {
                   id="csr-desc"
                   value={csrDescription}
                   onChange={(e) => setCsrDescription(e.target.value)}
-                  placeholder="수정이 필요한 DCS 화면, 파라미터, 변경 내용 등을 상세히 ���재하세요..."
+                  placeholder="수정이 필요한 DCS 화면, 파라미터, 변경 내용 등을 상세히 기재하세요..."
                   className="min-h-32"
                 />
               </div>
@@ -5780,7 +5780,7 @@ const handleSelectAlert = (alert: AlertItem) => {
               <Button variant="outline" onClick={() => { setShowCsrDialog(false); setCsrDescription("") }} className="bg-transparent">취소</Button>
               <Button 
                 onClick={() => {
-                  alert("CSR이 IT운영팀으로 전달되���습니다.\n\nCSR 번호: CSR-2025-0215\n수신: IT운영팀\n상태: 접수 대기")
+                  alert("CSR이 IT운영팀으로 전달되었습니다.\n\nCSR 번호: CSR-2025-0215\n수신: IT운영팀\n상태: 접수 대기")
                   setShowCsrDialog(false)
                   setCsrDescription("")
                 }}
@@ -6018,7 +6018,7 @@ const handleSelectAlert = (alert: AlertItem) => {
                 Standing Issue 추가 등록
               </DialogTitle>
               <p className="text-sm text-muted-foreground mt-1">
-                공정 특이사항을 Standing Issue로 등록합니다. 등록 시 기술팀장에게 자동 공유���니다.
+                공정 특이사항을 Standing Issue로 등록합니다. 등록 시 기술팀장에게 자동 공유됩니다.
               </p>
             </DialogHeader>
             <div className="space-y-4 py-4">
@@ -6154,7 +6154,7 @@ const handleSelectAlert = (alert: AlertItem) => {
             <div className="space-y-4 py-4">
               <div className="p-3 bg-amber-50 border border-amber-200 rounded-lg">
                 <p className="text-sm text-amber-800">
-                  Shelved 처리된 알람은 지정된 재개 시점까지 알람 목록에서 ���겨지며, 
+                  Shelved 처리된 알람은 지정된 재개 시점까지 알람 목록에서 숨겨지며, 
                   해당 시점이 되면 자동으로 다시 활성화됩니다.
                 </p>
               </div>
@@ -6210,7 +6210,7 @@ const handleSelectAlert = (alert: AlertItem) => {
                   min={new Date().toISOString().split("T")[0]}
                 />
                 <p className="text-xs text-muted-foreground">
-                  이 날짜가 되면 ���람이 자동으로 재활성화됩니다.
+                  이 날짜가 되면 알람이 자동으로 재활성화됩니다.
                 </p>
               </div>
             </div>
@@ -6320,7 +6320,7 @@ const handleSelectAlert = (alert: AlertItem) => {
                 </div>
 
                 <div className="p-3 rounded-lg bg-blue-50 border border-blue-100">
-                  <p className="text-xs text-blue-700">조치 입력 시 이벤트 티켓이 자동 생성되며, 관련 엔지니어에게 알림이 발송됩니���.</p>
+                  <p className="text-xs text-blue-700">조치 입력 시 이벤트 티켓이 자동 생성되며, 관련 엔지니어에게 알림이 발송됩니다.</p>
                 </div>
               </div>
             )}

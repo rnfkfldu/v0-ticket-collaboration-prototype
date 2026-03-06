@@ -172,7 +172,7 @@ export function getMockTickets(): Ticket[] {
     },
     {
       id: "EVT-003",
-      title: "CDU Furnace ���율 저하 분석",
+      title: "CDU Furnace 효율 저하 분석",
       description: "CDU Furnace Coil Outlet Temperature 기준 열효율이 설계 대비 5% 이상 저하. 에너지 효율 개선 방안 검토 요청.",
       ticketType: "Analysis",
       priority: "P2",

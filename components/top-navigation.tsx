@@ -221,7 +221,7 @@ export function TopNavigation() {
       } else if (lowerInput.includes("촉매") || lowerInput.includes("catalyst")) {
         responseContent = "HCR 촉매 현황 요약:\n\n- 현재 WABT: 385°C\n- SOR WABT: 370°C\n- EOR Target: 400°C\n- 예상 수명: 약 8개월\n\n최근 WABT 상승률이 증가하고 있어 주의가 필요합니다."
       } else {
-        responseContent = `"${chatInput}"에 대해 분석 중입니다. 공정 데이터, 운전 이력, 관련 문서를 검색하여 답변드리겠습니다.\n\n더 구체적인 질문(예: 특정 Unit, Tag, 기간 등)을 해주시면 정���한 정보를 제공해 드릴 수 있습니다.`
+        responseContent = `"${chatInput}"에 대해 분석 중입니다. 공정 데이터, 운전 이력, 관련 문서를 검색하여 답변드리겠습니다.\n\n더 구체적인 질문(예: 특정 Unit, Tag, 기간 등)을 해주시면 정확한 정보를 제공해 드릴 수 있습니다.`
       }
 
       const assistantMessage: ChatMessage = {

@@ -134,7 +134,7 @@ const REPEATABLE_GUIDES = [
     description: "전 공정 IOW 항목 일일 점검. Critical/Standard Window 이탈 여부 확인.",
     background: "IOW(Integrity Operating Window)는 설비 건전성 유지를 위한 필수 운전 범위입니다. 일일 점검을 통해 이탈 항목을 조기에 발견하고 조치합니다.",
     steps: ["1. 건전성 대시보드에서 IOW 카테고리 확인", "2. Critical IOW 이탈 여부 최우선 확인", "3. Standard IOW 이탈 항목 리스트업", "4. 이탈 항목별 원인 분석", "5. 필요 조치 기록 및 실행", "6. 운영 로그에 점검 결과 기록"],
-    checklist: ["Critical IOW 이탈 여부 확인", "Standard IOW 이탈 항목 리스트", "이탈 항목 원인 분석 ��� 조치 기록", "건전성 대시보드 신호등 확인"],
+    checklist: ["Critical IOW 이탈 여부 확인", "Standard IOW 이탈 항목 리스트", "이탈 항목 원인 분석 및 조치 기록", "건전성 대시보드 신호등 확인"],
     relatedDocs: ["IOW-001~003"],
     relatedLinks: [{ label: "건전성 현황", href: "/operations/health/overview" }] },
   { id: "RG-007", title: "분기 Corrosion Coupon 점검", process: "CDU", triggerType: "periodic" as const, frequency: "분기 1회", lastIssued: "2025-01-05", nextDue: "2025-04-05", status: "upcoming", assignee: "Inspection팀",

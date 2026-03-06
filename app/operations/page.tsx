@@ -165,7 +165,7 @@ export default function OperationsPage() {
               </SelectContent>
             </Select>
             <Select value={processFilter} onValueChange={setProcessFilter}>
-              <SelectTrigger className="w-28 h-8 text-xs"><SelectValue placeholder="공정" /></SelectTrigger>
+              <SelectTrigger className="w-28 h-8 text-xs"><SelectValue placeholder="공��" /></SelectTrigger>
               <SelectContent>
                 <SelectItem value="all">전체 선택</SelectItem>
               </SelectContent>
@@ -321,7 +321,7 @@ export default function OperationsPage() {
                               <th className="text-left px-4 py-2 text-xs font-medium text-muted-foreground w-20">상태</th>
                               <th className="text-left px-4 py-2 text-xs font-medium text-muted-foreground w-24">공정 No.</th>
                               <th className="text-left px-4 py-2 text-xs font-medium text-muted-foreground">공정 Description</th>
-                              <th className="text-center px-4 py-2 text-xs font-medium text-muted-foreground w-28">처리��� Guide</th>
+                              <th className="text-center px-4 py-2 text-xs font-medium text-muted-foreground w-28">처리량 Guide</th>
                               <th className="text-center px-4 py-2 text-xs font-medium text-muted-foreground w-32">Product Spec Guide</th>
                               <th className="text-center px-4 py-2 text-xs font-medium text-muted-foreground w-28">Operation Guide</th>
                               <th className="text-center px-4 py-2 text-xs font-medium text-muted-foreground w-24">이상징후</th>

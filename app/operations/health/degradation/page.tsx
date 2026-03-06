@@ -913,7 +913,7 @@ function DegradationContent() {
               <Textarea
                 value={actionDesc}
                 onChange={(e) => setActionDesc(e.target.value)}
-                placeholder="���치 내용을 상세히 기술하세요..."
+                placeholder="조치 내용을 상세히 기술하세요..."
                 className="min-h-24"
               />
             </div>

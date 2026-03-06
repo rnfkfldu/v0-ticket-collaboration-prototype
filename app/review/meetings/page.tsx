@@ -181,7 +181,7 @@ const INITIAL_MEETINGS: Meeting[] = [
         presenter: "박안전",
         status: "follow-up",
         decision: "6월 TA scope에 포함 확정.",
-        followUpNote: "Catalyst 발주 품의 진행 (담���: 박안전, 기한: 2/28)",
+        followUpNote: "Catalyst 발주 품의 진행 (담당: 박안전, 기한: 2/28)",
       },
     ],
   },

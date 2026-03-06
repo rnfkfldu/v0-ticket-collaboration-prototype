@@ -325,7 +325,7 @@ export function TicketsList() {
         <Card className="p-4">
           <p className="text-xs text-muted-foreground mb-1">반려</p>
           <p className="text-2xl font-bold text-foreground">{rejected.length}</p>
-          <p className="text-xs text-red-600 mt-1">접수 ���계 반려</p>
+          <p className="text-xs text-red-600 mt-1">접수 단계 반려</p>
         </Card>
         <Card className="p-4">
           <p className="text-xs text-muted-foreground mb-1">종결</p>
