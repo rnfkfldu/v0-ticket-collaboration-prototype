@@ -379,67 +379,209 @@ function MessageBubble({ message, isOwn, participants, onDataBoxClick }: {
   )
 }
 
-// 타임라인 뷰 컴포넌트
-function TimelineView({ messages, participants }: { messages: any[], participants: { name: string; team: string }[] }) {
-  // 날짜별로 그룹화
-  const groupedByDate = messages.reduce((acc, msg) => {
-    const date = new Date(msg.timestamp).toLocaleDateString("ko-KR", { year: "numeric", month: "long", day: "numeric" })
-    if (!acc[date]) acc[date] = []
-    acc[date].push(msg)
-    return acc
-  }, {} as Record<string, any[]>)
+// 타임라인 뷰 - 주요 이벤트만 요약하여 표시
+function TimelineView({ messages, participants, ticket }: { messages: any[], participants: { name: string; team: string }[], ticket: Ticket }) {
+  // 타임라인 이벤트 추출
+  type TimelineEvent = {
+    id: string
+    type: "created" | "first_response" | "participant_joined" | "data_attached" | "status_change" | "closed"
+    title: string
+    description: string
+    timestamp: string
+    icon: "zap" | "message" | "user" | "data" | "check" | "flag"
+    color: string
+    metadata?: any
+  }
+
+  const events: TimelineEvent[] = []
+
+  // 1. 문의 생성
+  const firstMsg = messages[0]
+  if (firstMsg) {
+    events.push({
+      id: "created",
+      type: "created",
+      title: "빠른 문의 생성",
+      description: `${ticket.requester}님이 "${ticket.title}" 문의를 등록했습니다.`,
+      timestamp: firstMsg.timestamp,
+      icon: "zap",
+      color: "bg-amber-500",
+    })
+  }
+
+  // 2. 최초 응답
+  const firstResponse = messages.find(m => m.role === "assignee" && m.messageType !== "status_change")
+  if (firstResponse) {
+    events.push({
+      id: "first_response",
+      type: "first_response",
+      title: "최초 응답",
+      description: `${firstResponse.author}님이 문의에 응답했습니다.`,
+      timestamp: firstResponse.timestamp,
+      icon: "message",
+      color: "bg-emerald-500",
+    })
+  }
+
+  // 3. 참여자 추가 이벤트
+  const participantMsgs = messages.filter(m => m.messageType === "status_change" && m.content?.includes("참여"))
+  participantMsgs.forEach(msg => {
+    events.push({
+      id: msg.id,
+      type: "participant_joined",
+      title: "참여자 추가",
+      description: msg.content,
+      timestamp: msg.timestamp,
+      icon: "user",
+      color: "bg-blue-500",
+    })
+  })
+
+  // 4. 데이터 첨부 이벤트
+  messages.forEach(msg => {
+    if (msg.dataBoxes && msg.dataBoxes.length > 0) {
+      msg.dataBoxes.forEach((box: DataInsertBox) => {
+        events.push({
+          id: `data-${box.id}`,
+          type: "data_attached",
+          title: box.type === "trend" ? "트렌드 데이터 첨부" : box.type === "dcs" ? "DCS 화면 첨부" : "테이블 데이터 첨부",
+          description: `${msg.author}님이 "${box.config.title || box.type}" 데이터를 첨부했습니다.`,
+          timestamp: msg.timestamp,
+          icon: "data",
+          color: box.type === "trend" ? "bg-blue-500" : box.type === "dcs" ? "bg-emerald-500" : "bg-purple-500",
+          metadata: { box },
+        })
+      })
+    }
+  })
+
+  // 5. 상태 변경 이벤트 (종결 등)
+  const statusMsgs = messages.filter(m => m.messageType === "status_change" && !m.content?.includes("참여"))
+  statusMsgs.forEach(msg => {
+    events.push({
+      id: msg.id,
+      type: "status_change",
+      title: msg.content?.includes("종결") ? "문의 종결" : "상태 변경",
+      description: msg.content,
+      timestamp: msg.timestamp,
+      icon: msg.content?.includes("종결") ? "flag" : "check",
+      color: msg.content?.includes("종결") ? "bg-slate-500" : "bg-amber-500",
+    })
+  })
+
+  // 시간순 정렬
+  events.sort((a, b) => new Date(a.timestamp).getTime() - new Date(b.timestamp).getTime())
+
+  // 통계 요약
+  const totalMessages = messages.filter(m => m.messageType !== "status_change").length
+  const dataCount = messages.reduce((acc, m) => acc + (m.dataBoxes?.length || 0), 0)
+  const participantCount = participants.length
+
+  const getIcon = (icon: string) => {
+    switch (icon) {
+      case "zap": return <Zap className="h-4 w-4 text-white" />
+      case "message": return <MessageSquare className="h-4 w-4 text-white" />
+      case "user": return <UserPlus className="h-4 w-4 text-white" />
+      case "data": return <Activity className="h-4 w-4 text-white" />
+      case "check": return <CheckCircle className="h-4 w-4 text-white" />
+      case "flag": return <FileText className="h-4 w-4 text-white" />
+      default: return <Clock className="h-4 w-4 text-white" />
+    }
+  }
 
   return (
-    <div className="space-y-6 p-4">
-      {Object.entries(groupedByDate).map(([date, msgs]) => (
-        <div key={date}>
-          <div className="flex items-center gap-2 mb-3">
-            <div className="h-px flex-1 bg-border" />
-            <span className="text-xs font-medium text-muted-foreground px-2">{date}</span>
-            <div className="h-px flex-1 bg-border" />
-          </div>
-          <div className="space-y-3">
-            {(msgs as any[]).map((msg, idx) => {
-              const participant = participants.find(p => p.name === msg.author)
-              const hasData = msg.dataBoxes && msg.dataBoxes.length > 0
-              return (
-                <div key={msg.id} className="flex gap-3">
-                  <div className="flex flex-col items-center">
-                    <div className={cn(
-                      "w-2 h-2 rounded-full",
-                      hasData ? "bg-blue-500" : "bg-amber-400"
-                    )} />
-                    {idx < (msgs as any[]).length - 1 && <div className="w-px flex-1 bg-border mt-1" />}
-                  </div>
-                  <div className="flex-1 pb-3">
-                    <div className="flex items-center gap-2 mb-1">
-                      <span className="text-sm font-medium">{msg.author}</span>
-                      {participant?.team && (
-                        <Badge variant="outline" className="text-[9px]">{participant.team}</Badge>
-                      )}
-                      <span className="text-[10px] text-muted-foreground">
-                        {new Date(msg.timestamp).toLocaleTimeString("ko-KR", { hour: "2-digit", minute: "2-digit" })}
-                      </span>
-                    </div>
-                    <p className="text-sm text-muted-foreground line-clamp-2">{msg.content}</p>
-                    {hasData && (
-                      <div className="flex gap-2 mt-2">
-                        {msg.dataBoxes.map((box: DataInsertBox) => (
-                          <Badge key={box.id} variant="secondary" className="text-[10px] gap-1">
-                            {box.type === "trend" && <Activity className="h-3 w-3" />}
-                            {box.type === "dcs" && <Monitor className="h-3 w-3" />}
-                            {box.config.title}
-                          </Badge>
-                        ))}
-                      </div>
-                    )}
-                  </div>
-                </div>
-              )
-            })}
+    <div className="p-4 space-y-6">
+      {/* 요약 통계 */}
+      <div className="grid grid-cols-4 gap-3">
+        <div className="bg-amber-50 border border-amber-200 rounded-lg p-3 text-center">
+          <p className="text-2xl font-bold text-amber-600">{totalMessages}</p>
+          <p className="text-xs text-amber-700">총 메시지</p>
+        </div>
+        <div className="bg-blue-50 border border-blue-200 rounded-lg p-3 text-center">
+          <p className="text-2xl font-bold text-blue-600">{dataCount}</p>
+          <p className="text-xs text-blue-700">첨부 데이터</p>
+        </div>
+        <div className="bg-emerald-50 border border-emerald-200 rounded-lg p-3 text-center">
+          <p className="text-2xl font-bold text-emerald-600">{participantCount}</p>
+          <p className="text-xs text-emerald-700">참여자</p>
+        </div>
+        <div className="bg-purple-50 border border-purple-200 rounded-lg p-3 text-center">
+          <p className="text-2xl font-bold text-purple-600">{events.length}</p>
+          <p className="text-xs text-purple-700">주요 이벤트</p>
+        </div>
+      </div>
+
+      {/* 참여자 목록 */}
+      <div className="bg-muted/30 rounded-lg p-4">
+        <h4 className="text-sm font-medium mb-3 flex items-center gap-2">
+          <User className="h-4 w-4" />
+          참여자
+        </h4>
+        <div className="flex flex-wrap gap-2">
+          {participants.map(p => (
+            <div key={p.name} className="flex items-center gap-2 bg-white rounded-full px-3 py-1.5 border">
+              <div className="w-6 h-6 bg-gradient-to-br from-amber-400 to-orange-500 rounded-full flex items-center justify-center text-white text-xs font-medium">
+                {p.name[0]}
+              </div>
+              <span className="text-sm">{p.name}</span>
+              <Badge variant="outline" className="text-[10px]">{p.team}</Badge>
+            </div>
+          ))}
+        </div>
+      </div>
+
+      {/* 첨부된 데이터 목록 */}
+      {dataCount > 0 && (
+        <div className="bg-muted/30 rounded-lg p-4">
+          <h4 className="text-sm font-medium mb-3 flex items-center gap-2">
+            <Activity className="h-4 w-4" />
+            첨부된 데이터
+          </h4>
+          <div className="grid grid-cols-2 gap-2">
+            {messages.flatMap(m => m.dataBoxes || []).map((box: DataInsertBox) => (
+              <div key={box.id} className="flex items-center gap-2 bg-white rounded-lg px-3 py-2 border text-sm">
+                {box.type === "trend" && <Activity className="h-4 w-4 text-blue-600" />}
+                {box.type === "dcs" && <Monitor className="h-4 w-4 text-emerald-600" />}
+                {box.type === "table" && <TableIcon className="h-4 w-4 text-purple-600" />}
+                <span>{box.config.title || `${box.type} 데이터`}</span>
+              </div>
+            ))}
           </div>
         </div>
-      ))}
+      )}
+
+      {/* 이벤트 타임라인 */}
+      <div>
+        <h4 className="text-sm font-medium mb-4 flex items-center gap-2">
+          <History className="h-4 w-4" />
+          이벤트 타임라인
+        </h4>
+        <div className="relative">
+          {events.map((event, idx) => (
+            <div key={event.id} className="flex gap-4 pb-6 last:pb-0">
+              {/* 타임라인 라인 */}
+              <div className="flex flex-col items-center">
+                <div className={cn("w-8 h-8 rounded-full flex items-center justify-center flex-shrink-0", event.color)}>
+                  {getIcon(event.icon)}
+                </div>
+                {idx < events.length - 1 && <div className="w-0.5 flex-1 bg-border mt-2" />}
+              </div>
+              {/* 이벤트 내용 */}
+              <div className="flex-1 pt-1">
+                <div className="flex items-center gap-2 mb-1">
+                  <span className="font-medium text-sm">{event.title}</span>
+                  <span className="text-[10px] text-muted-foreground">
+                    {new Date(event.timestamp).toLocaleString("ko-KR", { 
+                      month: "short", day: "numeric", hour: "2-digit", minute: "2-digit" 
+                    })}
+                  </span>
+                </div>
+                <p className="text-sm text-muted-foreground">{event.description}</p>
+              </div>
+            </div>
+          ))}
+        </div>
+      </div>
     </div>
   )
 }
@@ -727,7 +869,7 @@ export function QuickInquiryDetail({ ticket }: { ticket: Ticket }) {
           </ScrollArea>
         ) : (
           <ScrollArea className="h-[calc(100vh-260px)]">
-            <TimelineView messages={localMessages.filter(m => m.author !== "System")} participants={participants} />
+            <TimelineView messages={localMessages} participants={participants} ticket={ticket} />
           </ScrollArea>
         )}
       </div>
