@@ -6,7 +6,7 @@ import { TroubleshootingChat } from "@/components/troubleshooting-chat"
 import { GuideTemplateForm } from "@/components/guide-template-form"
 import { AppShell } from "@/components/app-shell"
 import { Button } from "@/components/ui/button"
-import { ChevronLeft, FileText, MessageSquare, BookOpen, FlaskConical, Cpu, Beaker, CalendarClock, CircleCheck, AlertTriangle, ArrowRight } from "lucide-react"
+import { ChevronLeft, FileText, MessageSquare, BookOpen, FlaskConical, Cpu, Beaker, CalendarClock, CircleCheck, AlertTriangle, ArrowRight, Zap, Send } from "lucide-react"
 import { Input } from "@/components/ui/input"
 import { Textarea } from "@/components/ui/textarea"
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
@@ -17,7 +17,7 @@ import Link from "next/link"
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card"
 import { cn } from "@/lib/utils"
 
-type TicketType = "general" | "troubleshooting" | "guide" | "analysis-request" | "model-improvement" | "process-test" | null
+type TicketType = "general" | "troubleshooting" | "guide" | "analysis-request" | "model-improvement" | "process-test" | "quick-inquiry" | null
 
 export default function NewTicketPage() {
   const [selectedType, setSelectedType] = useState<TicketType>(null)
@@ -43,8 +43,47 @@ export default function NewTicketPage() {
           <main className="px-6 py-10">
             <div className="text-center mb-8">
               <h2 className="text-2xl font-bold text-foreground mb-2 text-balance">어떤 유형의 Event Request를 생성하시겠습니까?</h2>
-              <p className="text-muted-foreground">6가지 요청 유형 중 목적에 맞는 항목을 선택해주세요</p>
+              <p className="text-muted-foreground">7가지 요청 유형 중 목적에 맞는 항목을 선택해주세요</p>
             </div>
+            
+            {/* 빠른 문의 - 상단에 강조 */}
+            <div className="max-w-6xl mx-auto mb-6">
+              <Card 
+                className="cursor-pointer border-2 border-amber-400 bg-gradient-to-r from-amber-50 to-orange-50 hover:shadow-xl transition-all duration-200 group"
+                onClick={() => setSelectedType("quick-inquiry")}
+              >
+                <div className="flex items-center p-5 gap-5">
+                  <div className="w-16 h-16 bg-gradient-to-br from-amber-400 to-orange-500 rounded-xl flex items-center justify-center flex-shrink-0 shadow-lg group-hover:scale-105 transition-transform">
+                    <Zap className="h-8 w-8 text-white" />
+                  </div>
+                  <div className="flex-1">
+                    <div className="flex items-center gap-2 mb-1">
+                      <h3 className="text-lg font-bold text-foreground">빠른 문의</h3>
+                      <Badge className="bg-amber-500 hover:bg-amber-500 text-white text-[10px]">Quick</Badge>
+                    </div>
+                    <p className="text-sm text-muted-foreground mb-2">
+                      간단한 기술 문의를 채팅처럼 빠르게 주고받는 경량화된 커뮤니케이션 채널
+                    </p>
+                    <div className="flex items-center gap-4 text-xs text-muted-foreground">
+                      <span className="flex items-center gap-1">
+                        <MessageSquare className="h-3.5 w-3.5 text-amber-600" />
+                        채팅형 의견 교환
+                      </span>
+                      <span className="flex items-center gap-1">
+                        <Zap className="h-3.5 w-3.5 text-amber-600" />
+                        공정, 제목, 요청사항만 입력
+                      </span>
+                      <span className="flex items-center gap-1">
+                        <FileText className="h-3.5 w-3.5 text-amber-600" />
+                        이력 자동 기록
+                      </span>
+                    </div>
+                  </div>
+                  <ArrowRight className="h-6 w-6 text-amber-500 group-hover:translate-x-1 transition-transform" />
+                </div>
+              </Card>
+            </div>
+            
             <div className="grid grid-cols-2 lg:grid-cols-3 gap-5 max-w-6xl mx-auto">
               {/* 1. 일반 기술 문의 */}
               <Card 
@@ -391,6 +430,11 @@ export default function NewTicketPage() {
   // 실공정 테스트
   if (selectedType === "process-test") {
     return <ProcessTestForm onBack={() => setSelectedType(null)} />
+  }
+
+  // 빠른 문의
+  if (selectedType === "quick-inquiry") {
+    return <QuickInquiryForm onBack={() => setSelectedType(null)} />
   }
 
   // 일반 기술 문의 (default)
@@ -1067,6 +1111,153 @@ function ProcessTestForm({ onBack }: { onBack: () => void }) {
                 <Button className="bg-teal-600 hover:bg-teal-700" onClick={() => { alert("실공정 테스트가 등록되었습니다. 생산팀에 리뷰 요청이 전달됩니다."); onBack() }}>
                   <Beaker className="h-4 w-4 mr-2" />
                   테스트 등록 및 리뷰 요청
+                </Button>
+              </div>
+            </CardContent>
+          </Card>
+        </main>
+      </div>
+    </AppShell>
+  )
+}
+
+
+// ===================== 빠른 문의 폼 =====================
+function QuickInquiryForm({ onBack }: { onBack: () => void }) {
+  const [unit, setUnit] = useState("")
+  const [title, setTitle] = useState("")
+  const [content, setContent] = useState("")
+  const [isSubmitting, setIsSubmitting] = useState(false)
+
+  const units = ["VDU", "HCR", "RFCC", "NHT", "ARU", "SRU", "BTX", "Utility"]
+
+  const handleSubmit = () => {
+    if (!unit || !title || !content) {
+      alert("모든 필수 항목을 입력해주세요.")
+      return
+    }
+    
+    setIsSubmitting(true)
+    
+    // 실제로는 API 호출하여 저장
+    setTimeout(() => {
+      // 새 티켓 ID 생성 (QI = Quick Inquiry)
+      const newId = `QI-${Date.now().toString().slice(-6)}`
+      alert(`빠른 문의가 등록되었습니다. (${newId})\n담당 엔지니어에게 알림이 전송됩니다.`)
+      setIsSubmitting(false)
+      // 내 이벤트 목록으로 이동
+      window.location.href = "/"
+    }, 500)
+  }
+
+  return (
+    <AppShell>
+      <div className="min-h-screen bg-gradient-to-b from-amber-50/50 to-background">
+        <header className="border-b border-amber-200 bg-white">
+          <div className="px-6 py-4 flex items-center gap-4">
+            <Button variant="ghost" size="sm" className="gap-2 bg-transparent" onClick={onBack}>
+              <ChevronLeft className="h-4 w-4" />
+              유형 선택으로
+            </Button>
+            <div className="flex items-center gap-2">
+              <div className="w-8 h-8 bg-gradient-to-br from-amber-400 to-orange-500 rounded-lg flex items-center justify-center">
+                <Zap className="h-4 w-4 text-white" />
+              </div>
+              <div>
+                <h1 className="text-lg font-semibold text-foreground">빠른 문의</h1>
+                <p className="text-xs text-muted-foreground">간단한 기술 문의를 빠르게 등록하세요</p>
+              </div>
+            </div>
+          </div>
+        </header>
+        
+        <main className="px-6 py-8 max-w-2xl mx-auto">
+          <Card className="border-amber-200 shadow-lg">
+            <CardHeader className="pb-4">
+              <div className="flex items-center gap-3">
+                <div className="w-10 h-10 bg-amber-100 rounded-full flex items-center justify-center">
+                  <MessageSquare className="h-5 w-5 text-amber-600" />
+                </div>
+                <div>
+                  <CardTitle className="text-lg">새 문의 작성</CardTitle>
+                  <CardDescription>복잡한 절차 없이 바로 질문하세요. 담당 엔지니어가 채팅처럼 답변합니다.</CardDescription>
+                </div>
+              </div>
+            </CardHeader>
+            <CardContent className="space-y-5">
+              {/* 공정 선택 */}
+              <div className="space-y-2">
+                <Label className="text-sm font-medium">공정 *</Label>
+                <Select value={unit} onValueChange={setUnit}>
+                  <SelectTrigger className="bg-white">
+                    <SelectValue placeholder="문의 대상 공정을 선택하세요" />
+                  </SelectTrigger>
+                  <SelectContent>
+                    {units.map(u => (
+                      <SelectItem key={u} value={u}>{u}</SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+              </div>
+
+              {/* 제목 */}
+              <div className="space-y-2">
+                <Label className="text-sm font-medium">제목 *</Label>
+                <Input 
+                  value={title}
+                  onChange={(e) => setTitle(e.target.value)}
+                  placeholder="예: TI-2001 온도 이상 관련 문의"
+                  className="bg-white"
+                />
+              </div>
+
+              {/* 요청사항 */}
+              <div className="space-y-2">
+                <Label className="text-sm font-medium">요청사항 *</Label>
+                <Textarea
+                  value={content}
+                  onChange={(e) => setContent(e.target.value)}
+                  placeholder={"문의하고 싶은 내용을 자유롭게 작성해주세요.\n\n예: 어제부터 TI-2001 온도가 평소보다 5도 정도 높게 나오는데, 확인 부탁드립니다. 다른 이상징후는 없습니다."}
+                  className="min-h-[150px] bg-white resize-none"
+                />
+                <p className="text-xs text-muted-foreground">
+                  작성 후 담당 엔지니어가 채팅 형태로 의견을 남기며, DCS 화면이나 트렌드 데이터도 첨부할 수 있습니다.
+                </p>
+              </div>
+
+              {/* 안내 박스 */}
+              <div className="bg-amber-50 border border-amber-200 rounded-lg p-4">
+                <div className="flex items-start gap-3">
+                  <Zap className="h-4 w-4 text-amber-600 mt-0.5 flex-shrink-0" />
+                  <div className="text-sm">
+                    <p className="font-medium text-amber-800 mb-1">빠른 문의는 이렇게 활용하세요</p>
+                    <ul className="text-xs text-amber-700 space-y-1">
+                      <li>- 전화로 물어볼 정도의 간단한 기술 문의</li>
+                      <li>- 공식 기술검토 요청 전 사전 논의가 필요한 경우</li>
+                      <li>- 빠른 의견 교환이 필요한 일상적인 운전 관련 질문</li>
+                    </ul>
+                  </div>
+                </div>
+              </div>
+
+              {/* 버튼 */}
+              <div className="flex justify-end gap-3 pt-4 border-t">
+                <Button variant="outline" className="bg-transparent" onClick={onBack}>
+                  취소
+                </Button>
+                <Button 
+                  className="bg-gradient-to-r from-amber-500 to-orange-500 hover:from-amber-600 hover:to-orange-600 text-white gap-2"
+                  onClick={handleSubmit}
+                  disabled={isSubmitting || !unit || !title || !content}
+                >
+                  {isSubmitting ? (
+                    <>처리 중...</>
+                  ) : (
+                    <>
+                      <Send className="h-4 w-4" />
+                      문의 등록
+                    </>
+                  )}
                 </Button>
               </div>
             </CardContent>

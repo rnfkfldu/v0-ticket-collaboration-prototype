@@ -1,6 +1,7 @@
 "use client"
 
 import { TicketDetail } from "@/components/ticket-detail"
+import { QuickInquiryDetail } from "@/components/quick-inquiry-detail"
 import { Button } from "@/components/ui/button"
 import { ChevronLeft } from "lucide-react"
 import Link from "next/link"
@@ -53,6 +54,11 @@ export default function TicketDetailPage() {
         </main>
       </div>
     )
+  }
+
+  // 빠른 문의는 별도 채팅 스타일 UI 사용
+  if (ticket.ticketType === "QuickInquiry") {
+    return <QuickInquiryDetail ticket={ticket} />
   }
 
   return (

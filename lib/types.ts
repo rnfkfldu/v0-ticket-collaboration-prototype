@@ -2,7 +2,7 @@ export interface Ticket {
   id: string
   title: string
   description: string
-  ticketType: "Improvement" | "Trouble" | "Change" | "Analysis" | "Request" | "ModelImprovement" | "ProcessTest"
+  ticketType: "Improvement" | "Trouble" | "Change" | "Analysis" | "Request" | "ModelImprovement" | "ProcessTest" | "QuickInquiry"
   priority: "P1" | "P2" | "P3" | "P4"
   impact: "Safety" | "Quality" | "Throughput" | "Cost" | "Energy" | "Operations" | "Yield"
   owner: string

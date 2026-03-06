@@ -60,6 +60,7 @@ const TICKET_TYPE_CONFIG: Record<string, { label: string; color: string }> = {
   Request: { label: "요청", color: "bg-sky-50 text-sky-700" },
   ModelImprovement: { label: "모델개선", color: "bg-indigo-50 text-indigo-700" },
   ProcessTest: { label: "실공정테스트", color: "bg-teal-50 text-teal-700" },
+  QuickInquiry: { label: "빠른문의", color: "bg-amber-100 text-amber-700" },
 }
 
 export function TicketsList() {
@@ -312,7 +313,7 @@ export function TicketsList() {
         <Card className="p-4">
           <p className="text-xs text-muted-foreground mb-1">반려</p>
           <p className="text-2xl font-bold text-foreground">{rejected.length}</p>
-          <p className="text-xs text-red-600 mt-1">접수 단계 반려</p>
+          <p className="text-xs text-red-600 mt-1">접수 ���계 반려</p>
         </Card>
         <Card className="p-4">
           <p className="text-xs text-muted-foreground mb-1">종결</p>
@@ -400,6 +401,7 @@ export function TicketsList() {
               <SelectItem value="Trouble">트러블</SelectItem>
               <SelectItem value="Change">변경</SelectItem>
               <SelectItem value="Analysis">분석</SelectItem>
+              <SelectItem value="QuickInquiry">빠른문의</SelectItem>
             </SelectContent>
           </Select>
         </div>
