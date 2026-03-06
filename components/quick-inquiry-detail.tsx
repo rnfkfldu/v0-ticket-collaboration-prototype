@@ -313,14 +313,11 @@ function QuickInquiryReportDialog({
 }
 
 // 메시지 버블 컴포넌트
-function MessageBubble({ 
-  message, 
-  isOwn,
-  participants
-}: { 
+function MessageBubble({ message, isOwn, participants, onDataBoxClick }: { 
   message: any
   isOwn: boolean
   participants: { name: string; team: string }[]
+  onDataBoxClick?: (box: DataInsertBox) => void
 }) {
   const participant = participants.find(p => p.name === message.author)
   const teamColor = participant?.team === "공정기술팀" ? "bg-primary/10 text-primary" :
@@ -363,9 +360,10 @@ function MessageBubble({
               <div 
                 key={box.id} 
                 className={cn(
-                  "flex items-center gap-2 p-2.5 rounded-lg border text-xs cursor-pointer hover:shadow-md transition-shadow",
-                  isOwn ? "bg-amber-50 border-amber-200" : "bg-muted/50"
+                  "flex items-center gap-2 p-2.5 rounded-lg border text-xs cursor-pointer hover:shadow-md transition-all hover:scale-[1.02]",
+                  isOwn ? "bg-amber-50 border-amber-200 hover:border-amber-400" : "bg-muted/50 hover:bg-muted"
                 )}
+                onClick={() => onDataBoxClick?.(box)}
               >
                 {box.type === "trend" && <Activity className="h-4 w-4 text-blue-600" />}
                 {box.type === "dcs" && <Monitor className="h-4 w-4 text-emerald-600" />}
@@ -454,6 +452,7 @@ export function QuickInquiryDetail({ ticket }: { ticket: Ticket }) {
   const [showReportDialog, setShowReportDialog] = useState(false)
   const [showUpgradeDialog, setShowUpgradeDialog] = useState(false)
   const [activeTab, setActiveTab] = useState("chat")
+  const [selectedDataBox, setSelectedDataBox] = useState<DataInsertBox | null>(null)
   const scrollRef = useRef<HTMLDivElement>(null)
   const [localMessages, setLocalMessages] = useState(ticket.messages || [])
   const [participants, setParticipants] = useState<{ name: string; team: string }[]>([
@@ -711,6 +710,7 @@ export function QuickInquiryDetail({ ticket }: { ticket: Ticket }) {
                     message={msg} 
                     isOwn={msg.author === currentUser}
                     participants={participants}
+                    onDataBoxClick={setSelectedDataBox}
                   />
                 )
               ))}
@@ -877,6 +877,222 @@ export function QuickInquiryDetail({ ticket }: { ticket: Ticket }) {
           </DialogFooter>
         </DialogContent>
       </Dialog>
+
+      {/* 데이터 뷰어 다이얼로그 */}
+      <Dialog open={!!selectedDataBox} onOpenChange={(open) => !open && setSelectedDataBox(null)}>
+        <DialogContent className="max-w-4xl max-h-[85vh] overflow-hidden flex flex-col">
+          <DialogHeader>
+            <DialogTitle className="flex items-center gap-2">
+              {selectedDataBox?.type === "trend" && <Activity className="h-5 w-5 text-blue-600" />}
+              {selectedDataBox?.type === "dcs" && <Monitor className="h-5 w-5 text-emerald-600" />}
+              {selectedDataBox?.type === "table" && <TableIcon className="h-5 w-5 text-purple-600" />}
+              {selectedDataBox?.config.title || "데이터 보기"}
+            </DialogTitle>
+            <DialogDescription>
+              {selectedDataBox?.type === "trend" && "트렌드 데이터 조회 결과입니다."}
+              {selectedDataBox?.type === "dcs" && "DCS 화면 캡처입니다."}
+              {selectedDataBox?.type === "table" && "테이블 데이터입니다."}
+            </DialogDescription>
+          </DialogHeader>
+          <div className="flex-1 overflow-auto">
+            {selectedDataBox && <DataBoxViewer dataBox={selectedDataBox} />}
+          </div>
+        </DialogContent>
+      </Dialog>
+    </div>
+  )
+}
+
+// 데이터 박스 뷰어 컴포넌트
+function DataBoxViewer({ dataBox }: { dataBox: DataInsertBox }) {
+  if (dataBox.type === "trend") {
+    return <TrendDataViewer config={dataBox.config} />
+  }
+  if (dataBox.type === "dcs") {
+    return <DCSViewer config={dataBox.config} />
+  }
+  if (dataBox.type === "table") {
+    return <TableDataViewer config={dataBox.config} />
+  }
+  return null
+}
+
+// 트렌드 데이터 뷰어
+function TrendDataViewer({ config }: { config: any }) {
+  const tags = config.tags || []
+  const fromDate = config.fromDate || "2026-03-01"
+  const toDate = config.toDate || "2026-03-06"
+  
+  // 목업 데이터 생성
+  const generateMockData = (tag: string) => {
+    const data = []
+    const baseValue = tag.startsWith("TI") ? 350 : tag.startsWith("PI") ? 150 : tag.startsWith("FI") ? 80 : 100
+    for (let i = 0; i < 48; i++) {
+      const hour = Math.floor(i / 2)
+      const date = new Date(fromDate)
+      date.setHours(hour, (i % 2) * 30, 0, 0)
+      data.push({
+        time: date.toLocaleString("ko-KR", { month: "short", day: "numeric", hour: "2-digit", minute: "2-digit" }),
+        value: baseValue + Math.sin(i / 5) * 10 + (Math.random() - 0.5) * 5
+      })
+    }
+    return data
+  }
+  
+  const COLORS = ["#3b82f6", "#ef4444", "#22c55e", "#f59e0b", "#8b5cf6"]
+  
+  return (
+    <div className="space-y-4 p-4">
+      <div className="flex items-center gap-4 text-sm">
+        <div className="flex items-center gap-2">
+          <Clock className="h-4 w-4 text-muted-foreground" />
+          <span className="text-muted-foreground">조회 기간:</span>
+          <span className="font-medium">{fromDate} ~ {toDate}</span>
+        </div>
+        <div className="flex items-center gap-2">
+          <Activity className="h-4 w-4 text-muted-foreground" />
+          <span className="text-muted-foreground">태그:</span>
+          <span className="font-medium">{tags.join(", ") || "없음"}</span>
+        </div>
+      </div>
+      
+      {tags.length > 0 ? (
+        <div className="space-y-6">
+          {tags.map((tag: string, idx: number) => {
+            const data = generateMockData(tag)
+            const color = COLORS[idx % COLORS.length]
+            return (
+              <div key={tag} className="border rounded-lg p-4">
+                <div className="flex items-center justify-between mb-3">
+                  <div className="flex items-center gap-2">
+                    <div className="w-3 h-3 rounded-full" style={{ backgroundColor: color }} />
+                    <span className="font-mono font-semibold">{tag}</span>
+                  </div>
+                  <div className="text-sm text-muted-foreground">
+                    현재: <span className="font-medium text-foreground">{data[data.length - 1].value.toFixed(1)}</span>
+                  </div>
+                </div>
+                <div className="h-40 w-full">
+                  <svg viewBox="0 0 800 160" className="w-full h-full" preserveAspectRatio="none">
+                    {/* Grid lines */}
+                    {[0, 40, 80, 120, 160].map(y => (
+                      <line key={y} x1="0" y1={y} x2="800" y2={y} stroke="#e5e7eb" strokeWidth="1" />
+                    ))}
+                    {/* Data line */}
+                    <polyline
+                      points={data.map((d, i) => `${(i / (data.length - 1)) * 800},${160 - ((d.value - Math.min(...data.map(x => x.value))) / (Math.max(...data.map(x => x.value)) - Math.min(...data.map(x => x.value)) || 1)) * 140 - 10}`).join(" ")}
+                      fill="none"
+                      stroke={color}
+                      strokeWidth="2"
+                    />
+                  </svg>
+                </div>
+                <div className="flex justify-between text-xs text-muted-foreground mt-1">
+                  <span>{data[0].time}</span>
+                  <span>{data[data.length - 1].time}</span>
+                </div>
+              </div>
+            )
+          })}
+        </div>
+      ) : (
+        <div className="text-center py-12 text-muted-foreground">
+          조회할 태그가 없습니다.
+        </div>
+      )}
+    </div>
+  )
+}
+
+// DCS 화면 뷰어
+function DCSViewer({ config }: { config: any }) {
+  const graphicNumber = config.graphicNumber || "DCS-001"
+  
+  return (
+    <div className="p-4">
+      <div className="flex items-center gap-2 mb-4">
+        <Monitor className="h-4 w-4 text-emerald-600" />
+        <span className="text-sm text-muted-foreground">화면 번호:</span>
+        <Badge variant="secondary">{graphicNumber}</Badge>
+      </div>
+      <div className="border rounded-lg overflow-hidden bg-slate-900 aspect-video flex items-center justify-center">
+        {/* 실제 구현에서는 DCS 화면 이미지나 라이브 피드를 표시 */}
+        <div className="text-center space-y-4">
+          <div className="w-24 h-24 mx-auto bg-slate-800 rounded-lg flex items-center justify-center">
+            <Monitor className="h-12 w-12 text-emerald-400" />
+          </div>
+          <div className="text-slate-400 text-sm">
+            <p className="font-mono text-emerald-400 text-lg mb-2">{graphicNumber}</p>
+            <p>DCS 화면 이미지</p>
+            <p className="text-xs mt-2 text-slate-500">실제 환경에서는 DCS 시스템과 연동됩니다</p>
+          </div>
+          {/* 목업 계기 표시 */}
+          <div className="grid grid-cols-3 gap-4 mt-6 px-8">
+            {["TI-101", "PI-201", "FI-301"].map((tag, i) => (
+              <div key={tag} className="bg-slate-800 rounded p-3 text-center">
+                <p className="text-emerald-400 font-mono text-xs mb-1">{tag}</p>
+                <p className="text-white text-lg font-bold">{(350 + i * 50 + Math.random() * 10).toFixed(1)}</p>
+                <p className="text-slate-500 text-xs">{i === 0 ? "°C" : i === 1 ? "kPa" : "m³/h"}</p>
+              </div>
+            ))}
+          </div>
+        </div>
+      </div>
+    </div>
+  )
+}
+
+// 테이블 데이터 뷰어
+function TableDataViewer({ config }: { config: any }) {
+  const tableName = config.tableName || "데이터 테이블"
+  
+  // 목업 테이블 데이터
+  const mockData = [
+    { tag: "TI-101", desc: "Feed 입구 온도", value: 248.35, unit: "°C", status: "Normal" },
+    { tag: "TI-102", desc: "1단 반응기 온도", value: 369.04, unit: "°C", status: "Normal" },
+    { tag: "TI-103", desc: "2단 반응기 온도", value: 403.04, unit: "°C", status: "Warning" },
+    { tag: "PI-201", desc: "반응기 입구 압력", value: 152.8, unit: "kPa", status: "Normal" },
+    { tag: "FI-301", desc: "Feed 유량", value: 137.5, unit: "m³/h", status: "Normal" },
+  ]
+  
+  return (
+    <div className="p-4">
+      <div className="flex items-center gap-2 mb-4">
+        <TableIcon className="h-4 w-4 text-purple-600" />
+        <span className="text-sm text-muted-foreground">테이블:</span>
+        <span className="font-medium">{tableName}</span>
+      </div>
+      <div className="border rounded-lg overflow-hidden">
+        <table className="w-full text-sm">
+          <thead className="bg-muted/50">
+            <tr>
+              <th className="text-left p-3 font-medium">태그</th>
+              <th className="text-left p-3 font-medium">설명</th>
+              <th className="text-right p-3 font-medium">현재값</th>
+              <th className="text-center p-3 font-medium">단위</th>
+              <th className="text-center p-3 font-medium">상태</th>
+            </tr>
+          </thead>
+          <tbody>
+            {mockData.map((row, i) => (
+              <tr key={row.tag} className={cn("border-t", row.status === "Warning" && "bg-amber-50")}>
+                <td className="p-3 font-mono text-primary">{row.tag}</td>
+                <td className="p-3">{row.desc}</td>
+                <td className="p-3 text-right font-medium">{row.value}</td>
+                <td className="p-3 text-center text-muted-foreground">{row.unit}</td>
+                <td className="p-3 text-center">
+                  <Badge variant="outline" className={cn(
+                    "text-xs",
+                    row.status === "Warning" ? "text-amber-600 border-amber-200 bg-amber-50" : "text-emerald-600 border-emerald-200 bg-emerald-50"
+                  )}>
+                    {row.status}
+                  </Badge>
+                </td>
+              </tr>
+            ))}
+          </tbody>
+        </table>
+      </div>
     </div>
   )
 }
