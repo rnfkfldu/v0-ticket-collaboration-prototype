@@ -39,11 +39,38 @@ function autoDeterminePriority(unit: string, equipment: string): { priority: str
   return { priority: "P3", label: "P3 - 보통", reason: "일반 공정 기술검토" }
 }
 
-// 이벤트 유형 자동 판정
-function autoMapEventType(unit: string): { type: string; impact: string } {
-  if (["HCR", "CCR"].includes(unit)) return { type: "Trouble", impact: "Safety" }
-  if (["CDU", "VDU"].includes(unit)) return { type: "Improvement", impact: "Throughput" }
-  return { type: "Improvement", impact: "Cost" }
+// 이벤트 유형 자동 판정 (제목과 설명 기반)
+function autoMapEventType(unit: string, title: string, description: string): { type: string; impact: string } {
+  const text = (title + " " + description).toLowerCase()
+  
+  // 키워드 기반 유형 판정
+  const troubleKeywords = ["문제", "이상", "고장", "불량", "오류", "에러", "트러블", "trouble", "alarm", "알람", "비정상", "누출", "leak"]
+  const changeKeywords = ["변경", "교체", "수정", "업데이트", "change", "update", "modification"]
+  const analysisKeywords = ["분석", "검토", "조사", "원인", "analysis", "investigate", "review"]
+  
+  const hasTrouble = troubleKeywords.some(k => text.includes(k))
+  const hasChange = changeKeywords.some(k => text.includes(k))
+  const hasAnalysis = analysisKeywords.some(k => text.includes(k))
+  
+  // 우선순위: Trouble > Change > Analysis > Improvement
+  let type = "Improvement"
+  if (hasTrouble) type = "Trouble"
+  else if (hasChange) type = "Change"
+  else if (hasAnalysis) type = "Analysis"
+  
+  // 영향 범위도 유닛과 키워드 기반으로 판정
+  let impact = "Cost"
+  if (["HCR", "CCR"].includes(unit) || text.includes("안전") || text.includes("safety")) {
+    impact = "Safety"
+  } else if (["CDU", "VDU"].includes(unit) || text.includes("처리량") || text.includes("throughput")) {
+    impact = "Throughput"
+  } else if (text.includes("품질") || text.includes("quality")) {
+    impact = "Quality"
+  } else if (text.includes("에너지") || text.includes("energy")) {
+    impact = "Energy"
+  }
+  
+  return { type, impact }
 }
 
 const IMPACT_LABELS: Record<string, string> = {
@@ -106,7 +133,7 @@ export function TicketForm() {
 
   // Auto-determined values
   const autoPriority = autoDeterminePriority(formData.unit, formData.equipment)
-  const autoEvent = autoMapEventType(formData.unit)
+  const autoEvent = autoMapEventType(formData.unit, formData.title, formData.description)
   const currentUser = "김철수 (Hydroprocessing기술팀)"
 
   const addTag = () => {
@@ -176,13 +203,10 @@ export function TicketForm() {
   }
 
   const handleUnitChange = (value: string) => {
-    const mapped = autoMapEventType(value)
     setFormData({
       ...formData,
       unit: value,
       owner: UNIT_OWNERS[value] || "",
-      ticketType: mapped.type,
-      impact: mapped.impact,
     })
   }
 
@@ -334,82 +358,34 @@ export function TicketForm() {
     router.push(`/tickets/${newTicket.id}`)
   }
 
-  return (
+return (
     <Card className="p-6">
       <form onSubmit={handleSubmit} className="space-y-6">
-        {/* ===== ROW 1: 공정명(기능위치) / 설비번호 + 관련 태그 ===== */}
-        <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-          <div className="space-y-2">
-            <Label htmlFor="unit" className="flex items-center gap-1">
-              <span className="text-destructive">*</span> 공정명 (기능위치)
-            </Label>
-            <div className="flex gap-2">
-              <Select value={formData.unit} onValueChange={handleUnitChange}>
-                <SelectTrigger id="unit" className="flex-1">
-                  <SelectValue />
-                </SelectTrigger>
-                <SelectContent>
-                  <SelectItem value="CDU">CDU</SelectItem>
-                  <SelectItem value="VDU">VDU</SelectItem>
-                  <SelectItem value="HCR">HCR</SelectItem>
-                  <SelectItem value="CCR">CCR</SelectItem>
-                  <SelectItem value="DHT">DHT</SelectItem>
-                  <SelectItem value="NHT">NHT</SelectItem>
-                  <SelectItem value="Utilities">Utilities</SelectItem>
-                </SelectContent>
-              </Select>
-              <Input
-                placeholder="Area (예: Reactor Section)"
-                value={formData.area}
-                onChange={(e) => setFormData({ ...formData, area: e.target.value })}
-                className="flex-1"
-              />
-            </div>
-          </div>
-          <div className="space-y-2">
-            <Label htmlFor="equipment">설비번호</Label>
-            <Input
-              id="equipment"
-              placeholder="입력 후 엔터.. (예: R-2001, E-101)"
-              value={formData.equipment}
-              onChange={(e) => setFormData({ ...formData, equipment: e.target.value })}
-            />
-          </div>
-          <div className="space-y-2">
-            <Label htmlFor="tags">관련 태그</Label>
-            <Select
-              value=""
-              onValueChange={(value) => {
-                if (value && !formData.tags.includes(value)) {
-                  setFormData({ ...formData, tags: [...formData.tags, value] })
-                }
-              }}
-            >
-              <SelectTrigger>
-                <SelectValue placeholder="태그 선택" />
-              </SelectTrigger>
-              <SelectContent>
-                {AVAILABLE_TAGS[formData.unit]?.map((tag) => (
-                  <SelectItem key={tag} value={tag}>{tag}</SelectItem>
-                ))}
-              </SelectContent>
-            </Select>
-            {formData.tags.length > 0 && (
-              <div className="flex flex-wrap gap-1.5 mt-1.5">
-                {formData.tags.map((tag) => (
-                  <Badge key={tag} variant="secondary" className="text-xs flex items-center gap-1">
-                    {tag}
-                    <button type="button" onClick={() => removeTag(tag)} className="ml-0.5 hover:bg-muted rounded-full">
-                      <X className="h-2.5 w-2.5" />
-                    </button>
-                  </Badge>
-                ))}
-              </div>
-            )}
-          </div>
+        {/* ===== ROW 1: 공정명 (필수) ===== */}
+        <div className="space-y-2">
+          <Label htmlFor="unit" className="flex items-center gap-1">
+            <span className="text-destructive">*</span> 공정명
+          </Label>
+          <Select value={formData.unit} onValueChange={handleUnitChange}>
+            <SelectTrigger id="unit" className="w-full max-w-xs">
+              <SelectValue />
+            </SelectTrigger>
+            <SelectContent>
+              <SelectItem value="CDU">CDU</SelectItem>
+              <SelectItem value="VDU">VDU</SelectItem>
+              <SelectItem value="HCR">HCR</SelectItem>
+              <SelectItem value="CCR">CCR</SelectItem>
+              <SelectItem value="DHT">DHT</SelectItem>
+              <SelectItem value="NHT">NHT</SelectItem>
+              <SelectItem value="Utilities">Utilities</SelectItem>
+            </SelectContent>
+          </Select>
+          <p className="text-xs text-muted-foreground">
+            공정 선택 시 담당자가 자동 배정됩니다: <span className="font-medium text-foreground">{formData.owner || "미배정"}</span>
+          </p>
         </div>
 
-        {/* ===== ROW 2: 제목 (full width) ===== */}
+        {/* ===== ROW 2: 제목 (필수) ===== */}
         <div className="space-y-2">
           <Label htmlFor="title" className="flex items-center gap-1">
             <span className="text-destructive">*</span> 제목
@@ -424,107 +400,22 @@ export function TicketForm() {
           />
         </div>
 
-        {/* ===== ROW 2.5: 상세 설명 (제목 바로 아래) ===== */}
+        {/* ===== ROW 3: 상세 설명 (필수) ===== */}
         <div className="space-y-2">
-          <Label htmlFor="description">상세 설명</Label>
+          <Label htmlFor="description" className="flex items-center gap-1">
+            <span className="text-destructive">*</span> 상세 설명
+          </Label>
           <Textarea
             id="description"
-            placeholder="세부내용을 입력하여 ���십시오."
-            rows={4}
+            placeholder="문의하고자 하는 내용을 상세히 기술해주세요. 제목과 내용을 바탕으로 이벤트 유형과 우선순위가 자동 분류됩니다."
+            rows={5}
             value={formData.description}
             onChange={(e) => setFormData({ ...formData, description: e.target.value })}
+            required
           />
         </div>
 
-        {/* ===== ROW 3: 자동 판정 영역 (우선순위, 요청자, 수신자, 유형/영향) ===== */}
-        <div className="grid grid-cols-1 md:grid-cols-2 gap-x-6 gap-y-3 p-4 border border-border rounded-lg bg-muted/30">
-          <div className="flex items-center justify-between">
-            <Label className="text-sm text-muted-foreground">우선순위</Label>
-            <div className="flex items-center gap-2">
-              <Badge className={cn("text-xs",
-                autoPriority.priority === "P1" ? "bg-red-500 hover:bg-red-500" :
-                autoPriority.priority === "P2" ? "bg-orange-500 hover:bg-orange-500" : "bg-blue-500 hover:bg-blue-500"
-              )}>
-                {autoPriority.label}
-              </Badge>
-              <span className="text-xs text-muted-foreground">자동판정</span>
-            </div>
-          </div>
-          <div className="flex items-center justify-between">
-            <Label className="text-sm text-muted-foreground">요청자</Label>
-            <div className="flex items-center gap-2">
-              <span className="text-sm font-medium">{currentUser}</span>
-              <Badge variant="outline" className="text-xs">자동</Badge>
-            </div>
-          </div>
-          <div className="flex items-center justify-between">
-            <Label className="text-sm text-muted-foreground">수신자 (담당자)</Label>
-            <div className="flex items-center gap-2">
-              <span className="text-sm font-medium">{formData.owner || "미배정"}</span>
-              <Badge variant="outline" className="text-xs">자동 맵핑</Badge>
-            </div>
-          </div>
-          <div className="flex items-center justify-between">
-            <Label className="text-sm text-muted-foreground">이벤트 유형 / 영향 범위</Label>
-            <div className="flex items-center gap-2">
-              <Badge variant="secondary" className="text-xs">{TYPE_LABELS[autoEvent.type] || autoEvent.type}</Badge>
-              <span className="text-xs text-muted-foreground">/</span>
-              <Badge variant="secondary" className="text-xs">{IMPACT_LABELS[autoEvent.impact] || autoEvent.impact}</Badge>
-              <Badge variant="outline" className="text-xs">자동</Badge>
-            </div>
-          </div>
-          <div className="col-span-1 md:col-span-2 pt-1 border-t border-border/50">
-            <p className="text-xs text-muted-foreground italic">
-              {autoPriority.reason}
-            </p>
-          </div>
-        </div>
-
-        {/* ===== ROW 4: 발생 기간 (복수 추가/삭제 가능) ===== */}
-        <div className="space-y-3 p-4 border border-border rounded-lg bg-muted/30">
-          <div className="flex items-center justify-between">
-            <Label className="text-sm font-semibold flex items-center gap-1">
-              <span className="text-destructive">*</span> 발생 기간
-            </Label>
-            <Button type="button" variant="outline" size="sm" className="gap-1.5 text-xs bg-transparent" onClick={addTimePeriod}>
-              <PlusCircle className="h-3.5 w-3.5" />
-              기간 추가
-            </Button>
-          </div>
-          <p className="text-xs text-muted-foreground -mt-1">동일 이벤트가 여러 차례 발생한 경우 각 기간을 추가하세요</p>
-          <div className="space-y-2">
-            {formData.timePeriods.map((tp, index) => (
-              <div key={index} className="flex items-center gap-2">
-                <span className="text-xs text-muted-foreground w-6 shrink-0 text-center">{index + 1}</span>
-                <Input
-                  type="date"
-                  value={tp.from}
-                  onChange={(e) => updateTimePeriod(index, "from", e.target.value)}
-                  className="flex-1"
-                />
-                <span className="text-muted-foreground text-sm shrink-0">~</span>
-                <Input
-                  type="date"
-                  value={tp.to}
-                  onChange={(e) => updateTimePeriod(index, "to", e.target.value)}
-                  className="flex-1"
-                />
-                {formData.timePeriods.length > 1 && (
-                  <Button type="button" variant="ghost" size="sm" className="shrink-0 h-8 w-8 p-0 text-destructive hover:text-destructive" onClick={() => removeTimePeriod(index)}>
-                    <Trash2 className="h-3.5 w-3.5" />
-                  </Button>
-                )}
-              </div>
-            ))}
-          </div>
-          {formData.timePeriods.length > 1 && (
-            <p className="text-xs text-muted-foreground">
-              총 {formData.timePeriods.length}개 발생 기간이 등록되었습니다
-            </p>
-          )}
-        </div>
-
-        {/* ===== ROW 5: 추가 설명 기입 (데이터 삽입, 첨부 등) ===== */}
+        {/* ===== ROW 4: 추가 설명 기입 (데이터 삽입, 첨부 등) ===== */}
         <div className="space-y-4">
           <Button
             type="button"
@@ -626,132 +517,7 @@ export function TicketForm() {
           )}
         </div>
 
-        {/* ===== ROW 6: 접근 권한 설정 ===== */}
-        <Collapsible open={showAccessSettings} onOpenChange={setShowAccessSettings}>
-          <CollapsibleTrigger asChild>
-            <Button type="button" variant="outline" className="w-full justify-between">
-              <div className="flex items-center gap-2">
-                <Shield className="h-4 w-4" />
-                접근 권한 설정
-                {accessLevel === "Private" && <Badge variant="secondary" className="text-xs">기본: 관련자만</Badge>}
-                {accessLevel === "Team" && <Badge variant="secondary" className="text-xs">팀 공유</Badge>}
-                {accessLevel === "Public" && <Badge variant="secondary" className="text-xs">전체 공개</Badge>}
-              </div>
-              {showAccessSettings ? <ChevronUp className="h-4 w-4" /> : <ChevronDown className="h-4 w-4" />}
-            </Button>
-          </CollapsibleTrigger>
-          <CollapsibleContent>
-            <Card className="mt-3 p-4 space-y-4 bg-muted/30">
-              <div className="space-y-3">
-                <Label className="text-sm font-medium">공개 범위</Label>
-                <RadioGroup value={accessLevel} onValueChange={(v) => setAccessLevel(v as "Private" | "Team" | "Public")} className="space-y-2">
-                  <div className={cn("flex items-center space-x-3 rounded-lg border p-3 cursor-pointer transition-colors", accessLevel === "Private" ? "border-primary bg-primary/5" : "hover:bg-muted/50")} onClick={() => setAccessLevel("Private")}>
-                    <RadioGroupItem value="Private" id="access-private" />
-                    <Lock className="h-4 w-4 text-muted-foreground" />
-                    <div className="flex-1">
-                      <Label htmlFor="access-private" className="text-sm font-medium cursor-pointer">관련자만 (기본)</Label>
-                      <p className="text-xs text-muted-foreground">발행자, 담당자, 추가 검토자만 접근 가능</p>
-                    </div>
-                  </div>
-                  <div className={cn("flex items-center space-x-3 rounded-lg border p-3 cursor-pointer transition-colors", accessLevel === "Team" ? "border-primary bg-primary/5" : "hover:bg-muted/50")} onClick={() => setAccessLevel("Team")}>
-                    <RadioGroupItem value="Team" id="access-team" />
-                    <Users className="h-4 w-4 text-muted-foreground" />
-                    <div className="flex-1">
-                      <Label htmlFor="access-team" className="text-sm font-medium cursor-pointer">팀 공유</Label>
-                      <p className="text-xs text-muted-foreground">선택한 팀 전체가 열람 가능</p>
-                    </div>
-                  </div>
-                  <div className={cn("flex items-center space-x-3 rounded-lg border p-3 cursor-pointer transition-colors", accessLevel === "Public" ? "border-primary bg-primary/5" : "hover:bg-muted/50")} onClick={() => setAccessLevel("Public")}>
-                    <RadioGroupItem value="Public" id="access-public" />
-                    <Globe className="h-4 w-4 text-muted-foreground" />
-                    <div className="flex-1">
-                      <Label htmlFor="access-public" className="text-sm font-medium cursor-pointer">전체 공개</Label>
-                      <p className="text-xs text-muted-foreground">모든 사용자가 열람 가능</p>
-                    </div>
-                  </div>
-                </RadioGroup>
-              </div>
-
-              {/* Team selection for Team access level */}
-              {accessLevel === "Team" && (
-                <div className="space-y-3 pt-2 border-t">
-                  <Label className="text-sm font-medium">공유 대상 팀 선택</Label>
-                  <div className="grid grid-cols-2 md:grid-cols-3 gap-2">
-                    {AVAILABLE_TEAMS.map(team => (
-                      <div key={team.id} className={cn("flex items-center space-x-2 rounded-lg border p-2.5 cursor-pointer transition-colors", allowedTeams.includes(team.id) ? "border-primary bg-primary/5" : "hover:bg-muted/50")} onClick={() => {
-                        if (allowedTeams.includes(team.id)) {
-                          setAllowedTeams(allowedTeams.filter(t => t !== team.id))
-                        } else {
-                          setAllowedTeams([...allowedTeams, team.id])
-                        }
-                      }}>
-                        <Checkbox checked={allowedTeams.includes(team.id)} />
-                        <span className="text-sm">{team.name}</span>
-                      </div>
-                    ))}
-                  </div>
-                </div>
-              )}
-
-              {/* Additional users - always available */}
-              <div className="space-y-3 pt-2 border-t">
-                <div className="flex items-center justify-between">
-                  <Label className="text-sm font-medium">추가 접근 허용 사용자</Label>
-                  <Badge variant="outline" className="text-xs">{allowedUsers.length}명 선택됨</Badge>
-                </div>
-                <p className="text-xs text-muted-foreground -mt-1">공개 범위와 관계없이 특정 사용자에게 접근 권한을 부여합니다.</p>
-                
-                <div className="relative">
-                  <Input
-                    placeholder="사용자 검색..."
-                    value={userSearchQuery}
-                    onChange={(e) => setUserSearchQuery(e.target.value)}
-                    className="pr-8"
-                  />
-                  <UserPlus className="absolute right-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
-                </div>
-                
-                {userSearchQuery && (
-                  <Card className="p-2 space-y-1 max-h-40 overflow-y-auto">
-                    {AVAILABLE_USERS.filter(u => 
-                      u.name.toLowerCase().includes(userSearchQuery.toLowerCase()) ||
-                      u.team.toLowerCase().includes(userSearchQuery.toLowerCase())
-                    ).filter(u => !allowedUsers.includes(u.name)).map(user => (
-                      <div key={user.id} className="flex items-center justify-between p-2 rounded hover:bg-muted cursor-pointer" onClick={() => {
-                        setAllowedUsers([...allowedUsers, user.name])
-                        setUserSearchQuery("")
-                      }}>
-                        <div className="flex items-center gap-2">
-                          <div className="h-7 w-7 rounded-full bg-primary/10 flex items-center justify-center text-xs font-medium">{user.name[0]}</div>
-                          <div>
-                            <p className="text-sm font-medium">{user.name}</p>
-                            <p className="text-xs text-muted-foreground">{user.team} · {user.role}</p>
-                          </div>
-                        </div>
-                        <PlusCircle className="h-4 w-4 text-primary" />
-                      </div>
-                    ))}
-                  </Card>
-                )}
-                
-                {allowedUsers.length > 0 && (
-                  <div className="flex flex-wrap gap-2">
-                    {allowedUsers.map(userName => (
-                      <Badge key={userName} variant="secondary" className="text-xs flex items-center gap-1 pr-1">
-                        {userName}
-                        <button type="button" onClick={() => setAllowedUsers(allowedUsers.filter(u => u !== userName))} className="ml-1 hover:bg-muted rounded-full p-0.5">
-                          <X className="h-3 w-3" />
-                        </button>
-                      </Badge>
-                    ))}
-                  </div>
-                )}
-              </div>
-            </Card>
-          </CollapsibleContent>
-        </Collapsible>
-
-        <div className="flex gap-3 pt-4">
+<div className="flex gap-3 pt-4">
           <Button type="submit" className="flex-1">
             이벤트 생성
           </Button>
