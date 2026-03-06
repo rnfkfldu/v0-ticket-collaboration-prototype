@@ -22,7 +22,7 @@ import {
   Zap, Send, User, Clock, Building2, ChevronLeft, Activity, 
   Monitor, PlusCircle, Table as TableIcon, X, UserPlus,
   MessageSquare, History, FileText, Sparkles, CheckCircle, Loader2,
-  RotateCcw, Pencil, TrendingUp
+  RotateCcw, Pencil, TrendingUp, ArrowUpCircle
 } from "lucide-react"
 import { cn } from "@/lib/utils"
 import Link from "next/link"
@@ -452,6 +452,7 @@ export function QuickInquiryDetail({ ticket }: { ticket: Ticket }) {
   const [showDataConfig, setShowDataConfig] = useState(false)
   const [showAddParticipant, setShowAddParticipant] = useState(false)
   const [showReportDialog, setShowReportDialog] = useState(false)
+  const [showUpgradeDialog, setShowUpgradeDialog] = useState(false)
   const [activeTab, setActiveTab] = useState("chat")
   const scrollRef = useRef<HTMLDivElement>(null)
   const [localMessages, setLocalMessages] = useState(ticket.messages || [])
@@ -538,6 +539,39 @@ export function QuickInquiryDetail({ ticket }: { ticket: Ticket }) {
     setShowDataConfig(false)
   }
 
+  // 기술검토 요청으로 등급 상향
+  const handleUpgradeToTechnicalReview = () => {
+    const processFlow = [
+      { step: "issued" as const, label: "이벤트 발행", status: "completed" as const, assignee: ticket.requester, team: "생산조정팀", timestamp: ticket.createdDate },
+      { step: "accepted" as const, label: "접수", status: "completed" as const, assignee: ticket.owner, team: "공정기술팀", timestamp: new Date().toLocaleString("ko-KR") },
+      { step: "review" as const, label: "기술검토", status: "current" as const, assignee: ticket.owner, team: "공정기술팀" },
+      { step: "publisher-confirm" as const, label: "발행자 확인", status: "upcoming" as const },
+      { step: "closed" as const, label: "종결", status: "upcoming" as const },
+    ]
+    
+    // 기존 채팅 내용을 기술검토 의견으로 변환하여 히스토리에 추가
+    const sysMsg = {
+      id: `msg-${Date.now()}`,
+      ticketId: ticket.id,
+      author: "System",
+      role: "system" as const,
+      messageType: "status_change" as const,
+      content: `빠른 문의에서 기술검토 요청으로 전환되었습니다. 기존 대화 내용 ${localMessages.length}건이 이력으로 보존됩니다.`,
+      timestamp: new Date().toISOString(),
+    }
+    
+    updateTicket(ticket.id, {
+      ticketType: "Improvement",
+      processStatus: "review",
+      processFlow,
+      status: "In Progress",
+      messages: [...localMessages, sysMsg],
+    })
+    
+    // 기술검토 상세 페이지로 이동
+    window.location.href = `/tickets/${ticket.id}`
+  }
+
   return (
     <div className="min-h-screen bg-gradient-to-b from-amber-50/30 to-background flex flex-col">
       {/* 헤더 */}
@@ -577,17 +611,28 @@ export function QuickInquiryDetail({ ticket }: { ticket: Ticket }) {
               </span>
             </div>
           </div>
-          {/* 종결 버튼 */}
+          {/* 액션 버튼들 */}
           {!isClosed && (
-            <Button 
-              size="sm" 
-              variant="outline"
-              className="gap-1.5 text-amber-600 border-amber-200 hover:bg-amber-50"
-              onClick={() => setShowReportDialog(true)}
-            >
-              <FileText className="h-4 w-4" />
-              <span className="hidden sm:inline">종결 및 자산화</span>
-            </Button>
+            <div className="flex items-center gap-2">
+              <Button 
+                size="sm" 
+                variant="outline"
+                className="gap-1.5 text-blue-600 border-blue-200 hover:bg-blue-50"
+                onClick={() => setShowUpgradeDialog(true)}
+              >
+                <ArrowUpCircle className="h-4 w-4" />
+                <span className="hidden sm:inline">기술검토로 전환</span>
+              </Button>
+              <Button 
+                size="sm" 
+                variant="outline"
+                className="gap-1.5 text-amber-600 border-amber-200 hover:bg-amber-50"
+                onClick={() => setShowReportDialog(true)}
+              >
+                <FileText className="h-4 w-4" />
+                <span className="hidden sm:inline">종결 및 자산화</span>
+              </Button>
+            </div>
           )}
         </div>
         
@@ -777,6 +822,61 @@ export function QuickInquiryDetail({ ticket }: { ticket: Ticket }) {
         messages={localMessages}
         onSubmit={handleCloseInquiry}
       />
+
+      {/* 기술검토 전환 다이얼로그 */}
+      <Dialog open={showUpgradeDialog} onOpenChange={setShowUpgradeDialog}>
+        <DialogContent className="max-w-md">
+          <DialogHeader>
+            <DialogTitle className="flex items-center gap-2">
+              <ArrowUpCircle className="h-5 w-5 text-blue-600" />
+              기술검토 요청으로 전환
+            </DialogTitle>
+            <DialogDescription>
+              빠른 문의를 정식 기술검토 요청으로 전환합니다.
+            </DialogDescription>
+          </DialogHeader>
+          <div className="py-4 space-y-4">
+            <div className="bg-blue-50 border border-blue-200 rounded-lg p-4">
+              <h4 className="text-sm font-medium text-blue-800 mb-2">전환 시 변경사항</h4>
+              <ul className="text-xs text-blue-700 space-y-1.5">
+                <li className="flex items-start gap-2">
+                  <CheckCircle className="h-3.5 w-3.5 mt-0.5 flex-shrink-0" />
+                  기존 대화 내용 {localMessages.length}건이 이력으로 보존됩니다.
+                </li>
+                <li className="flex items-start gap-2">
+                  <CheckCircle className="h-3.5 w-3.5 mt-0.5 flex-shrink-0" />
+                  정식 프로세스 플로우(접수→기술검토→발행자확인→종결)가 적용됩니다.
+                </li>
+                <li className="flex items-start gap-2">
+                  <CheckCircle className="h-3.5 w-3.5 mt-0.5 flex-shrink-0" />
+                  추가 검토자 배정, Work Package 관리 등 고급 기능을 사용할 수 있습니다.
+                </li>
+                <li className="flex items-start gap-2">
+                  <CheckCircle className="h-3.5 w-3.5 mt-0.5 flex-shrink-0" />
+                  공식 기술검토 의견서 및 종결 레포트가 작성됩니다.
+                </li>
+              </ul>
+            </div>
+            <div className="bg-amber-50 border border-amber-200 rounded-lg p-3">
+              <p className="text-xs text-amber-700">
+                <strong>참고:</strong> 전환 후에는 빠른 문의 형태로 되돌릴 수 없습니다.
+              </p>
+            </div>
+          </div>
+          <DialogFooter className="gap-2">
+            <Button variant="outline" onClick={() => setShowUpgradeDialog(false)}>
+              취소
+            </Button>
+            <Button 
+              onClick={handleUpgradeToTechnicalReview}
+              className="bg-blue-600 hover:bg-blue-700 gap-1.5"
+            >
+              <ArrowUpCircle className="h-4 w-4" />
+              기술검토로 전환
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
     </div>
   )
 }
