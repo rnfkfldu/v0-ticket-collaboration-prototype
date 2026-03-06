@@ -1022,7 +1022,7 @@ export function QuickInquiryDetail({ ticket }: { ticket: Ticket }) {
 
       {/* 데이터 뷰어 다이얼로그 */}
       <Dialog open={!!selectedDataBox} onOpenChange={(open) => !open && setSelectedDataBox(null)}>
-        <DialogContent className="max-w-4xl max-h-[85vh] overflow-hidden flex flex-col">
+        <DialogContent className="!max-w-[95vw] !w-[1400px] max-h-[90vh] overflow-hidden flex flex-col">
           <DialogHeader>
             <DialogTitle className="flex items-center gap-2">
               {selectedDataBox?.type === "trend" && <Activity className="h-5 w-5 text-blue-600" />}
@@ -1150,34 +1150,80 @@ function TrendDataViewer({ config }: { config: any }) {
 function DCSViewer({ config }: { config: any }) {
   const graphicNumber = config.graphicNumber || "DCS-001"
   
+  // 더 많은 목업 계기 데이터
+  const mockTags = [
+    { tag: "TI-101", value: 354.9, unit: "°C", desc: "Feed 입구 온도" },
+    { tag: "PI-201", value: 401.1, unit: "kPa", desc: "반응기 압력" },
+    { tag: "FI-301", value: 458.9, unit: "m³/h", desc: "Feed 유량" },
+    { tag: "TI-102", value: 369.2, unit: "°C", desc: "1단 반응기 온도" },
+    { tag: "TI-103", value: 403.5, unit: "°C", desc: "2단 반응기 온도" },
+    { tag: "LI-401", value: 67.3, unit: "%", desc: "분리기 레벨" },
+    { tag: "PI-202", value: 385.7, unit: "kPa", desc: "출구 압력" },
+    { tag: "FI-302", value: 312.4, unit: "m³/h", desc: "제품 유량" },
+    { tag: "TI-104", value: 288.6, unit: "°C", desc: "분리기 온도" },
+  ]
+  
   return (
-    <div className="p-4">
-      <div className="flex items-center gap-2 mb-4">
-        <Monitor className="h-4 w-4 text-emerald-600" />
+    <div className="p-6">
+      <div className="flex items-center gap-3 mb-6">
+        <Monitor className="h-5 w-5 text-emerald-600" />
         <span className="text-sm text-muted-foreground">화면 번호:</span>
-        <Badge variant="secondary">{graphicNumber}</Badge>
+        <Badge variant="secondary" className="text-sm px-3 py-1">{graphicNumber}</Badge>
       </div>
-      <div className="border rounded-lg overflow-hidden bg-slate-900 aspect-video flex items-center justify-center">
-        {/* 실제 구현에서는 DCS 화면 이미지나 라이브 피드를 표시 */}
-        <div className="text-center space-y-4">
-          <div className="w-24 h-24 mx-auto bg-slate-800 rounded-lg flex items-center justify-center">
-            <Monitor className="h-12 w-12 text-emerald-400" />
+      <div className="border rounded-xl overflow-hidden bg-slate-900 min-h-[600px] flex flex-col">
+        {/* 상단 헤더 */}
+        <div className="bg-slate-800 px-6 py-3 flex items-center justify-between border-b border-slate-700">
+          <div className="flex items-center gap-3">
+            <div className="w-3 h-3 rounded-full bg-emerald-500 animate-pulse" />
+            <span className="text-emerald-400 font-mono text-lg">{graphicNumber}</span>
+            <span className="text-slate-400 text-sm">| HCR Unit Overview</span>
           </div>
-          <div className="text-slate-400 text-sm">
-            <p className="font-mono text-emerald-400 text-lg mb-2">{graphicNumber}</p>
-            <p>DCS 화면 이미지</p>
-            <p className="text-xs mt-2 text-slate-500">실제 환경에서는 DCS 시스템과 연동됩니다</p>
+          <div className="text-slate-500 text-sm">
+            {new Date().toLocaleString("ko-KR")}
           </div>
-          {/* 목업 계기 표시 */}
-          <div className="grid grid-cols-3 gap-4 mt-6 px-8">
-            {["TI-101", "PI-201", "FI-301"].map((tag, i) => (
-              <div key={tag} className="bg-slate-800 rounded p-3 text-center">
-                <p className="text-emerald-400 font-mono text-xs mb-1">{tag}</p>
-                <p className="text-white text-lg font-bold">{(350 + i * 50 + Math.random() * 10).toFixed(1)}</p>
-                <p className="text-slate-500 text-xs">{i === 0 ? "°C" : i === 1 ? "kPa" : "m³/h"}</p>
+        </div>
+        
+        {/* 메인 DCS 화면 영역 */}
+        <div className="flex-1 p-6">
+          {/* 공정 다이어그램 영역 */}
+          <div className="bg-slate-800/50 rounded-lg p-6 mb-6 min-h-[200px] flex items-center justify-center border border-slate-700">
+            <div className="text-center">
+              <div className="w-32 h-32 mx-auto bg-slate-700 rounded-xl flex items-center justify-center mb-4">
+                <Monitor className="h-16 w-16 text-emerald-400" />
+              </div>
+              <p className="text-slate-400 text-lg">공정 P&ID 다이어그램</p>
+              <p className="text-slate-500 text-sm mt-2">실제 환경에서는 DCS 시스템과 연동됩니다</p>
+            </div>
+          </div>
+          
+          {/* 계기 그리드 - 3x3 */}
+          <div className="grid grid-cols-3 gap-4">
+            {mockTags.map((item) => (
+              <div key={item.tag} className="bg-slate-800 rounded-lg p-4 border border-slate-700 hover:border-emerald-500/50 transition-colors">
+                <div className="flex items-center justify-between mb-2">
+                  <p className="text-emerald-400 font-mono text-sm">{item.tag}</p>
+                  <div className="w-2 h-2 rounded-full bg-emerald-500" />
+                </div>
+                <p className="text-white text-3xl font-bold mb-1">
+                  {(item.value + (Math.random() - 0.5) * 2).toFixed(1)}
+                </p>
+                <div className="flex items-center justify-between">
+                  <p className="text-slate-500 text-sm">{item.unit}</p>
+                  <p className="text-slate-600 text-xs">{item.desc}</p>
+                </div>
               </div>
             ))}
           </div>
+        </div>
+        
+        {/* 하단 상태바 */}
+        <div className="bg-slate-800 px-6 py-2 flex items-center justify-between border-t border-slate-700 text-xs">
+          <div className="flex items-center gap-4">
+            <span className="text-emerald-400">● 정상 운전</span>
+            <span className="text-slate-500">|</span>
+            <span className="text-slate-400">알람: 0건</span>
+          </div>
+          <span className="text-slate-500">Last Updated: {new Date().toLocaleTimeString("ko-KR")}</span>
         </div>
       </div>
     </div>
