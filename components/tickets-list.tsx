@@ -110,7 +110,8 @@ export function TicketsList() {
 
   const filterTickets = (ticketsList: Ticket[]) => {
     return ticketsList.filter((ticket) => {
-      if (processStatusFilter !== "all" && ticket.processStatus !== processStatusFilter) return false
+      // QuickInquiry는 processStatus 필터 무시 (processStatus가 없음)
+      if (processStatusFilter !== "all" && ticket.ticketType !== "QuickInquiry" && ticket.processStatus !== processStatusFilter) return false
       if (priorityFilter !== "all" && ticket.priority !== priorityFilter) return false
       if (categoryFilter !== "all" && ticket.ticketType !== categoryFilter) return false
       if (searchQuery) {
@@ -132,8 +133,19 @@ export function TicketsList() {
     ? tickets.filter(t => t.priority === "P1" || t.priority === "P2")
     : tickets
     
-  const activeTickets = importantTickets.filter(t => t.processStatus !== "closed" && t.processStatus !== "rejected")
-  const inactiveTickets = importantTickets.filter(t => t.processStatus === "closed" || t.processStatus === "rejected")
+  // QuickInquiry는 processStatus가 없으므로 status로 분류, 나머지는 processStatus로 분류
+  const activeTickets = importantTickets.filter(t => {
+    if (t.ticketType === "QuickInquiry") {
+      return t.status !== "Closed"
+    }
+    return t.processStatus !== "closed" && t.processStatus !== "rejected"
+  })
+  const inactiveTickets = importantTickets.filter(t => {
+    if (t.ticketType === "QuickInquiry") {
+      return t.status === "Closed"
+    }
+    return t.processStatus === "closed" || t.processStatus === "rejected"
+  })
   const filteredActive = filterTickets(activeTickets)
   const filteredInactive = filterTickets(inactiveTickets)
   

@@ -16,6 +16,8 @@ import { Checkbox } from "@/components/ui/checkbox"
 import Link from "next/link"
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card"
 import { cn } from "@/lib/utils"
+import { saveTicket } from "@/lib/storage"
+import type { Ticket } from "@/lib/types"
 
 type TicketType = "general" | "troubleshooting" | "guide" | "analysis-request" | "model-improvement" | "process-test" | "quick-inquiry" | null
 
@@ -1139,15 +1141,43 @@ function QuickInquiryForm({ onBack }: { onBack: () => void }) {
     
     setIsSubmitting(true)
     
-    // 실제로는 API 호출하여 저장
-    setTimeout(() => {
-      // 새 티켓 ID 생성 (QI = Quick Inquiry)
-      const newId = `QI-${Date.now().toString().slice(-6)}`
-      alert(`빠른 문의가 등록되었습니다. (${newId})\n담당 엔지니어에게 알림이 전송됩니다.`)
-      setIsSubmitting(false)
-      // 내 이벤트 목록으로 이동
-      window.location.href = "/"
-    }, 500)
+    // 새 티켓 ID 생성 (QI = Quick Inquiry)
+    const newId = `QI-${Date.now().toString().slice(-6)}`
+    const currentUser = "김지수" // 현재 로그인 사용자
+    
+    const newTicket: Ticket = {
+      id: newId,
+      title,
+      description: content,
+      ticketType: "QuickInquiry",
+      priority: "P3",
+      impact: "Operations",
+      owner: "박영희", // 기본 담당 엔지니어
+      requester: currentUser,
+      status: "Open",
+      createdDate: new Date().toISOString().split("T")[0],
+      dueDate: "",
+      accessLevel: "Team",
+      unit,
+      workPackages: [],
+      messages: [
+        {
+          id: `qi-msg-${Date.now()}`,
+          ticketId: newId,
+          author: currentUser,
+          role: "requester",
+          messageType: "opinion",
+          content,
+          timestamp: new Date().toISOString(),
+        }
+      ],
+      comments: [],
+    }
+    
+    saveTicket(newTicket)
+    
+    // 내 이벤트 목록으로 이동 (새로 생성된 티켓 상세페이지로)
+    window.location.href = `/tickets/${newId}`
   }
 
   return (

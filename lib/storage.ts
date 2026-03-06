@@ -5,7 +5,7 @@ import { INITIAL_WORK_ITEMS } from "./workbench-data"
 
 const STORAGE_KEY = "tickets"
 const STORAGE_VERSION_KEY = "tickets_version"
-const CURRENT_VERSION = "v3-event-redesign"
+const CURRENT_VERSION = "v4-quick-inquiry"
 
 // Worklist storage
 const WORKLIST_STORAGE_KEY = "worklists"
