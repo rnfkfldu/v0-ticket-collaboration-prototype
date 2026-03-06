@@ -741,8 +741,10 @@ function OpinionWritingCanvas({
   ticketId: string; ticketType: string; ticketUnit?: string; currentUser: string;
   onSuccess: () => void
 }) {
+  const [useTemplate, setUseTemplate] = useState(false)
   const [templateType, setTemplateType] = useState("")
   const [templateLabel, setTemplateLabel] = useState("")
+  const [freeText, setFreeText] = useState("") // 자유 텍스트 입력
   const [fields, setFields] = useState<{ label: string; value: string }[]>([])
   const [dataBoxes, setDataBoxes] = useState<DataInsertBox[]>([])
   const [attachments, setAttachments] = useState<{ fileName: string; fileUrl: string }[]>([])
@@ -758,11 +760,19 @@ function OpinionWritingCanvas({
     const templateLabels: Record<string, string> = {
       Trouble: "트러블슈팅", Improvement: "개선아이템", Change: "변경 관리", Analysis: "분석 검토"
     }
+    setUseTemplate(true)
     setTemplateType(category)
     setTemplateLabel(templateLabels[category] || category)
     const templateFields = TICKET_CATEGORY_TEMPLATES[category] || []
     setFields(templateFields.map(f => ({ label: f.label, value: "" })))
     setShowTemplateDialog(false)
+  }
+  
+  const handleClearTemplate = () => {
+    setUseTemplate(false)
+    setTemplateType("")
+    setTemplateLabel("")
+    setFields([])
   }
 
   const handleFieldChange = (index: number, value: string) => {
@@ -788,7 +798,9 @@ function OpinionWritingCanvas({
     if (!ticket) return
     const opinion: EventOpinion = {
       id: `op-${Date.now()}`, author: currentUser, team: "공정기술팀",
-      templateType, templateLabel, fields,
+      templateType: useTemplate ? templateType : "FreeText", 
+      templateLabel: useTemplate ? templateLabel : "자유 의견", 
+      fields: useTemplate ? fields : [{ label: "의견 내용", value: freeText }],
       dataBoxes: dataBoxes.length > 0 ? dataBoxes : undefined,
       attachments: attachments.length > 0 ? attachments : undefined,
       status: "draft", createdAt: new Date().toISOString(),
@@ -831,9 +843,15 @@ function OpinionWritingCanvas({
     
     // 폼에 기존 의견 데이터 로드
     if (submittedOpinion) {
-      setTemplateType(submittedOpinion.templateType || "")
-      setTemplateLabel(submittedOpinion.templateLabel || "")
-      setFields(submittedOpinion.fields || [])
+      if (submittedOpinion.templateType === "FreeText") {
+        setUseTemplate(false)
+        setFreeText(submittedOpinion.fields?.[0]?.value || "")
+      } else {
+        setUseTemplate(true)
+        setTemplateType(submittedOpinion.templateType || "")
+        setTemplateLabel(submittedOpinion.templateLabel || "")
+        setFields(submittedOpinion.fields || [])
+      }
       setDataBoxes(submittedOpinion.dataBoxes || [])
       setAttachments(submittedOpinion.attachments || [])
     }
@@ -842,16 +860,26 @@ function OpinionWritingCanvas({
   }
 
   const handleSubmit = () => {
-    const emptyRequired = fields.filter(f => !f.value.trim())
-    if (emptyRequired.length > 0) {
-      alert("모든 필드를 입력해주세요.")
-      return
+    // 템플릿 사용 시 필드 검증, 자유 텍스트 시 내용 검증
+    if (useTemplate) {
+      const emptyRequired = fields.filter(f => !f.value.trim())
+      if (emptyRequired.length > 0) {
+        alert("모든 필드를 입력해주세요.")
+        return
+      }
+    } else {
+      if (!freeText.trim()) {
+        alert("의견 내용을 입력해주세요.")
+        return
+      }
     }
     const ticket = getTicketById(ticketId)
     if (!ticket) return
     const opinion: EventOpinion = {
       id: `op-${Date.now()}`, author: currentUser, team: "공정기술팀",
-      templateType, templateLabel, fields,
+      templateType: useTemplate ? templateType : "FreeText", 
+      templateLabel: useTemplate ? templateLabel : "자유 의견", 
+      fields: useTemplate ? fields : [{ label: "의견 내용", value: freeText }],
       dataBoxes: dataBoxes.length > 0 ? dataBoxes : undefined,
       attachments: attachments.length > 0 ? attachments : undefined,
       status: "submitted", createdAt: new Date().toISOString(), submittedAt: new Date().toISOString(),
@@ -930,39 +958,44 @@ function OpinionWritingCanvas({
     )
   }
 
-  if (!templateType) {
-    return (
-      <Card className="p-6">
-        <h3 className="text-sm font-semibold text-foreground mb-3 flex items-center gap-2">
-          <FileText className="h-4 w-4 text-primary" />
-          의견 작성
-        </h3>
-        <p className="text-xs text-muted-foreground mb-4">작성 템플릿을 선택하여 의견을 작성하세요.</p>
-        <Button variant="outline" className="gap-2 bg-transparent" onClick={() => setShowTemplateDialog(true)}>
-          <PlusCircle className="h-4 w-4" />
-          템플릿 선택
-        </Button>
-        <TemplateSelectorDialog open={showTemplateDialog} onSelect={handleSelectTemplate} onCancel={() => setShowTemplateDialog(false)} />
-      </Card>
-    )
-  }
-
   return (
     <Card className="p-6">
       <div className="flex items-center justify-between mb-4">
         <h3 className="text-sm font-semibold text-foreground flex items-center gap-2">
           <FileText className="h-4 w-4 text-primary" />
           의견 작성
-          <Badge variant="secondary" className="text-xs">{templateLabel}</Badge>
+          {useTemplate && <Badge variant="secondary" className="text-xs">{templateLabel}</Badge>}
         </h3>
-        <Button variant="ghost" size="sm" className="text-xs" onClick={() => { setTemplateType(""); setFields([]); setDataBoxes([]); setAttachments([]) }}>
-          <X className="h-3.5 w-3.5 mr-1" />
-          초기화
-        </Button>
+        <div className="flex items-center gap-2">
+          {!useTemplate ? (
+            <Button variant="outline" size="sm" className="text-xs gap-1.5 bg-transparent" onClick={() => setShowTemplateDialog(true)}>
+              <FileText className="h-3.5 w-3.5" />
+              템플릿 사용
+            </Button>
+          ) : (
+            <Button variant="ghost" size="sm" className="text-xs" onClick={handleClearTemplate}>
+              <X className="h-3.5 w-3.5 mr-1" />
+              템플릿 해제
+            </Button>
+          )}
+        </div>
       </div>
 
       <div className="space-y-4">
-        {fields.map((field, idx) => (
+        {/* 자유 텍스트 입력 (템플릿 미사용 시) */}
+        {!useTemplate && (
+          <div>
+            <Textarea
+              value={freeText}
+              onChange={(e) => setFreeText(e.target.value)}
+              placeholder="기술검토 의견을 자유롭게 작성해주세요..."
+              className="min-h-[160px] text-sm"
+            />
+          </div>
+        )}
+
+        {/* 템플릿 필드 (템플릿 사용 시) */}
+        {useTemplate && fields.map((field, idx) => (
           <div key={idx}>
             <Label className="text-xs font-medium">{field.label}</Label>
             <Textarea
