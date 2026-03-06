@@ -218,7 +218,7 @@ const INITIAL_STANDING_ISSUES: StandingIssue[] = [
     status: "watching",
     unit: "CDU",
     linkedTicketId: "2",
-    linkedTicketTitle: "E-101 세정 계획",
+    linkedTicketTitle: "E-101 세정 ���획",
     registeredBy: "u-engineer-1",
     createdDate: "2024-11-20",
     lastUpdated: "2025-01-30",
@@ -2886,6 +2886,21 @@ const handleSelectAlert = (alert: AlertItem) => {
                                 <h3 className="text-sm font-semibold">AI Daily Summary</h3>
                                 <Badge variant="secondary" className="text-[10px]">GenAI</Badge>
                                 <span className="text-[10px] text-muted-foreground ml-auto">2026-02-25 07:00 생성</span>
+                                <Button
+                                  variant="outline"
+                                  size="sm"
+                                  className="h-6 text-[10px] ml-2 border-red-200 text-red-600 hover:bg-red-50 bg-transparent"
+                                  onClick={() => {
+                                    handleCreateTicket({
+                                      ...selectedAlert,
+                                      title: `[Daily Summary] ${selectedAlert.title}`,
+                                      description: selectedAlert.dailyMonitoringDetail?.aiSummary || selectedAlert.description
+                                    })
+                                  }}
+                                >
+                                  <FileText className="h-3 w-3 mr-1" />
+                                  이벤트 생성
+                                </Button>
                               </div>
                               <div className="p-3 bg-muted/40 rounded-lg mb-3">
                                 <p className="text-xs font-medium text-muted-foreground mb-1.5">생산팀 TOB 요약</p>
@@ -2920,9 +2935,26 @@ const handleSelectAlert = (alert: AlertItem) => {
                       {/* ===== 3. 주요 운영 현황 ===== */}
                       <Card>
                         <CardHeader className="pb-2">
-                          <CardTitle className="text-sm flex items-center gap-2">
-                            <Gauge className="h-4 w-4" />주요 운영 현황
-                          </CardTitle>
+                          <div className="flex items-center justify-between">
+                            <CardTitle className="text-sm flex items-center gap-2">
+                              <Gauge className="h-4 w-4" />주요 운영 현황
+                            </CardTitle>
+                            <Button
+                              variant="outline"
+                              size="sm"
+                              className="h-6 text-[10px] border-red-200 text-red-600 hover:bg-red-50 bg-transparent"
+                              onClick={() => {
+                                handleCreateTicket({
+                                  ...selectedAlert,
+                                  title: `[운영현황] ${selectedAlert.unit || "HCR"} 운영 이슈`,
+                                  description: "주요 운영 현황에서 감지된 이슈"
+                                })
+                              }}
+                            >
+                              <FileText className="h-3 w-3 mr-1" />
+                              이벤트 생성
+                            </Button>
+                          </div>
                         </CardHeader>
                         <CardContent>
                           <div className="space-y-4">
@@ -3125,7 +3157,7 @@ const handleSelectAlert = (alert: AlertItem) => {
                         </CardContent>
                       </Card>
 
-                      {/* ===== 4. 주요 운전변수 현�� ===== */}
+                      {/* ===== 4. 주요 운전변수 현황 ===== */}
                       <Card>
                         <CardHeader className="pb-2">
                           <div className="flex items-center justify-between">
@@ -3140,6 +3172,21 @@ const handleSelectAlert = (alert: AlertItem) => {
                               </div>
                               <Button variant="ghost" size="sm" className="h-6 text-[10px] gap-1 text-primary" onClick={() => setShowAddVarDialog(true)}>
                                 <Plus className="h-3 w-3" />변수 추가
+                              </Button>
+                              <Button
+                                variant="outline"
+                                size="sm"
+                                className="h-6 text-[10px] border-red-200 text-red-600 hover:bg-red-50 bg-transparent"
+                                onClick={() => {
+                                  handleCreateTicket({
+                                    ...selectedAlert,
+                                    title: `[운전변수] ${selectedAlert.unit || "HCR"} 변수 이상`,
+                                    description: "주요 운전변수에서 감지된 이상 현황"
+                                  })
+                                }}
+                              >
+                                <FileText className="h-3 w-3 mr-1" />
+                                이벤트 생성
                               </Button>
                             </div>
                           </div>
@@ -3221,9 +3268,26 @@ const handleSelectAlert = (alert: AlertItem) => {
                       {/* ===== 5. 추가 모니터링 항목 ===== */}
                       <Card>
                         <CardHeader className="pb-2">
-                          <CardTitle className="text-sm flex items-center gap-2">
-                            <Eye className="h-4 w-4" />추가 모니터링 항목
-                          </CardTitle>
+                          <div className="flex items-center justify-between">
+                            <CardTitle className="text-sm flex items-center gap-2">
+                              <Eye className="h-4 w-4" />추가 모니터링 항목
+                            </CardTitle>
+                            <Button
+                              variant="outline"
+                              size="sm"
+                              className="h-6 text-[10px] border-red-200 text-red-600 hover:bg-red-50 bg-transparent"
+                              onClick={() => {
+                                handleCreateTicket({
+                                  ...selectedAlert,
+                                  title: `[모니터링] ${selectedAlert.unit || "HCR"} 추가 모니터링 이슈`,
+                                  description: "추가 모니터링 항목에서 감지된 이슈"
+                                })
+                              }}
+                            >
+                              <FileText className="h-3 w-3 mr-1" />
+                              이벤트 생성
+                            </Button>
+                          </div>
                         </CardHeader>
                         <CardContent>
                           <div className="space-y-6">
@@ -3413,7 +3477,17 @@ const handleSelectAlert = (alert: AlertItem) => {
                               Standing Issue
                               <Badge variant="secondary" className="ml-1 text-xs">{standingIssues.filter(i => i.status !== "resolved").length}</Badge>
                             </CardTitle>
-                            <span className="text-xs text-muted-foreground">중장기 및 특이사항 관리</span>
+                            <div className="flex items-center gap-2">
+                              <Button
+                                variant="outline"
+                                size="sm"
+                                className="text-xs h-7 border-primary/50 text-primary hover:bg-primary/5 bg-transparent"
+                                onClick={() => setShowDailyReportDialog(true)}
+                              >
+                                <Plus className="h-3 w-3 mr-1" />
+                                추가 등록
+                              </Button>
+                            </div>
                           </div>
                         </CardHeader>
                         <CardContent>
@@ -3501,7 +3575,7 @@ const handleSelectAlert = (alert: AlertItem) => {
                                       </div>
                                     </div>
                                   ) : (
-                                    <div className="flex justify-end mt-1">
+                                    <div className="flex justify-end gap-2 mt-1">
                                       <Button 
                                         variant="ghost" 
                                         size="sm" 
@@ -3511,6 +3585,23 @@ const handleSelectAlert = (alert: AlertItem) => {
                                         <Pencil className="h-3 w-3 mr-1" />
                                         업데이트
                                       </Button>
+                                      {!issue.linkedTicketId && (
+                                        <Button 
+                                          variant="ghost" 
+                                          size="sm" 
+                                          className="text-xs h-7 px-2 text-red-600 hover:text-red-700 hover:bg-red-50"
+                                          onClick={() => {
+                                            handleCreateTicket({
+                                              ...selectedAlert,
+                                              title: `[Standing Issue] ${issue.title}`,
+                                              description: issue.description
+                                            })
+                                          }}
+                                        >
+                                          <FileText className="h-3 w-3 mr-1" />
+                                          이벤트 생성
+                                        </Button>
+                                      )}
                                     </div>
                                   )}
                                 </div>
@@ -3704,6 +3795,21 @@ const handleSelectAlert = (alert: AlertItem) => {
                                   <h3 className="text-sm font-semibold">AI Weekly Summary</h3>
                                   <Badge variant="secondary" className="text-[10px]">GenAI</Badge>
                                   <span className="text-[10px] text-muted-foreground ml-auto">2025-02-02 09:00 생성</span>
+                                  <Button
+                                    variant="outline"
+                                    size="sm"
+                                    className="h-6 text-[10px] ml-2 border-red-200 text-red-600 hover:bg-red-50 bg-transparent"
+                                    onClick={() => {
+                                      handleCreateTicket({
+                                        ...selectedAlert,
+                                        title: `[Weekly Summary] ${selectedAlert.unit || "HCR"} 주간 이슈`,
+                                        description: "금주 공정 운전 검토 결과 발생한 이슈"
+                                      })
+                                    }}
+                                  >
+                                    <FileText className="h-3 w-3 mr-1" />
+                                    이벤트 생성
+                                  </Button>
                                 </div>
                                 <div className="p-3 bg-muted/40 rounded-lg mb-3">
                                   <p className="text-xs leading-relaxed">
@@ -3735,15 +3841,32 @@ const handleSelectAlert = (alert: AlertItem) => {
                           </CardContent>
                         </Card>
 
-                        {/* 2. 운영 지표 모니터링 */}
+                        {/* 2. 운영 지표 모니터링 (효율성 모니터링) */}
                         <Card>
                           <CardHeader className="pb-2">
                             <div className="flex items-center justify-between">
                               <CardTitle className="text-sm flex items-center gap-2">
                                 <Gauge className="h-4 w-4" />
-                                운영 지표 모니터링
+                                효율성 모니터링
                               </CardTitle>
-                              <span className="text-[10px] text-muted-foreground">2025-02-02 기준 주간 평균</span>
+                              <div className="flex items-center gap-2">
+                                <span className="text-[10px] text-muted-foreground">2025-02-02 기준 주간 평균</span>
+                                <Button
+                                  variant="outline"
+                                  size="sm"
+                                  className="h-6 text-[10px] border-red-200 text-red-600 hover:bg-red-50 bg-transparent"
+                                  onClick={() => {
+                                    handleCreateTicket({
+                                      ...selectedAlert,
+                                      title: `[효율성] ${selectedAlert.unit || "HCR"} KPI 이슈`,
+                                      description: "효율성 모니터링에서 감지된 이슈"
+                                    })
+                                  }}
+                                >
+                                  <FileText className="h-3 w-3 mr-1" />
+                                  이벤트 생성
+                                </Button>
+                              </div>
                             </div>
                           </CardHeader>
                           <CardContent>
@@ -3791,7 +3914,7 @@ const handleSelectAlert = (alert: AlertItem) => {
                           </CardContent>
                         </Card>
 
-                        {/* 3. 장기 건전성 현황 */}
+                        {/* 3. 장기 건전성 현황 (장기 모니터링) */}
                         <Card className="border-blue-200/50">
                           <CardHeader className="pb-2">
                             <div className="flex items-center justify-between">
@@ -3799,15 +3922,32 @@ const handleSelectAlert = (alert: AlertItem) => {
                                 <TrendingUp className="h-4 w-4" />
                                 장기 건전성 현황
                               </CardTitle>
-                              <Button
-                                variant="outline"
-                                size="sm"
-                                className="h-7 text-xs gap-1.5 border-blue-200 text-blue-600 hover:bg-blue-50"
-                                onClick={() => router.push("/operations/health/overview")}
-                              >
-                                <ExternalLink className="h-3 w-3" />
-                                전체 화면
-                              </Button>
+                              <div className="flex items-center gap-2">
+                                <Button
+                                  variant="outline"
+                                  size="sm"
+                                  className="h-6 text-[10px] border-red-200 text-red-600 hover:bg-red-50 bg-transparent"
+                                  onClick={() => {
+                                    handleCreateTicket({
+                                      ...selectedAlert,
+                                      title: `[장기모니터링] ${selectedAlert.unit || "HCR"} 건전성 이슈`,
+                                      description: "장기 건전성 모니터링에서 감지된 이슈"
+                                    })
+                                  }}
+                                >
+                                  <FileText className="h-3 w-3 mr-1" />
+                                  이벤트 생성
+                                </Button>
+                                <Button
+                                  variant="outline"
+                                  size="sm"
+                                  className="h-7 text-xs gap-1.5 border-blue-200 text-blue-600 hover:bg-blue-50"
+                                  onClick={() => router.push("/operations/health/overview")}
+                                >
+                                  <ExternalLink className="h-3 w-3" />
+                                  전체 화면
+                                </Button>
+                              </div>
                             </div>
                           </CardHeader>
                           <CardContent className="space-y-3">
@@ -3876,13 +4016,30 @@ const handleSelectAlert = (alert: AlertItem) => {
                           </CardContent>
                         </Card>
 
-                        {/* 5. Anomaly Detection - Expandable Cards */}
+                        {/* 5. Anomaly Detection (이상징후 모니터링) - Expandable Cards */}
                         <Card>
                           <CardHeader className="pb-2">
-                            <CardTitle className="text-sm flex items-center gap-2">
-                              <Activity className="h-4 w-4" />
-                              Anomaly Detection
-                            </CardTitle>
+                            <div className="flex items-center justify-between">
+                              <CardTitle className="text-sm flex items-center gap-2">
+                                <Activity className="h-4 w-4" />
+                                이상징후 모니터링
+                              </CardTitle>
+                              <Button
+                                variant="outline"
+                                size="sm"
+                                className="h-6 text-[10px] border-red-200 text-red-600 hover:bg-red-50 bg-transparent"
+                                onClick={() => {
+                                  handleCreateTicket({
+                                    ...selectedAlert,
+                                    title: `[이상징후] ${selectedAlert.unit || "HCR"} Anomaly 탐지`,
+                                    description: "이상징후 모니터링에서 감지된 이슈"
+                                  })
+                                }}
+                              >
+                                <FileText className="h-3 w-3 mr-1" />
+                                이벤트 생성
+                              </Button>
+                            </div>
                           </CardHeader>
                           <CardContent className="space-y-3">
                             {/* Anomaly detail tag data */}
@@ -4786,7 +4943,7 @@ const handleSelectAlert = (alert: AlertItem) => {
                     </>
                   )}
 
-                  {/* Notice: Daily Monitoring - 4가지 버튼 */}
+                  {/* Notice: Daily Monitoring - 2가지 버튼 (특이사항 없음, 주의) */}
                   {selectedAlert.subType === "daily-monitoring" && (
                     <>
                       <Button 
@@ -4806,32 +4963,17 @@ const handleSelectAlert = (alert: AlertItem) => {
                         className="border-amber-300 text-amber-700 hover:bg-amber-50 bg-transparent"
                         onClick={() => {
                           setDailyMonitoringAction("caution")
-                          alert("주의 판정으로 저장되었습니다. 지속 관찰 대상으로 등록됩니다.")
+                          alert("주의 판정으로 저장되었습니다. 운영 로그에 기록됩니다.")
                           setAlerts(alerts.map(a => a.id === selectedAlert.id ? { ...a, status: "acknowledged" } : a))
                         }}
                       >
                         <AlertCircle className="h-4 w-4 mr-2" />
-                        주의
-                      </Button>
-                      <Button 
-                        variant="outline"
-                        className="border-primary/50 text-primary hover:bg-primary/5 bg-transparent"
-                        onClick={() => setShowDailyReportDialog(true)}
-                      >
-                        <Plus className="h-4 w-4 mr-2" />
-                        Standing Issue 추가 등록
-                      </Button>
-                      <Button 
-                        className="bg-red-600 hover:bg-red-700 text-white"
-                        onClick={() => handleCreateTicket(selectedAlert)}
-                      >
-                        <FileText className="h-4 w-4 mr-2" />
-                        이벤트화
+                        주의 (운영 로그 추가)
                       </Button>
                     </>
                   )}
 
-                  {/* Notice: Weekly Monitoring - 4가지 버튼 */}
+                  {/* Notice: Weekly Monitoring - 2가지 버튼 (특이사항 없음, 주의) */}
                   {selectedAlert.subType === "weekly-monitoring" && (
                     <>
                       <Button 
@@ -4851,27 +4993,12 @@ const handleSelectAlert = (alert: AlertItem) => {
                         className="border-amber-300 text-amber-700 hover:bg-amber-50 bg-transparent"
                         onClick={() => {
                           setWeeklyMonitoringAction("caution")
-                          alert("주의 판정으로 저장되었습니다. 지속 관찰 대상으로 등록됩니다.")
+                          alert("주의 판정으로 저장되었습니다. 운영 로그에 기록됩니다.")
                           setAlerts(alerts.map(a => a.id === selectedAlert.id ? { ...a, status: "acknowledged" } : a))
                         }}
                       >
                         <AlertCircle className="h-4 w-4 mr-2" />
-                        주의
-                      </Button>
-                      <Button 
-                        variant="outline"
-                        className="border-primary/50 text-primary hover:bg-primary/5 bg-transparent"
-                        onClick={() => setShowDailyReportDialog(true)}
-                      >
-                        <Plus className="h-4 w-4 mr-2" />
-                        Standing Issue 추가 등록
-                      </Button>
-                      <Button 
-                        className="bg-red-600 hover:bg-red-700 text-white"
-                        onClick={() => handleCreateTicket(selectedAlert)}
-                      >
-                        <FileText className="h-4 w-4 mr-2" />
-                        이벤트화
+                        주의 (운영 로그 추가)
                       </Button>
                     </>
                   )}
