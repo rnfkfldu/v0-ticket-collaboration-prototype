@@ -591,7 +591,7 @@ export function QuickInquiryDetail({ ticket }: { ticket: Ticket }) {
   const [attachments, setAttachments] = useState<DataInsertBox[]>([])
   const [showDataConfig, setShowDataConfig] = useState(false)
   const [showAddParticipant, setShowAddParticipant] = useState(false)
-  const [showReportDialog, setShowReportDialog] = useState(false)
+  const [showCloseConfirm, setShowCloseConfirm] = useState(false)
   const [showUpgradeDialog, setShowUpgradeDialog] = useState(false)
   const [activeTab, setActiveTab] = useState("chat")
   const [selectedDataBox, setSelectedDataBox] = useState<DataInsertBox | null>(null)
@@ -659,7 +659,6 @@ export function QuickInquiryDetail({ ticket }: { ticket: Ticket }) {
 
   const handleCloseInquiry = () => {
     setIsClosed(true)
-    updateTicket(ticket.id, { status: "Closed" })
     // 시스템 메시지 추가
     const sysMsg = {
       id: `qi-msg-${Date.now()}`,
@@ -667,12 +666,12 @@ export function QuickInquiryDetail({ ticket }: { ticket: Ticket }) {
       author: "System",
       role: "system" as const,
       messageType: "status_change" as const,
-      content: `빠른 문의가 종결되었습니다. AI 레포트가 생성되어 조직 자산으로 등록되었습니다.`,
+      content: `빠른 문의가 종결되었습니다.`,
       timestamp: new Date().toISOString(),
     }
     const updatedMessages = [...localMessages, sysMsg]
     setLocalMessages(updatedMessages)
-    updateTicket(ticket.id, { messages: updatedMessages })
+    updateTicket(ticket.id, { status: "Closed", messages: updatedMessages })
   }
 
   const handleAddDataBox = (box: DataInsertBox) => {
@@ -767,11 +766,11 @@ export function QuickInquiryDetail({ ticket }: { ticket: Ticket }) {
               <Button 
                 size="sm" 
                 variant="outline"
-                className="gap-1.5 text-amber-600 border-amber-200 hover:bg-amber-50"
-                onClick={() => setShowReportDialog(true)}
+                className="gap-1.5 text-slate-600 border-slate-200 hover:bg-slate-50"
+                onClick={() => setShowCloseConfirm(true)}
               >
-                <FileText className="h-4 w-4" />
-                <span className="hidden sm:inline">종결 및 자산화</span>
+                <CheckCircle className="h-4 w-4" />
+                <span className="hidden sm:inline">이벤트 종결</span>
               </Button>
             </div>
           )}
@@ -956,14 +955,36 @@ export function QuickInquiryDetail({ ticket }: { ticket: Ticket }) {
         existingParticipants={participants.map(p => p.name)}
       />
 
-      {/* 종결 레포트 다이얼로그 */}
-      <QuickInquiryReportDialog
-        open={showReportDialog}
-        onClose={() => setShowReportDialog(false)}
-        ticket={ticket}
-        messages={localMessages}
-        onSubmit={handleCloseInquiry}
-      />
+      {/* 이벤트 종결 확인 다이얼로그 */}
+      <Dialog open={showCloseConfirm} onOpenChange={setShowCloseConfirm}>
+        <DialogContent className="max-w-sm">
+          <DialogHeader>
+            <DialogTitle>이벤트 종결</DialogTitle>
+            <DialogDescription>
+              이 빠른 문의를 종결하시겠습니까?
+            </DialogDescription>
+          </DialogHeader>
+          <div className="py-2">
+            <p className="text-sm text-muted-foreground">
+              종결 후에도 대화 내용은 이력으로 보존됩니다.
+            </p>
+          </div>
+          <DialogFooter className="gap-2">
+            <Button variant="outline" onClick={() => setShowCloseConfirm(false)}>
+              취소
+            </Button>
+            <Button 
+              onClick={() => {
+                handleCloseInquiry()
+                setShowCloseConfirm(false)
+              }}
+              className="bg-slate-600 hover:bg-slate-700"
+            >
+              종결
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
 
       {/* 기술검토 전환 다이얼로그 */}
       <Dialog open={showUpgradeDialog} onOpenChange={setShowUpgradeDialog}>
