@@ -218,7 +218,7 @@ const INITIAL_STANDING_ISSUES: StandingIssue[] = [
     status: "watching",
     unit: "CDU",
     linkedTicketId: "2",
-    linkedTicketTitle: "E-101 세정 ���획",
+    linkedTicketTitle: "E-101 세정 �����획",
     registeredBy: "u-engineer-1",
     createdDate: "2024-11-20",
     lastUpdated: "2025-01-30",
@@ -688,7 +688,7 @@ const SAMPLE_ALERTS: AlertItem[] = [
       frequency: "연 2회 (반기)",
       deadline: "2025-02-15",
       sections: [
-        { title: "1. 적용 범위", content: "HCR Unit (Reactor Section, Fractionation Section, H2 System) 비상 상황 발생 시 대응 절차.", hasChange: false },
+        { title: "1. 적용 범위", content: "HCR Unit (Reactor Section, Fractionation Section, H2 System) 비상 상��� 발생 시 대응 절차.", hasChange: false },
         { title: "2. 비상 시나리오별 대응", content: "Scenario A: Reactor Runaway - WABT 급상승 시 Quench Gas 주입 및 Feed Cut 절차. Scenario B: H2 Compressor Trip - 단계별 Reactor Depressuring 절차.", hasChange: true },
         { title: "3. 운전 조건 변경 반영", content: "2024년 하반기 촉매 교체 후 Max WABT 한계 변경: 405C -> 410C. Quench Gas 주입 기준 WABT 변경: 395C -> 400C.", hasChange: true },
         { title: "4. 비상 연락 체계", content: "1차: 당직 Operation Supervisor → 2차: Process Engineer → 3차: Plant Manager. 외부: 소방서, 환경부 신고 기준 유지.", hasChange: false },
@@ -939,6 +939,7 @@ const [approvalComment, setApprovalComment] = useState("")
   const [showPidDialog, setShowPidDialog] = useState(false)
   const [showDatasheetDialog, setShowDatasheetDialog] = useState(false)
   const [showAllVariables, setShowAllVariables] = useState(false)
+  const [showAlarmHistoryDialog, setShowAlarmHistoryDialog] = useState(false)
 
   // Daily Monitoring 운전변수 트렌드 상태
   const [expandedVarTag, setExpandedVarTag] = useState<string | null>(null)
@@ -2058,6 +2059,50 @@ const handleSelectAlert = (alert: AlertItem) => {
                                 <p className="text-xs mt-1">{selectedAlert.alarmBackground}</p>
                               </div>
                             )}
+                            {/* 알람 발생 이력 요약 */}
+                            {selectedAlert.occurrenceHistory && selectedAlert.occurrenceHistory.length > 0 && (
+                              <div className="p-2.5 bg-red-50/50 border border-red-200/50 rounded-lg">
+                                <div className="flex items-center justify-between mb-2">
+                                  <span className="text-xs font-medium text-red-700 flex items-center gap-1.5">
+                                    <Bell className="h-3.5 w-3.5" />
+                                    알람 발생 이력
+                                  </span>
+                                  <Badge variant="destructive" className="text-[10px] h-5">
+                                    {selectedAlert.occurrenceHistory.length}회 발생
+                                  </Badge>
+                                </div>
+                                <div className="grid grid-cols-2 gap-2 text-xs">
+                                  <div>
+                                    <span className="text-muted-foreground">최초 발생</span>
+                                    <p className="font-medium mt-0.5">{selectedAlert.occurrenceHistory[selectedAlert.occurrenceHistory.length - 1]?.timestamp}</p>
+                                  </div>
+                                  <div>
+                                    <span className="text-muted-foreground">최근 발생</span>
+                                    <p className="font-medium mt-0.5">{selectedAlert.occurrenceHistory[0]?.timestamp}</p>
+                                  </div>
+                                </div>
+                                <div className="flex items-center gap-2 mt-2 text-xs text-muted-foreground">
+                                  {selectedAlert.occurrenceHistory.filter(o => o.type === "sustained").length > 0 && (
+                                    <span>지속 {selectedAlert.occurrenceHistory.filter(o => o.type === "sustained").length}회</span>
+                                  )}
+                                  {selectedAlert.occurrenceHistory.filter(o => o.type === "sustained").length > 0 && selectedAlert.occurrenceHistory.filter(o => o.type === "recurred").length > 0 && (
+                                    <span>/</span>
+                                  )}
+                                  {selectedAlert.occurrenceHistory.filter(o => o.type === "recurred").length > 0 && (
+                                    <span>재발생 {selectedAlert.occurrenceHistory.filter(o => o.type === "recurred").length}회</span>
+                                  )}
+                                </div>
+                                <Button 
+                                  variant="outline" 
+                                  size="sm" 
+                                  className="w-full mt-2 text-xs h-7 border-red-200 text-red-700 hover:bg-red-100 bg-transparent"
+                                  onClick={() => setShowAlarmHistoryDialog(true)}
+                                >
+                                  <History className="h-3 w-3 mr-1.5" />
+                                  전체 히스토리 보기
+                                </Button>
+                              </div>
+                            )}
                             {/* Action buttons */}
                             <div className="grid grid-cols-1 gap-1.5 mt-2">
                               <Button variant="outline" size="sm" className="w-full text-xs justify-start" onClick={() => setShowEquipmentDialog(true)}>
@@ -2111,66 +2156,8 @@ const handleSelectAlert = (alert: AlertItem) => {
                               <span className="text-xs text-amber-600">S: 2.59% (Heavy)</span>
                             </div>
                           </div>
-                          {/* 주요 변수 상태 - 3개 기본, 확장 시 15개 */}
-                          {(() => {
-                            const allVars = [
-                              { tag: "TI-2001", name: "Reactor Inlet Temp", value: "412\u00b0C", guide: "< 400\u00b0C", status: "critical" as const },
-                              { tag: "PI-2001", name: "Reactor Pressure", value: "35.2 bar", guide: "33~37", status: "normal" as const },
-                              { tag: "TI-2003", name: "Reactor WABT", value: "396.5\u00b0C", guide: "< 410\u00b0C", status: "warning" as const },
-                              { tag: "FI-2001", name: "Feed Flow Rate", value: "120.5 m\u00b3/h", guide: "100~130", status: "normal" as const },
-                              { tag: "AI-2001", name: "H2/Oil Ratio", value: "1,050 Nm\u00b3/m\u00b3", guide: "> 950", status: "normal" as const },
-                              { tag: "FI-2010", name: "Quench Gas Flow", value: "15,200 Nm\u00b3/h", guide: "12K~18K", status: "normal" as const },
-                              { tag: "TI-2005", name: "1st Bed \u0394T", value: "28.5\u00b0C", guide: "< 35\u00b0C", status: "normal" as const },
-                              { tag: "TI-2006", name: "2nd Bed \u0394T", value: "32.1\u00b0C", guide: "< 35\u00b0C", status: "warning" as const },
-                              { tag: "TI-2007", name: "Separator Temp", value: "52.3\u00b0C", guide: "45~60\u00b0C", status: "normal" as const },
-                              { tag: "PI-2003", name: "Separator Pressure", value: "33.8 bar", guide: "32~36", status: "normal" as const },
-                              { tag: "FI-2015", name: "H2 Makeup Flow", value: "8,500 Nm\u00b3/h", guide: "7K~10K", status: "normal" as const },
-                              { tag: "LI-2001", name: "Separator Level", value: "48%", guide: "40~60%", status: "normal" as const },
-                              { tag: "TI-2010", name: "Product Stripper Top", value: "165\u00b0C", guide: "155~175\u00b0C", status: "normal" as const },
-                              { tag: "PI-2005", name: "Stripper Pressure", value: "3.2 bar", guide: "2.8~3.5", status: "normal" as const },
-                              { tag: "FI-2020", name: "Wash Water Flow", value: "2.8 m\u00b3/h", guide: "2~4", status: "normal" as const },
-                            ]
-                            const displayVars = showAllVariables ? allVars : allVars.slice(0, 3)
-                            return (
-                              <div className="border rounded-lg overflow-hidden">
-                                <div className="px-3 py-2 bg-muted/50 text-xs font-medium text-muted-foreground flex items-center gap-2">
-                                  <Gauge className="h-3.5 w-3.5" />
-                                  알람 발생 시점 주요 변수 상태
-                                  <Badge variant="secondary" className="text-[10px] ml-auto">{showAllVariables ? allVars.length : 3} / {allVars.length}</Badge>
-                                </div>
-                                <div className="divide-y">
-                                  {displayVars.map((v, i) => (
-                                    <div key={i} className="flex items-center px-3 py-1.5 text-xs hover:bg-muted/20">
-                                      <span className="font-mono w-20 text-muted-foreground">{v.tag}</span>
-                                      <span className="flex-1">{v.name}</span>
-                                      <span className={cn("font-medium w-28 text-right", v.status === "critical" ? "text-red-600" : v.status === "warning" ? "text-amber-600" : "text-foreground")}>{v.value}</span>
-                                      <span className="text-muted-foreground w-24 text-right">{v.guide}</span>
-                                      <span className="w-6 flex justify-end">
-                                        {v.status === "critical" ? <AlertCircle className="h-3.5 w-3.5 text-red-500" /> : v.status === "warning" ? <AlertTriangle className="h-3.5 w-3.5 text-amber-500" /> : <CheckCircle className="h-3.5 w-3.5 text-green-500" />}
-                                      </span>
-                                    </div>
-                                  ))}
-                                </div>
-                                <button
-                                  onClick={() => setShowAllVariables(p => !p)}
-                                  className="w-full px-3 py-2 text-xs text-primary hover:bg-muted/30 flex items-center justify-center gap-1.5 border-t cursor-pointer font-medium transition-colors"
-                                >
-                                  {showAllVariables ? (
-                                    <><ChevronUp className="h-3.5 w-3.5" />주요 변수 3개만 보기</>
-                                  ) : (
-                                    <><ChevronDown className="h-3.5 w-3.5" />전체 운전변수 {allVars.length}개 보기</>
-                                  )}
-                                </button>
-                              </div>
-                            )
-                          })()}
-                        </CardContent>
-                      </Card>
-                    </div>
-                  )}
-
-                  {/* Alert 타입: 관련 트렌드 (SVG 라인 차트) */}
-                  {selectedAlert.type === "alert" && selectedAlert.data?.trend && (() => {
+                          {/* 관련 트렌드 차트 (Operation Context 내에 포함) */}
+                          {selectedAlert.data?.trend && (() => {
                     const trend = selectedAlert.data.trend
                     const limit = selectedAlert.data.limit || 0
                     const lowLimit = selectedAlert.triggerSetpoint?.low
@@ -2207,30 +2194,28 @@ const handleSelectAlert = (alert: AlertItem) => {
                     const timeLabels = ["12:00", "12:30", "13:00", "13:30", "14:00", "14:15", "14:32"]
 
                     return (
-                      <Card>
-                        <CardHeader className="pb-2">
-                          <CardTitle className="text-sm flex items-center justify-between">
-                            <div className="flex items-center gap-2">
-                              <TrendingUp className="h-4 w-4" />
-                              관련 트렌드 - {selectedAlert.data.tagId}
-                            </div>
-                            <div className="flex items-center gap-3 text-xs font-normal text-muted-foreground">
-                              <span className="flex items-center gap-1"><span className="w-3 h-0.5 bg-primary inline-block rounded" /> Actual</span>
-                              <span className="flex items-center gap-1"><span className="w-3 h-0.5 bg-red-400 inline-block rounded border-t border-dashed" /> Guide Max</span>
-                              {lowLimit && <span className="flex items-center gap-1"><span className="w-3 h-0.5 bg-blue-400 inline-block rounded border-t border-dashed" /> Guide Min</span>}
-                            </div>
-                          </CardTitle>
-                          <Button
-                            variant="outline"
-                            size="sm"
-                            className="mt-2 gap-1.5 text-xs"
-                            onClick={() => setShowFullTrendDialog(true)}
-                          >
-                            <LayoutGrid className="h-3.5 w-3.5" />
-                            관련 트렌드 전체보기
-                          </Button>
-                        </CardHeader>
-                        <CardContent>
+                      <div className="mt-4 border rounded-lg overflow-hidden">
+                        <div className="px-3 py-2 bg-muted/50 flex items-center justify-between">
+                          <div className="text-sm font-medium flex items-center gap-2">
+                            <TrendingUp className="h-4 w-4" />
+                            관련 트렌드 - {selectedAlert.data.tagId}
+                          </div>
+                          <div className="flex items-center gap-3 text-xs text-muted-foreground">
+                            <span className="flex items-center gap-1"><span className="w-3 h-0.5 bg-primary inline-block rounded" /> Actual</span>
+                            <span className="flex items-center gap-1"><span className="w-3 h-0.5 bg-red-400 inline-block rounded border-t border-dashed" /> Guide Max</span>
+                            {lowLimit && <span className="flex items-center gap-1"><span className="w-3 h-0.5 bg-blue-400 inline-block rounded border-t border-dashed" /> Guide Min</span>}
+                            <Button
+                              variant="outline"
+                              size="sm"
+                              className="h-6 gap-1 text-[10px] ml-2"
+                              onClick={() => setShowFullTrendDialog(true)}
+                            >
+                              <LayoutGrid className="h-3 w-3" />
+                              전체보기
+                            </Button>
+                          </div>
+                        </div>
+                        <div className="p-3">
                           <svg viewBox={`0 0 ${W} ${H}`} className="w-full h-52" preserveAspectRatio="xMidYMid meet">
                             {/* Grid lines */}
                             {[0.25, 0.5, 0.75].map(frac => {
@@ -2320,10 +2305,14 @@ const handleSelectAlert = (alert: AlertItem) => {
                               <p className="text-base font-bold text-muted-foreground">{limit || "-"}</p>
                             </div>
                           </div>
-                        </CardContent>
-                      </Card>
+                        </div>
+                      </div>
                     )
                   })()}
+                        </CardContent>
+                      </Card>
+                    </div>
+                  )}
 
                   {/* 장기건전성 모니터링 - Projection Trend with Action Window */}
                   {selectedAlert.subType === "health-monitoring" && selectedAlert.healthMonitoring && (() => {
@@ -2615,90 +2604,6 @@ const handleSelectAlert = (alert: AlertItem) => {
                       </Card>
                     )
                   })()}
-
-                  {/* Alert 타입: 현재 알람 발생 이력 (지속/재발생 타임라인) */}
-                  {selectedAlert.type === "alert" && selectedAlert.occurrenceHistory && selectedAlert.occurrenceHistory.length > 0 && (
-                    <Card className="border-red-200/50">
-                      <CardHeader className="pb-2">
-                        <div className="flex items-center justify-between">
-                          <CardTitle className="text-sm flex items-center gap-2">
-                            <Bell className="h-4 w-4 text-red-500" />
-                            현재 알람 발생 이력
-                          </CardTitle>
-                          <Badge variant="destructive" className="text-xs">
-                            {selectedAlert.occurrenceHistory.length}회 발생
-                          </Badge>
-                        </div>
-                        <p className="text-xs text-muted-foreground mt-1">
-                          최초 발생: {selectedAlert.occurrenceHistory[selectedAlert.occurrenceHistory.length - 1]?.timestamp}
-                          {" | "}
-                          {selectedAlert.occurrenceHistory.filter(o => o.type === "sustained").length > 0 && `지속 ${selectedAlert.occurrenceHistory.filter(o => o.type === "sustained").length}회`}
-                          {selectedAlert.occurrenceHistory.filter(o => o.type === "sustained").length > 0 && selectedAlert.occurrenceHistory.filter(o => o.type === "recurred").length > 0 && " / "}
-                          {selectedAlert.occurrenceHistory.filter(o => o.type === "recurred").length > 0 && `재발생 ${selectedAlert.occurrenceHistory.filter(o => o.type === "recurred").length}회`}
-                        </p>
-                      </CardHeader>
-                      <CardContent>
-                        <div className="relative">
-                          {/* Vertical timeline line */}
-                          <div className="absolute left-[15px] top-2 bottom-2 w-px bg-border" />
-                          <div className="space-y-0">
-                            {selectedAlert.occurrenceHistory.map((occ, idx) => {
-                              const isSustained = occ.type === "sustained"
-                              const isFirst = idx === 0
-                              return (
-                                <div key={idx} className={cn("relative flex items-start gap-3 py-2 pl-1", isFirst && "font-medium")}>
-                                  {/* Timeline dot */}
-                                  <div className={cn(
-                                    "relative z-10 flex items-center justify-center h-[30px] w-[30px] rounded-full shrink-0",
-                                    isFirst ? "bg-red-500" : isSustained ? "bg-amber-100 border-2 border-amber-400" : "bg-red-100 border-2 border-red-400"
-                                  )}>
-                                    {isFirst ? (
-                                      <Bell className="h-3.5 w-3.5 text-white" />
-                                    ) : isSustained ? (
-                                      <Clock className="h-3.5 w-3.5 text-amber-600" />
-                                    ) : (
-                                      <RefreshCw className="h-3.5 w-3.5 text-red-600" />
-                                    )}
-                                  </div>
-                                  {/* Content */}
-                                  <div className={cn(
-                                    "flex-1 min-w-0 p-2 rounded-lg border",
-                                    isFirst ? "bg-red-50/50 border-red-200" : "bg-card border-border"
-                                  )}>
-                                    <div className="flex items-center gap-2 flex-wrap">
-                                      <span className="text-xs font-medium">{occ.timestamp}</span>
-                                      <Badge variant="outline" className={cn(
-                                        "text-[10px] h-4",
-                                        isSustained ? "border-amber-300 text-amber-700 bg-amber-50" : "border-red-300 text-red-700 bg-red-50"
-                                      )}>
-                                        {isSustained ? "지속" : "재발생"}
-                                      </Badge>
-                                      {isFirst && (
-                                        <Badge className="text-[10px] h-4 bg-red-500 text-white hover:bg-red-500">현재</Badge>
-                                      )}
-                                      <span className="text-xs text-muted-foreground ml-auto">{occ.duration}</span>
-                                    </div>
-                                    <div className="flex items-center gap-3 mt-1 text-xs">
-                                      <span className="text-muted-foreground">발생값:</span>
-                                      <span className={cn("font-mono font-medium", isFirst ? "text-red-600" : "text-foreground")}>
-                                        {occ.value}{selectedAlert.data?.tagId?.startsWith("TI") ? "\u00b0C" : selectedAlert.data?.tagId?.startsWith("PI") ? " bar" : selectedAlert.data?.tagId?.startsWith("FI") ? " m3/h" : " W/m2K"}
-                                      </span>
-                                      {selectedAlert.data?.limit && (
-                                        <>
-                                          <span className="text-muted-foreground">|</span>
-                                          <span className="text-muted-foreground">Limit: {selectedAlert.data.limit}{selectedAlert.data?.tagId?.startsWith("TI") ? "\u00b0C" : ""}</span>
-                                        </>
-                                      )}
-                                    </div>
-                                  </div>
-                                </div>
-                              )
-                            })}
-                          </div>
-                        </div>
-                      </CardContent>
-                    </Card>
-                  )}
 
                   {/* Alert 타입: 과거 알람 발생 이력 및 해결 방법 */}
                   {selectedAlert.type === "alert" && (
@@ -5546,6 +5451,94 @@ const handleSelectAlert = (alert: AlertItem) => {
           </DialogContent>
         </Dialog>
 
+        {/* 현재 알람 발생 이력 다이얼로그 */}
+        <Dialog open={showAlarmHistoryDialog} onOpenChange={setShowAlarmHistoryDialog}>
+          <DialogContent className="max-w-lg max-h-[85vh] overflow-y-auto">
+            <DialogHeader>
+              <div className="flex items-center justify-between">
+                <DialogTitle className="flex items-center gap-2">
+                  <Bell className="h-5 w-5 text-red-500" />
+                  현재 알람 발생 이력
+                </DialogTitle>
+                {selectedAlert?.occurrenceHistory && (
+                  <Badge variant="destructive" className="text-xs">
+                    {selectedAlert.occurrenceHistory.length}회 발생
+                  </Badge>
+                )}
+              </div>
+              {selectedAlert?.occurrenceHistory && selectedAlert.occurrenceHistory.length > 0 && (
+                <p className="text-xs text-muted-foreground mt-1">
+                  최초 발생: {selectedAlert.occurrenceHistory[selectedAlert.occurrenceHistory.length - 1]?.timestamp}
+                  {" | "}
+                  {selectedAlert.occurrenceHistory.filter(o => o.type === "sustained").length > 0 && `지속 ${selectedAlert.occurrenceHistory.filter(o => o.type === "sustained").length}회`}
+                  {selectedAlert.occurrenceHistory.filter(o => o.type === "sustained").length > 0 && selectedAlert.occurrenceHistory.filter(o => o.type === "recurred").length > 0 && " / "}
+                  {selectedAlert.occurrenceHistory.filter(o => o.type === "recurred").length > 0 && `재발생 ${selectedAlert.occurrenceHistory.filter(o => o.type === "recurred").length}회`}
+                </p>
+              )}
+            </DialogHeader>
+            {selectedAlert?.occurrenceHistory && selectedAlert.occurrenceHistory.length > 0 && (
+              <div className="relative mt-2">
+                {/* Vertical timeline line */}
+                <div className="absolute left-[15px] top-2 bottom-2 w-px bg-border" />
+                <div className="space-y-0">
+                  {selectedAlert.occurrenceHistory.map((occ, idx) => {
+                    const isSustained = occ.type === "sustained"
+                    const isFirst = idx === 0
+                    return (
+                      <div key={idx} className={cn("relative flex items-start gap-3 py-2 pl-1", isFirst && "font-medium")}>
+                        {/* Timeline dot */}
+                        <div className={cn(
+                          "relative z-10 flex items-center justify-center h-[30px] w-[30px] rounded-full shrink-0",
+                          isFirst ? "bg-red-500" : isSustained ? "bg-amber-100 border-2 border-amber-400" : "bg-red-100 border-2 border-red-400"
+                        )}>
+                          {isFirst ? (
+                            <Bell className="h-3.5 w-3.5 text-white" />
+                          ) : isSustained ? (
+                            <Clock className="h-3.5 w-3.5 text-amber-600" />
+                          ) : (
+                            <RefreshCw className="h-3.5 w-3.5 text-red-600" />
+                          )}
+                        </div>
+                        {/* Content */}
+                        <div className={cn(
+                          "flex-1 min-w-0 p-2 rounded-lg border",
+                          isFirst ? "bg-red-50/50 border-red-200" : "bg-card border-border"
+                        )}>
+                          <div className="flex items-center gap-2 flex-wrap">
+                            <span className="text-xs font-medium">{occ.timestamp}</span>
+                            <Badge variant="outline" className={cn(
+                              "text-[10px] h-4",
+                              isSustained ? "border-amber-300 text-amber-700 bg-amber-50" : "border-red-300 text-red-700 bg-red-50"
+                            )}>
+                              {isSustained ? "지속" : "재발생"}
+                            </Badge>
+                            {isFirst && (
+                              <Badge className="text-[10px] h-4 bg-red-500 text-white hover:bg-red-500">현재</Badge>
+                            )}
+                            <span className="text-xs text-muted-foreground ml-auto">{occ.duration}</span>
+                          </div>
+                          <div className="flex items-center gap-3 mt-1 text-xs">
+                            <span className="text-muted-foreground">발생값:</span>
+                            <span className={cn("font-mono font-medium", isFirst ? "text-red-600" : "text-foreground")}>
+                              {occ.value}{selectedAlert.data?.tagId?.startsWith("TI") ? "\u00b0C" : selectedAlert.data?.tagId?.startsWith("PI") ? " bar" : selectedAlert.data?.tagId?.startsWith("FI") ? " m3/h" : " W/m2K"}
+                            </span>
+                            {selectedAlert.data?.limit && (
+                              <>
+                                <span className="text-muted-foreground">|</span>
+                                <span className="text-muted-foreground">Limit: {selectedAlert.data.limit}{selectedAlert.data?.tagId?.startsWith("TI") ? "\u00b0C" : ""}</span>
+                              </>
+                            )}
+                          </div>
+                        </div>
+                      </div>
+                    )
+                  })}
+                </div>
+              </div>
+            )}
+          </DialogContent>
+        </Dialog>
+
         {/* 이벤트 생성 다이얼로그 - 새 이벤트과 동일한 양식 */}
         <Dialog open={showTicketDialog} onOpenChange={setShowTicketDialog}>
           <DialogContent className="max-w-2xl max-h-[90vh] overflow-y-auto">
@@ -5760,7 +5753,7 @@ const handleSelectAlert = (alert: AlertItem) => {
               </div>
               <div className="space-y-1">
                 <span className="text-xs text-muted-foreground">ESR 제목</span>
-                <p className="font-medium text-sm">HCR APC 고도화 프로젝트 - Phase 2</p>
+                <p className="font-medium text-sm">HCR APC 고���화 프로젝트 - Phase 2</p>
               </div>
               <div className="space-y-1">
                 <span className="text-xs text-muted-foreground">목적 및 배경</span>
