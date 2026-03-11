@@ -395,6 +395,14 @@ export function Sidebar({ unreadAlerts = 3 }: SidebarProps) {
       ]
     },
     {
+      id: "review-financial",
+      label: "Financial Impact",
+      icon: TrendingUp,
+      items: [
+        { label: "Financial Impact", href: "/review/financial-impact", icon: TrendingUp },
+      ]
+    },
+    {
       id: "review-health",
       label: "시스템 건전성 리뷰",
       icon: Shield,
