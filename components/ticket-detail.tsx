@@ -24,7 +24,7 @@ import {
   Activity, Gauge, Info, Wrench, FileBarChart, Link2, MessageSquare, ChevronRight,
   Search, Users, UserPlus, ExternalLink, Boxes, ChevronDown, ArrowUpCircle, Shield,
   Globe, Lock, Eye, Settings, RefreshCcw, Paperclip, TrendingUp, Monitor, BarChart3,
-  Table as TableIcon, Sparkles
+  Table as TableIcon, Sparkles, History
 } from "lucide-react"
 import { useState, useEffect } from "react"
 import { useRouter } from "next/navigation"
@@ -1286,7 +1286,7 @@ function AdditionalReviewerSection({ ticket, onAssign }: { ticket: Ticket; onAss
                   </div>
                 )}
                 
-                {/* 미완료 검��자: 의견 입력 필드 (모든 배정된 검토자) */}
+                {/* 미완료 �����자: 의견 입력 필드 (모든 배정된 검토자) */}
                 {reviewer.status !== "completed" && (
                   <div className="p-3 space-y-3 bg-white/50">
                     <div>
@@ -1549,8 +1549,9 @@ function CommentsSection({ ticket, onUpdate }: { ticket: Ticket; onUpdate: () =>
 }
 
 // --- Thread History with popup detail ---
-function ThreadHistory({ ticket }: { ticket: Ticket }) {
+function ThreadHistory({ ticket, showComments = false }: { ticket: Ticket; showComments?: boolean }) {
   const [selectedMessage, setSelectedMessage] = useState<typeof ticket.messages[0] | null>(null)
+  const [isDetailedView, setIsDetailedView] = useState(false)
   const messages = [...(ticket.messages || [])].sort((a, b) => new Date(a.timestamp).getTime() - new Date(b.timestamp).getTime())
 
   const getIcon = (type: string, role: string) => {
@@ -1601,33 +1602,92 @@ function ThreadHistory({ ticket }: { ticket: Ticket }) {
 
   return (
     <>
-      <div className="space-y-3">
-        {messages.length === 0 ? (
-          <p className="text-sm text-muted-foreground text-center py-8">아직 히스토리가 없습니다</p>
-        ) : (
-          messages.map((msg, idx) => (
-            <div 
-              key={msg.id} 
-              className="flex gap-3 cursor-pointer hover:opacity-80 transition-opacity"
-              onClick={() => setSelectedMessage(msg)}
+      <div className="space-y-4">
+        {/* View Toggle */}
+        <div className="flex items-center justify-between pb-2 border-b">
+          <span className="text-sm text-muted-foreground">{messages.length}개의 히스토리</span>
+          <div className="flex items-center gap-2">
+            <span className="text-xs text-muted-foreground">상세 보기</span>
+            <button
+              onClick={() => setIsDetailedView(!isDetailedView)}
+              className={cn(
+                "relative inline-flex h-5 w-9 items-center rounded-full transition-colors",
+                isDetailedView ? "bg-primary" : "bg-muted"
+              )}
             >
-              <div className="flex flex-col items-center">
-                <div className="w-7 h-7 rounded-full bg-primary/10 flex items-center justify-center text-primary">
-                  {getIcon(msg.messageType, msg.role)}
+              <span
+                className={cn(
+                  "inline-block h-3.5 w-3.5 transform rounded-full bg-white transition-transform",
+                  isDetailedView ? "translate-x-5" : "translate-x-1"
+                )}
+              />
+            </button>
+          </div>
+        </div>
+
+        <div className="space-y-3">
+          {messages.length === 0 ? (
+            <p className="text-sm text-muted-foreground text-center py-8">아직 히스토리가 없습니다</p>
+          ) : (
+            messages.map((msg, idx) => (
+              <div 
+                key={msg.id} 
+                className={cn(
+                  "flex gap-3 transition-opacity",
+                  !isDetailedView && "cursor-pointer hover:opacity-80"
+                )}
+                onClick={() => !isDetailedView && setSelectedMessage(msg)}
+              >
+                <div className="flex flex-col items-center">
+                  <div className="w-7 h-7 rounded-full bg-primary/10 flex items-center justify-center text-primary">
+                    {getIcon(msg.messageType, msg.role)}
+                  </div>
+                  {idx < messages.length - 1 && <div className="w-0.5 flex-1 bg-border mt-1" />}
                 </div>
-                {idx < messages.length - 1 && <div className="w-0.5 flex-1 bg-border mt-1" />}
-              </div>
-              <div className={`flex-1 p-3 rounded-lg border ${getBg(msg.role)} mb-1`}>
-                <div className="flex items-center gap-2 mb-1">
-                  <span className="text-xs font-medium text-foreground">{msg.author}</span>
-                  <Badge variant="outline" className="text-[10px]">{getTypeLabel(msg.messageType)}</Badge>
-                  <span className="text-[10px] text-muted-foreground ml-auto">{new Date(msg.timestamp).toLocaleString("ko-KR")}</span>
+                <div className={`flex-1 p-3 rounded-lg border ${getBg(msg.role)} mb-1`}>
+                  <div className="flex items-center gap-2 mb-1">
+                    <span className="text-xs font-medium text-foreground">{msg.author}</span>
+                    <Badge variant="outline" className="text-[10px]">{getTypeLabel(msg.messageType)}</Badge>
+                    <span className="text-[10px] text-muted-foreground ml-auto">{new Date(msg.timestamp).toLocaleString("ko-KR")}</span>
+                  </div>
+                  {isDetailedView ? (
+                    <div className="space-y-2">
+                      <p className="text-sm text-foreground whitespace-pre-wrap">{getDetailedContent(msg)}</p>
+                      {/* 상세 보기에서 관련 데이터 박스 표시 */}
+                      {msg.messageType === "opinion" && msg.role === "assignee" && (() => {
+                        const matchingOpinion = (ticket.opinions || []).find(op => {
+                          const opTime = op.submittedAt ? new Date(op.submittedAt).getTime() : 0
+                          const msgTime = new Date(msg.timestamp).getTime()
+                          return Math.abs(opTime - msgTime) < 30000 && op.author === msg.author
+                        })
+                        if (matchingOpinion?.dataBoxes && matchingOpinion.dataBoxes.length > 0) {
+                          return (
+                            <div className="mt-2 pt-2 border-t border-dashed space-y-2">
+                              <span className="text-[10px] text-muted-foreground">첨부 데이터 ({matchingOpinion.dataBoxes.length}개)</span>
+                              <div className="flex flex-wrap gap-2">
+                                {matchingOpinion.dataBoxes.map((box, i) => (
+                                  <Badge key={i} variant="secondary" className="text-[10px]">
+                                    {box.type === "trend" && <Activity className="h-3 w-3 mr-1" />}
+                                    {box.type === "dcs" && <Monitor className="h-3 w-3 mr-1" />}
+                                    {box.type === "table" && <TableIcon className="h-3 w-3 mr-1" />}
+                                    {box.config.title || box.type}
+                                  </Badge>
+                                ))}
+                              </div>
+                            </div>
+                          )
+                        }
+                        return null
+                      })()}
+                    </div>
+                  ) : (
+                    <p className="text-sm text-foreground line-clamp-2">{msg.content}</p>
+                  )}
                 </div>
-                <p className="text-sm text-foreground line-clamp-2">{msg.content}</p>
               </div>
-            </div>
-          ))
-        )}
+            ))
+          )}
+        </div>
       </div>
 
       {/* Thread Detail Popup */}
@@ -2619,63 +2679,102 @@ export function TicketDetail({ ticket: initialTicket }: TicketDetailProps) {
       {/* Submitted Opinions */}
       <SubmittedOpinionsView opinions={ticket.opinions} />
 
-      {/* Active working area */}
-      {isActive && (
-        <>
-          {/* 추가 검토자 의견 작성 섹션 (추가검토 배정된 경우) */}
-          <AdditionalReviewerOpinionSection ticket={ticket} onSuccess={refreshTicket} />
-          
-          <OpinionWritingCanvas
-            ticketId={ticket.id}
-            ticketType={ticket.ticketType}
-            ticketUnit={ticket.unit}
-            currentUser={CURRENT_USER}
-            onSuccess={refreshTicket}
-          />
-          <AdditionalReviewerSection ticket={ticket} onAssign={refreshTicket} />
-        </>
-      )}
-      
-      {/* 추가검토가 진행 중�� 때 AdditionalReviewerSection 항상 표시 (isActive가 false여도) */}
-      {!isActive && hasIncompleteAdditionalReviews && (
-        <AdditionalReviewerSection ticket={ticket} onAssign={refreshTicket} />
-      )}
+      {/* Main Tabs: 이벤트 설명 및 의견 작성 / 히스토리 및 커뮤니케이션 */}
+      <Card className="p-6">
+        <Tabs defaultValue="opinion-writing">
+          <TabsList className="mb-4">
+            <TabsTrigger value="opinion-writing" className="gap-2">
+              <FileText className="h-4 w-4" />
+              이벤트 설명 및 의견 작성
+            </TabsTrigger>
+            <TabsTrigger value="history-comm" className="gap-2">
+              <History className="h-4 w-4" />
+              히스토리 및 커뮤니케이션
+              {(ticket.messages?.length || 0) + (ticket.comments?.length || 0) > 0 && (
+                <Badge variant="secondary" className="ml-1 text-[10px]">
+                  {(ticket.messages?.length || 0) + (ticket.comments?.length || 0)}
+                </Badge>
+              )}
+            </TabsTrigger>
+          </TabsList>
 
-      {/* Thread / Event Group tabs + Comments Side Panel */}
-      <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
-        {/* Main Content - History & Group View */}
-        <div className="lg:col-span-2">
-          <Card className="p-6">
-            <Tabs defaultValue="thread">
-              <TabsList className="mb-4">
-                <TabsTrigger value="thread">이벤트 히스토리</TabsTrigger>
+          {/* Tab 1: 이벤트 설명 및 의견 작성 */}
+          <TabsContent value="opinion-writing" className="space-y-6">
+            {/* Active working area */}
+            {isActive && (
+              <>
+                {/* 추가 검토자 의견 작성 섹션 (추가검토 배정된 경우) */}
+                <AdditionalReviewerOpinionSection ticket={ticket} onSuccess={refreshTicket} />
+                
+                <OpinionWritingCanvas
+                  ticketId={ticket.id}
+                  ticketType={ticket.ticketType}
+                  ticketUnit={ticket.unit}
+                  currentUser={CURRENT_USER}
+                  onSuccess={refreshTicket}
+                />
+                <AdditionalReviewerSection ticket={ticket} onAssign={refreshTicket} />
+              </>
+            )}
+            
+            {/* 추가검토가 진행 중일 때 AdditionalReviewerSection 항상 표시 (isActive가 false여도) */}
+            {!isActive && hasIncompleteAdditionalReviews && (
+              <AdditionalReviewerSection ticket={ticket} onAssign={refreshTicket} />
+            )}
+
+            {/* 활성 상태가 아닐 때 메시지 */}
+            {!isActive && !hasIncompleteAdditionalReviews && (
+              <div className="text-center py-12 text-muted-foreground">
+                <FileText className="h-12 w-12 mx-auto mb-4 opacity-30" />
+                <p className="text-sm">현재 의견 작성이 필요하지 않습니다.</p>
+                <p className="text-xs mt-1">히스토리 탭에서 이전 기록을 확인하세요.</p>
+              </div>
+            )}
+          </TabsContent>
+
+          {/* Tab 2: 히스토리 및 커뮤니케이션 */}
+          <TabsContent value="history-comm">
+            <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
+              {/* Main Content - History & Group View */}
+              <div className="lg:col-span-2 space-y-4">
+                {/* Event History with view toggle */}
+                <div>
+                  <h4 className="text-sm font-semibold text-foreground mb-3 flex items-center gap-2">
+                    <History className="h-4 w-4" />
+                    이벤트 히스토리
+                  </h4>
+                  <ThreadHistory ticket={ticket} />
+                </div>
+
+                {/* Event Group View (if available) */}
                 {(ticket.additionalReviewers?.length || 0) > 0 && (
-                  <TabsTrigger value="event-group">
-                    이벤트 그룹보기 ({ticket.additionalReviewers?.filter(r => r.status === "completed").length || 0}/{ticket.additionalReviewers?.length || 0})
-                  </TabsTrigger>
+                  <div className="pt-4 border-t">
+                    <h4 className="text-sm font-semibold text-foreground mb-3 flex items-center gap-2">
+                      <Users className="h-4 w-4" />
+                      이벤트 그룹보기 
+                      <Badge variant="secondary" className="text-[10px]">
+                        {ticket.additionalReviewers?.filter(r => r.status === "completed").length || 0}/{ticket.additionalReviewers?.length || 0}
+                      </Badge>
+                    </h4>
+                    <EventGroupView ticket={ticket} />
+                  </div>
                 )}
-              </TabsList>
-              <TabsContent value="thread">
-                <ThreadHistory ticket={ticket} />
-              </TabsContent>
-              <TabsContent value="event-group">
-                <EventGroupView ticket={ticket} />
-              </TabsContent>
-            </Tabs>
-          </Card>
-        </div>
-        
-        {/* Side Panel - Comments */}
-        <div className="lg:col-span-1">
-          <Card className="p-4 sticky top-6">
-            <h3 className="text-sm font-semibold text-foreground mb-4 flex items-center gap-2">
-              <MessageSquare className="h-4 w-4 text-primary" />
-              댓글 ({ticket.comments?.length || 0})
-            </h3>
-            <CommentsSection ticket={ticket} onUpdate={refreshTicket} />
-          </Card>
-        </div>
-      </div>
+              </div>
+              
+              {/* Side Panel - Comments */}
+              <div className="lg:col-span-1">
+                <div className="sticky top-6 space-y-4">
+                  <h4 className="text-sm font-semibold text-foreground flex items-center gap-2">
+                    <MessageSquare className="h-4 w-4 text-primary" />
+                    댓글 ({ticket.comments?.length || 0})
+                  </h4>
+                  <CommentsSection ticket={ticket} onUpdate={refreshTicket} />
+                </div>
+              </div>
+            </div>
+          </TabsContent>
+        </Tabs>
+      </Card>
 
       {/* Closed event - Full Report View */}
       {isClosed && (ticket.closureReport || ticket.executiveSummary) && (
