@@ -429,7 +429,7 @@ const SAMPLE_ALERTS: AlertItem[] = [
       {
         id: "cat-1",
         name: "유사운전조건 기준 Deviation 정도",
-        description: "유사한 피드조건/운전모드에서 예전대비 현재의 운전점이 ���마나 달라졌는지 보여주고, 많이 달라진 항목은 이상치로 관리",
+        description: "유사한 피드��건/운전모드에서 예전대비 현재의 운전점이 ���마나 달라졌는지 보여주고, 많이 달라진 항목은 이상치로 관리",
         top3: [
           { tagId: "TI-2001", description: "HCR Reactor Inlet Temp", severity: "high", deviation: "+8.2C vs 동일 피드조건 평균", detail: "Arabian Medium 처리 시 과거 6회 평균 대비 온도가 유의미하게 높음. WABT 상승 추세와 연계 가능." },
           { tagId: "FI-1001", description: "CDU Feed Flow Rate", severity: "medium", deviation: "-3.5% vs 동일 모드 평균", detail: "Full Rate 운전 모드에서 Feed Flow가 과거 대비 소폭 낮음. 계기 Drift 가능성 검토 필요." },
@@ -1141,15 +1141,15 @@ const [approvalComment, setApprovalComment] = useState("")
 
   // 특이사항 없음 / 주의 팝업 상태
   const [showNoIssueDialog, setShowNoIssueDialog] = useState(false)
-  const [noIssueAdditionalNote, setNoIssueAdditionalNote] = useState("")
+  const [noIssueSummary, setNoIssueSummary] = useState("")
   const [selectedOperationCategories, setSelectedOperationCategories] = useState<string[]>([])
   const [noIssueHashtags, setNoIssueHashtags] = useState<string[]>([])
   const [noIssueHashtagInput, setNoIssueHashtagInput] = useState("")
   const [showCautionDialog, setShowCautionDialog] = useState(false)
+  const [cautionSummary, setCautionSummary] = useState("")
   const [selectedCautionCategories, setSelectedCautionCategories] = useState<string[]>([])
   const [cautionHashtags, setCautionHashtags] = useState<string[]>([])
   const [cautionHashtagInput, setCautionHashtagInput] = useState("")
-  const [cautionAdditionalLog, setCautionAdditionalLog] = useState("")
 
   // 특이사항 없음 - 마일드한 운전 분류 (일상적 이벤트)
   const mildOperationCategories = [
@@ -3170,7 +3170,7 @@ const handleSelectAlert = (alert: AlertItem) => {
                                   handleCreateTicket({
                                     ...selectedAlert,
                                     title: `[운전변수] ${selectedAlert.unit || "HCR"} 변수 이상`,
-                                    description: "주요 운전변수에서 감지된 이상 현황"
+                                    description: "���요 운전변수에서 감지된 이상 현황"
                                   })
                                 }}
                               >
@@ -4054,7 +4054,7 @@ const handleSelectAlert = (alert: AlertItem) => {
                                       { tag: "PI-3001", name: "1st Reactor Press", value: "162.3 kg/cm2", note: "상한 근접 운전" },
                                     ],
                                     warning: [
-                                      { tag: "FI-3002", name: "H2 Makeup Flow", value: "92,100 Nm3/h", note: "유량 점진 증가 추세" },
+                                      { tag: "FI-3002", name: "H2 Makeup Flow", value: "92,100 Nm3/h", note: "유량 ���진 증가 추세" },
                                       { tag: "TI-1352", name: "Furnace Outlet Temp", value: "368.2\u00b0C", note: "Guide 근접" },
                                       { tag: "AI-3002", name: "Product Sulfur", value: "8.2 ppm", note: "Spec 상한 접근" },
                                       { tag: "LI-1001", name: "Column Level", value: "62.5%", note: "상한 Range 부근" },
@@ -4939,7 +4939,7 @@ const handleSelectAlert = (alert: AlertItem) => {
                         variant="outline"
                         className="bg-transparent"
                         onClick={() => {
-                          setNoIssueAdditionalNote("")
+                          setNoIssueSummary(getTodayEventSummary())
                           setNoIssueHashtags([])
                           setNoIssueHashtagInput("")
                           setSelectedOperationCategories(getAISuggestedMildCategories())
@@ -4953,10 +4953,10 @@ const handleSelectAlert = (alert: AlertItem) => {
                         variant="outline"
                         className="border-amber-300 text-amber-700 hover:bg-amber-50 bg-transparent"
                         onClick={() => {
+                          setCautionSummary(getTodayEventSummary())
                           setSelectedCautionCategories(getAISuggestedCautionCategories())
                           setCautionHashtags([])
                           setCautionHashtagInput("")
-                          setCautionAdditionalLog("")
                           setShowCautionDialog(true)
                         }}
                       >
@@ -5641,15 +5641,21 @@ const handleSelectAlert = (alert: AlertItem) => {
               </p>
             </DialogHeader>
             <div className="space-y-4 py-4">
-              {/* TOB 기반 이벤트 요약 */}
-              <div className="p-3 bg-muted/50 rounded-lg border">
-                <div className="flex items-center gap-2 mb-2">
-                  <Sparkles className="h-4 w-4 text-teal-600" />
-                  <span className="text-sm font-medium">오늘의 운전 요약 (AI)</span>
+              {/* TOB 기반 이벤트 요약 - 편집 가능 */}
+              <div className="space-y-2">
+                <div className="flex items-center justify-between">
+                  <Label className="text-sm font-medium">오늘의 운전 요약</Label>
+                  <Badge variant="outline" className="text-[10px] gap-1">
+                    <Sparkles className="h-3 w-3" />
+                    AI 생성 · 편집 가능
+                  </Badge>
                 </div>
-                <p className="text-sm text-muted-foreground leading-relaxed">
-                  {getTodayEventSummary()}
-                </p>
+                <Textarea
+                  value={noIssueSummary}
+                  onChange={(e) => setNoIssueSummary(e.target.value)}
+                  placeholder="오늘의 운전 요약을 입력하세요..."
+                  className="min-h-20 text-sm"
+                />
               </div>
 
               {/* 오늘의 운전 분류 (AI 추천 + 수정 가능) - 마일드한 분류 */}
@@ -5749,17 +5755,6 @@ const handleSelectAlert = (alert: AlertItem) => {
                 </div>
               </div>
 
-              {/* 추가 메모 입력 */}
-              <div className="space-y-2">
-                <Label className="text-sm font-medium">추가 메모 (선택)</Label>
-                <Textarea
-                  value={noIssueAdditionalNote}
-                  onChange={(e) => setNoIssueAdditionalNote(e.target.value)}
-                  placeholder="추가로 기록하고 싶은 내용을 입력하세요..."
-                  className="min-h-16 text-sm"
-                />
-              </div>
-
               {/* 저장 정보 */}
               <div className="p-2.5 bg-green-50 border border-green-200 rounded-lg">
                 <div className="flex items-start gap-2">
@@ -5768,7 +5763,7 @@ const handleSelectAlert = (alert: AlertItem) => {
                     <p className="font-medium">저장 시 처리 내용</p>
                     <ul className="mt-1 space-y-0.5 text-green-700">
                       <li>- Daily Monitoring 완료 처리</li>
-                      <li>- 운영 로그에 "특이사항 없음" 기록</li>
+                      <li>- 운영 로그에 운전 요약 저장</li>
                       {selectedOperationCategories.length > 0 && (
                         <li>- 운전 분류: {selectedOperationCategories.map(id => mildOperationCategories.find(c => c.id === id)?.label).join(", ")}</li>
                       )}
@@ -5815,6 +5810,23 @@ const handleSelectAlert = (alert: AlertItem) => {
               </p>
             </DialogHeader>
             <div className="space-y-4 py-4">
+              {/* 운전 요약 - 편집 가능 */}
+              <div className="space-y-2">
+                <div className="flex items-center justify-between">
+                  <Label className="text-sm font-medium">오늘의 운전 요약</Label>
+                  <Badge variant="outline" className="text-[10px] gap-1 border-amber-300 text-amber-700">
+                    <Sparkles className="h-3 w-3" />
+                    AI 생성 · 편집 가능
+                  </Badge>
+                </div>
+                <Textarea
+                  value={cautionSummary}
+                  onChange={(e) => setCautionSummary(e.target.value)}
+                  placeholder="오늘의 운전 요약 및 주의 사항을 입력하세요..."
+                  className="min-h-20 text-sm"
+                />
+              </div>
+
               {/* 주의 분류 (AI 추천 + 수정 가능) */}
               <div className="space-y-2">
                 <div className="flex items-center justify-between">
@@ -5912,17 +5924,6 @@ const handleSelectAlert = (alert: AlertItem) => {
                 </div>
               </div>
 
-              {/* 추가 로그 입력 */}
-              <div className="space-y-2">
-                <Label className="text-sm font-medium">상세 내용 및 조치 사항</Label>
-                <Textarea
-                  value={cautionAdditionalLog}
-                  onChange={(e) => setCautionAdditionalLog(e.target.value)}
-                  placeholder="문제 상황 설명, 조치 내용, 향후 계획 등을 상세히 기록하세요..."
-                  className="min-h-20 text-sm"
-                />
-              </div>
-
               {/* 저장 정보 */}
               <div className="p-2.5 bg-amber-50 border border-amber-200 rounded-lg">
                 <div className="flex items-start gap-2">
@@ -5931,7 +5932,7 @@ const handleSelectAlert = (alert: AlertItem) => {
                     <p className="font-medium">저장 시 처리 내용</p>
                     <ul className="mt-1 space-y-0.5 text-amber-700">
                       <li>- Daily Monitoring "주의" 판정 처리</li>
-                      <li>- 운영 로그에 상세 기록 저장</li>
+                      <li>- 운영 로그에 운전 요약 저장</li>
                       {selectedCautionCategories.length > 0 && (
                         <li>- 주의 분류: {selectedCautionCategories.map(id => cautionOperationCategories.find(c => c.id === id)?.label).join(", ")}</li>
                       )}
