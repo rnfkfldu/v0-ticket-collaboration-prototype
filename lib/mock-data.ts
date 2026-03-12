@@ -480,16 +480,16 @@ export function getMockTickets(): Ticket[] {
         tags: ["TI-6001", "TI-6002"],
         timeRange: "2025-01-20 ~ 01-27",
       },
-      processStatus: "rejected",
+      processStatus: "verbal-closed",
       processFlow: [
         { step: "issued", label: "이벤트 발행", status: "completed", assignee: "강민우", team: "생산조정팀", timestamp: "2025-01-27 14:00" },
-        { step: "rejected", label: "반려", status: "completed", assignee: "김지수", team: "공정기술팀", timestamp: "2025-01-27 16:00" },
+        { step: "verbal-closed", label: "구두 설명 후 종결", status: "completed", assignee: "김지수", team: "공정기술팀", timestamp: "2025-01-27 16:00" },
       ],
       workPackages: [],
       messages: [
         { id: "msg-070", ticketId: "EVT-009", author: "강민우", role: "requester", messageType: "opinion", content: "FCC Riser Outlet Temp 변동폭 +/-5C 발생. 분석 요청드립니다.", timestamp: "2025-01-27T14:00:00Z" },
         { id: "msg-071", ticketId: "EVT-009", author: "김지수", role: "assignee", messageType: "opinion", content: "확인 결과 Feed Rate 변동에 의한 일시적 현상입니다. 현재 범위 내 운전으로 별도 조치 불필요합니다.", timestamp: "2025-01-27T16:00:00Z" },
-        { id: "msg-072", ticketId: "EVT-009", author: "System", role: "system", messageType: "status_change", content: "이벤트가 반려 처리되었습니다. 사유: Feed Rate 변동에 의한 일시적 현상.", timestamp: "2025-01-27T16:00:00Z" },
+        { id: "msg-072", ticketId: "EVT-009", author: "System", role: "system", messageType: "status_change", content: "이벤트가 구두 설명 후 종결 처리되었습니다. 커뮤니케이션 내용: Feed Rate 변동에 의한 일시적 현상으로 구두 설명 완료.", timestamp: "2025-01-27T16:00:00Z" },
       ],
       opinions: [],
       comments: [],
@@ -543,7 +543,7 @@ export function getMockTickets(): Ticket[] {
           templateType: "analysis-review", templateLabel: "분석 검토",
           fields: [
             { label: "분석 항목", value: "CDU Preheat Train E-101~E-110 개별 성능 점검" },
-            { label: "분석 결과", value: "전체 Preheat Gain 설계 대비 92%. E-103 UA 23% 하락, E-107 UA 18% 하락 확인." },
+            { label: "분석 결과", value: "전체 Preheat Gain 설계 대비 92%. E-103 UA 23% 하락, E-107 UA 18% 하락 확���." },
             { label: "조치 사항", value: "다음 T/A(2025년 4월) 시 E-103, E-107 Chemical Cleaning 계획 수립" },
             { label: "효과 예상", value: "Cleaning 후 Preheat Gain 1.5%p 개선, 연료 절감 약 $50K/yr 예상" },
           ],

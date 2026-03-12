@@ -44,7 +44,7 @@ const TICKET_ASSIGNEES: Record<string, { name: string; team: string }> = {
 const PROCESS_STATUS_CONFIG: Record<string, { label: string; color: string; icon: typeof Clock }> = {
   issued: { label: "이벤트 발행", color: "bg-blue-100 text-blue-700 border-blue-200", icon: Clock },
   accepted: { label: "접수", color: "bg-sky-100 text-sky-700 border-sky-200", icon: ArrowRight },
-  rejected: { label: "반려", color: "bg-red-100 text-red-700 border-red-200", icon: XCircle },
+  "verbal-closed": { label: "구두종결", color: "bg-slate-100 text-slate-600 border-slate-200", icon: CheckCircle },
   review: { label: "기술검토", color: "bg-amber-100 text-amber-800 border-amber-200", icon: FileSearch },
   "additional-review": { label: "추가검토", color: "bg-orange-100 text-orange-700 border-orange-200", icon: FileSearch },
   "review-complete": { label: "검토완료", color: "bg-emerald-100 text-emerald-700 border-emerald-200", icon: CheckCircle },
@@ -105,7 +105,7 @@ export function TicketsList() {
   const pendingAcceptance = tickets.filter(t => t.processStatus === "issued")
   const inReview = tickets.filter(t => t.processStatus === "review" || t.processStatus === "additional-review" || t.processStatus === "accepted")
   const reviewComplete = tickets.filter(t => t.processStatus === "review-complete")
-  const rejected = tickets.filter(t => t.processStatus === "rejected")
+  const verbalClosed = tickets.filter(t => t.processStatus === "verbal-closed")
   const closed = tickets.filter(t => t.processStatus === "closed")
 
   const filterTickets = (ticketsList: Ticket[]) => {
@@ -138,13 +138,13 @@ export function TicketsList() {
     if (t.ticketType === "QuickInquiry") {
       return t.status !== "Closed"
     }
-    return t.processStatus !== "closed" && t.processStatus !== "rejected"
+    return t.processStatus !== "closed" && t.processStatus !== "verbal-closed"
   })
   const inactiveTickets = importantTickets.filter(t => {
     if (t.ticketType === "QuickInquiry") {
       return t.status === "Closed"
     }
-    return t.processStatus === "closed" || t.processStatus === "rejected"
+    return t.processStatus === "closed" || t.processStatus === "verbal-closed"
   })
   const filteredActive = filterTickets(activeTickets)
   const filteredInactive = filterTickets(inactiveTickets)
@@ -259,7 +259,7 @@ export function TicketsList() {
                       <span className="text-xs text-muted-foreground">{ticket.createdDate}</span>
                     </td>
                     <td className="px-4 py-3">
-                      {delay > 0 && ticket.processStatus !== "closed" && ticket.processStatus !== "rejected" ? (
+                      {delay > 0 && ticket.processStatus !== "closed" && ticket.processStatus !== "verbal-closed" ? (
                         <Badge variant="destructive" className="text-xs">+{delay}d</Badge>
                       ) : (
                         <span className="text-xs text-muted-foreground">-</span>
@@ -310,7 +310,7 @@ export function TicketsList() {
         <Card className="p-4">
           <p className="text-xs text-muted-foreground mb-1">접수 대기</p>
           <p className="text-2xl font-bold text-foreground">{pendingAcceptance.length}</p>
-          <p className="text-xs text-blue-600 mt-1">접수 / 반려 필요</p>
+          <p className="text-xs text-blue-600 mt-1">접수 대기 중</p>
         </Card>
         <Card className="p-4">
           <p className="text-xs text-muted-foreground mb-1">검토 중</p>
@@ -323,9 +323,9 @@ export function TicketsList() {
           <p className="text-xs text-emerald-600 mt-1">종결 대기</p>
         </Card>
         <Card className="p-4">
-          <p className="text-xs text-muted-foreground mb-1">반려</p>
-          <p className="text-2xl font-bold text-foreground">{rejected.length}</p>
-          <p className="text-xs text-red-600 mt-1">접수 단계 반려</p>
+          <p className="text-xs text-muted-foreground mb-1">구두종결</p>
+          <p className="text-2xl font-bold text-foreground">{verbalClosed.length}</p>
+          <p className="text-xs text-slate-600 mt-1">구두 설명 후 종결</p>
         </Card>
         <Card className="p-4">
           <p className="text-xs text-muted-foreground mb-1">종결</p>
@@ -387,7 +387,7 @@ export function TicketsList() {
               <SelectItem value="review">기술검토</SelectItem>
               <SelectItem value="additional-review">추가검토</SelectItem>
               <SelectItem value="review-complete">검토완료</SelectItem>
-              <SelectItem value="rejected">반려</SelectItem>
+              <SelectItem value="verbal-closed">구두종결</SelectItem>
               <SelectItem value="closed">종결</SelectItem>
               <SelectItem value="hold">보류</SelectItem>
             </SelectContent>
@@ -423,7 +423,7 @@ export function TicketsList() {
       <Tabs defaultValue="active" className="w-full">
         <TabsList>
           <TabsTrigger value="active">진행 중 이벤트 ({filteredActive.length})</TabsTrigger>
-          <TabsTrigger value="inactive">종결 / 반려 이벤트 ({filteredInactive.length})</TabsTrigger>
+          <TabsTrigger value="inactive">종결 이벤트 ({filteredInactive.length})</TabsTrigger>
         </TabsList>
 
         <TabsContent value="active" className="space-y-4 mt-4">
@@ -431,7 +431,7 @@ export function TicketsList() {
             <div className="flex items-center gap-2 p-3 bg-blue-50 border border-blue-200 rounded-lg">
               <AlertTriangle className="h-4 w-4 text-blue-600 shrink-0" />
               <p className="text-sm text-blue-800">
-                <span className="font-semibold">{pendingAcceptance.length}건</span>의 이벤트가 접수 대기 중입니다. 확인 후 접수 또는 반려 처리해주세요.
+                <span className="font-semibold">{pendingAcceptance.length}건</span>의 이벤트가 접수 대기 중입니다. 확인 후 접수 처리해주세요.
               </p>
             </div>
           )}

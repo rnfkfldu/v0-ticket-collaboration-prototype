@@ -350,7 +350,7 @@ function ContextDataPanel({ ticket }: { ticket: Ticket }) {
   const contextData = {
     operatingMode: ticket.unit === "HCR" ? "W600N" : ticket.unit === "VDU" ? "Normal" : "Mixed",
     feedRate: ticket.unit === "CDU" ? "48,500 BPD" : ticket.unit === "HCR" ? "12,200 BPD" : "8,500 BPD",
-    productOnSpec: ticket.processStatus === "rejected" ? "Off-Spec" : "On-Spec",
+    productOnSpec: ticket.processStatus === "verbal-closed" ? "On-Spec" : "On-Spec",
     guideCompliance: ticket.priority === "P1" ? "비준수" : "준수",
   }
   
@@ -1286,7 +1286,7 @@ function AdditionalReviewerSection({ ticket, onAssign }: { ticket: Ticket; onAss
                   </div>
                 )}
                 
-                {/* 미완료 검토자: 의견 입력 필드 (모든 배정된 검토자) */}
+                {/* 미완료 검��자: 의견 입력 필드 (모든 배정된 검토자) */}
                 {reviewer.status !== "completed" && (
                   <div className="p-3 space-y-3 bg-white/50">
                     <div>
@@ -2120,23 +2120,23 @@ export function TicketDetail({ ticket: initialTicket }: TicketDetailProps) {
     refreshTicket()
   }
 
-  // Reject event
-  const handleReject = () => {
+  // Verbal close event (구두 설명 후 종결)
+  const handleVerbalClose = () => {
     const flow: EventProcessStep[] = [
       { step: "issued", label: "이벤트 발행", status: "completed", assignee: ticket.requester, timestamp: ticket.createdDate },
-      { step: "rejected", label: "반려", status: "completed", assignee: CURRENT_USER, team: "공정기술팀", timestamp: new Date().toLocaleString("ko-KR") },
+      { step: "verbal-closed", label: "구두 설명 후 종결", status: "completed", assignee: CURRENT_USER, team: "공정기술팀", timestamp: new Date().toLocaleString("ko-KR") },
     ]
     updateTicket(ticket.id, {
-      processStatus: "rejected",
+      processStatus: "verbal-closed",
       status: "Closed",
       processFlow: flow,
       messages: [...(ticket.messages || []), {
         id: `msg-${Date.now()}`, ticketId: ticket.id, author: CURRENT_USER, role: "assignee" as const,
-        messageType: "opinion" as const, content: rejectReason || "접수 단계에서 반려 처리되었습니다.",
+        messageType: "opinion" as const, content: rejectReason || "구두 설명을 통해 종결 처리되었습니다.",
         timestamp: new Date().toISOString(),
       }, {
         id: `msg-${Date.now() + 1}`, ticketId: ticket.id, author: "System", role: "system" as const,
-        messageType: "status_change" as const, content: `이벤트가 반려 처리되었습니다. 사유: ${rejectReason || "별도 조치 불필요"}`,
+        messageType: "status_change" as const, content: `이벤트가 구두 설명 후 종결 처리되었습니다. 커뮤니케이션 내용: ${rejectReason || "별도 기록 없음"}`,
         timestamp: new Date().toISOString(),
       }],
     })
@@ -2254,7 +2254,7 @@ export function TicketDetail({ ticket: initialTicket }: TicketDetailProps) {
   // 추가검토가 진행중인지 확인 (processStatus와 별개로)
   const hasIncompleteAdditionalReviews = (ticket.additionalReviewers || []).some(r => r.status !== "completed")
   
-  // 발행자 확�� 단계: 추가검토가 있는 경우 모두 완료되어야 표시
+  // 발행자 확�� 단계: 추가검토가 있��� 경우 모두 완료되어야 표시
   const additionalReviewers = ticket.additionalReviewers || []
   const hasAdditionalReview = additionalReviewers.length > 0
   const allAdditionalReviewsCompleted = additionalReviewers.every(r => r.status === "completed")
@@ -2263,7 +2263,7 @@ export function TicketDetail({ ticket: initialTicket }: TicketDetailProps) {
   // 검토완료 단계: 담당자가 AI 레포트 작성 후 최종 종결
   const isReviewComplete = ticket.processStatus === "review-complete"
   
-  const isClosed = ticket.processStatus === "closed" || ticket.processStatus === "rejected"
+  const isClosed = ticket.processStatus === "closed" || ticket.processStatus === "verbal-closed"
   
   // 재문의 상태
   const [showReinquiryDialog, setShowReinquiryDialog] = useState(false)
@@ -2325,12 +2325,12 @@ export function TicketDetail({ ticket: initialTicket }: TicketDetailProps) {
           <div className="flex items-center justify-between">
             <div className="flex items-center gap-2">
               <AlertCircle className="h-4 w-4 text-blue-600" />
-              <p className="text-sm font-medium text-blue-800">새로운 이벤트가 할당되었습니다. 접수 또는 반려를 결정해주세요.</p>
+              <p className="text-sm font-medium text-blue-800">새로운 이벤트가 할당되었습니다. 접수 또는 구두 종결을 결정해주세요.</p>
             </div>
             <div className="flex gap-2">
-              <Button variant="outline" size="sm" className="gap-1.5 bg-white text-red-600 border-red-200 hover:bg-red-50" onClick={() => setShowRejectDialog(true)}>
-                <XCircle className="h-3.5 w-3.5" />
-                반려
+              <Button variant="outline" size="sm" className="gap-1.5 bg-white text-slate-600 border-slate-200 hover:bg-slate-50" onClick={() => setShowRejectDialog(true)}>
+                <MessageSquare className="h-3.5 w-3.5" />
+                구두 설명 후 종결
               </Button>
               <Button size="sm" className="gap-1.5" onClick={() => setShowAcceptDialog(true)}>
                 <CheckCircle className="h-3.5 w-3.5" />
@@ -2852,7 +2852,7 @@ export function TicketDetail({ ticket: initialTicket }: TicketDetailProps) {
         </Card>
       )}
 
-      {isClosed && ticket.processStatus !== "rejected" && (
+      {isClosed && ticket.processStatus !== "verbal-closed" && (
         <Card className="p-4 bg-muted/30">
           <div className="flex gap-2 justify-center">
             <Button variant="outline" className="gap-2 bg-transparent" onClick={() => {
@@ -2883,15 +2883,15 @@ export function TicketDetail({ ticket: initialTicket }: TicketDetailProps) {
       <AlertDialog open={showRejectDialog} onOpenChange={setShowRejectDialog}>
         <AlertDialogContent>
           <AlertDialogHeader>
-            <AlertDialogTitle>이벤트 반려</AlertDialogTitle>
-            <AlertDialogDescription>이 이벤트를 반려 처리합니다. 사유를 입력해주세요.</AlertDialogDescription>
-          </AlertDialogHeader>
-          <div className="py-4">
-            <Textarea value={rejectReason} onChange={(e) => setRejectReason(e.target.value)} placeholder="반려 사유를 입력해주세요..." className="min-h-[100px]" />
-          </div>
-          <AlertDialogFooter>
-            <AlertDialogCancel>취소</AlertDialogCancel>
-            <AlertDialogAction onClick={handleReject} className="bg-destructive text-destructive-foreground">반려</AlertDialogAction>
+<AlertDialogTitle>구두 설명 후 종결</AlertDialogTitle>
+              <AlertDialogDescription>이벤트 발행자에게 구두로 설명한 후 종결 처리합니다. 커뮤니케이션 내용을 간략하게 남겨주세요.</AlertDialogDescription>
+            </AlertDialogHeader>
+            <div className="py-4">
+              <Textarea value={rejectReason} onChange={(e) => setRejectReason(e.target.value)} placeholder="커뮤니케이션 한 내용을 간략하게 남겨주세요... (예: 정상적인 운전 범위임을 설명함, 다음 정기 점검 시 확인 예정 등)" className="min-h-[100px]" />
+            </div>
+            <AlertDialogFooter>
+              <AlertDialogCancel>취소</AlertDialogCancel>
+              <AlertDialogAction onClick={handleVerbalClose} className="bg-slate-600 hover:bg-slate-700">구두 종결</AlertDialogAction>
           </AlertDialogFooter>
         </AlertDialogContent>
       </AlertDialog>

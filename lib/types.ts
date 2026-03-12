@@ -68,7 +68,7 @@ export interface Ticket {
     reviewedByProduction?: boolean
   }
   // 이벤트 프로세스 플로우
-  processStatus?: "issued" | "accepted" | "rejected" | "review" | "additional-review" | "publisher-confirm" | "review-complete" | "closed" | "hold"
+  processStatus?: "issued" | "accepted" | "verbal-closed" | "review" | "additional-review" | "publisher-confirm" | "review-complete" | "closed" | "hold"
   processFlow?: EventProcessStep[]
   // 추가 검토자 (여러 명 가능)
   additionalReviewers?: {
@@ -103,7 +103,7 @@ export interface Ticket {
 }
 
 export interface EventProcessStep {
-  step: "issued" | "accepted" | "rejected" | "review" | "additional-review" | "publisher-confirm" | "review-complete" | "closed"
+  step: "issued" | "accepted" | "verbal-closed" | "review" | "additional-review" | "publisher-confirm" | "review-complete" | "closed"
   label: string
   status: "completed" | "current" | "upcoming" | "skipped"
   assignee?: string
