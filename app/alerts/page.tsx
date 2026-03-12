@@ -6,7 +6,7 @@ import { AppShell } from "@/components/app-shell"
 import { Button } from "@/components/ui/button"
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
 import { Badge } from "@/components/ui/badge"
-import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from "@/components/ui/dialog"
+import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter, DialogDescription } from "@/components/ui/dialog"
 import { Input } from "@/components/ui/input"
 import { Textarea } from "@/components/ui/textarea"
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
@@ -398,7 +398,7 @@ const SAMPLE_ALERTS: AlertItem[] = [
       suggestedActions: [
         "Online Cleaning 실시 (Chemical Injection)",
         "운전 조건 변경 - Feed Rate 감량 검토",
-        "Bypass 운전으로 전환 후 Cleaning 진행",
+        "Bypass 운전으로 전환 후 Cleaning ���행",
         "TA Scope 반영 검토 (Mechanical Cleaning)",
       ],
     },
