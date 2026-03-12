@@ -218,7 +218,7 @@ const INITIAL_STANDING_ISSUES: StandingIssue[] = [
     status: "watching",
     unit: "CDU",
     linkedTicketId: "2",
-    linkedTicketTitle: "E-101 세정 �����획",
+    linkedTicketTitle: "E-101 세정 �������획",
     registeredBy: "u-engineer-1",
     createdDate: "2024-11-20",
     lastUpdated: "2025-01-30",
@@ -688,7 +688,7 @@ const SAMPLE_ALERTS: AlertItem[] = [
       frequency: "연 2회 (반기)",
       deadline: "2025-02-15",
       sections: [
-        { title: "1. 적용 범위", content: "HCR Unit (Reactor Section, Fractionation Section, H2 System) 비상 상��� 발생 시 대응 절차.", hasChange: false },
+        { title: "1. 적용 범위", content: "HCR Unit (Reactor Section, Fractionation Section, H2 System) 비�� 상��� 발생 시 대응 절차.", hasChange: false },
         { title: "2. 비상 시나리오별 대응", content: "Scenario A: Reactor Runaway - WABT 급상승 시 Quench Gas 주입 및 Feed Cut 절차. Scenario B: H2 Compressor Trip - 단계별 Reactor Depressuring 절차.", hasChange: true },
         { title: "3. 운전 조건 변경 반영", content: "2024년 하반기 촉매 교체 후 Max WABT 한계 변경: 405C -> 410C. Quench Gas 주입 기준 WABT 변경: 395C -> 400C.", hasChange: true },
         { title: "4. 비상 연락 체계", content: "1차: 당직 Operation Supervisor → 2차: Process Engineer → 3차: Plant Manager. 외부: 소방서, 환경부 신고 기준 유지.", hasChange: false },
@@ -1133,6 +1133,33 @@ const [approvalComment, setApprovalComment] = useState("")
   const [dailyReportTitle, setDailyReportTitle] = useState("")
   const [dailyReportCategory, setDailyReportCategory] = useState<"long-term" | "special" | "monitoring" | "daily-report">("daily-report")
   const [dailyReportUnit, setDailyReportUnit] = useState("")
+
+  // 특이사항 없음 / 주의 팝업 상태
+  const [showNoIssueDialog, setShowNoIssueDialog] = useState(false)
+  const [noIssueAdditionalNote, setNoIssueAdditionalNote] = useState("")
+  const [showCautionDialog, setShowCautionDialog] = useState(false)
+  const [cautionCategory, setCautionCategory] = useState("")
+  const [cautionHashtags, setCautionHashtags] = useState<string[]>([])
+  const [cautionHashtagInput, setCautionHashtagInput] = useState("")
+  const [cautionAdditionalLog, setCautionAdditionalLog] = useState("")
+
+  // 추천 해시태그 (과거 사례 기반)
+  const recommendedHashtags = [
+    "#온도이상", "#압력변동", "#유량변화", "#촉매성능", "#열교환기", 
+    "#부식모니터링", "#Fouling", "#진동이상", "#에너지효율", "#품질이탈",
+    "#정비필요", "#운전조건변경", "#원료변화", "#환경규제", "#안전관련"
+  ]
+
+  // 오늘 TOB 기반 이벤트 요약 (모의 데이터)
+  const getTodayEventSummary = () => {
+    if (!selectedAlert) return ""
+    const summaries = [
+      `HCR Unit 정상 Full Rate 운전 유지. ${selectedAlert.unit || "HCR"} 주요 운전변수 모두 Guide 범위 내 운전 중.`,
+      `Arabian Medium 원유 전환 운전 2일차. WABT +1.5°C 상승하였으나 정상 대응 범위.`,
+      `금일 P-201B Seal Oil Leak 발견, 경미한 수준으로 정비팀 모니터링 중. 그 외 특이사항 없음.`
+    ]
+    return summaries[Math.floor(Math.random() * summaries.length)]
+  }
 
   // 섹션 확장 상태
   const [expandedSections, setExpandedSections] = useState<Record<string, boolean>>({
@@ -2065,7 +2092,7 @@ const handleSelectAlert = (alert: AlertItem) => {
                                 <div className="flex items-center justify-between mb-2">
                                   <span className="text-xs font-medium text-red-700 flex items-center gap-1.5">
                                     <Bell className="h-3.5 w-3.5" />
-                                    알람 발생 이력
+                                    알람 ��생 이력
                                   </span>
                                   <Badge variant="destructive" className="text-[10px] h-5">
                                     {selectedAlert.occurrenceHistory.length}회 발생
@@ -3333,7 +3360,7 @@ const handleSelectAlert = (alert: AlertItem) => {
 
                                       {/* Metrics row */}
                                       <div className="flex items-center gap-2 text-[10px] flex-wrap">
-                                        <span className="text-muted-foreground">현재 <span className="font-mono font-semibold text-foreground">{item.currentValue}</span> {item.healthIndexUnit}</span>
+                                        <span className="text-muted-foreground">��재 <span className="font-mono font-semibold text-foreground">{item.currentValue}</span> {item.healthIndexUnit}</span>
                                         <span className="text-muted-foreground">Limit <span className="font-mono">{item.limitValue}</span></span>
                                         <span className="text-muted-foreground">Projection <span className="font-mono">{item.projection}주</span></span>
                                         <span className="text-muted-foreground">전 TA <span className="font-mono">{item.prevTaValue}</span> {item.healthIndexUnit}</span>
@@ -3921,7 +3948,7 @@ const handleSelectAlert = (alert: AlertItem) => {
                           </CardContent>
                         </Card>
 
-                        {/* 5. Anomaly Detection (이상징후 모니터링) - Expandable Cards */}
+                        {/* 5. Anomaly Detection (이상징후 ��니터링) - Expandable Cards */}
                         <Card>
                           <CardHeader className="pb-2">
                             <div className="flex items-center justify-between">
@@ -4855,9 +4882,8 @@ const handleSelectAlert = (alert: AlertItem) => {
                         variant="outline"
                         className="bg-transparent"
                         onClick={() => {
-                          setDailyMonitoringAction("normal")
-                          alert("특이사항 없음으로 처리되었습니다.")
-                          setAlerts(alerts.map(a => a.id === selectedAlert.id ? { ...a, status: "resolved" } : a))
+                          setNoIssueAdditionalNote("")
+                          setShowNoIssueDialog(true)
                         }}
                       >
                         <CheckCircle className="h-4 w-4 mr-2" />
@@ -4867,9 +4893,11 @@ const handleSelectAlert = (alert: AlertItem) => {
                         variant="outline"
                         className="border-amber-300 text-amber-700 hover:bg-amber-50 bg-transparent"
                         onClick={() => {
-                          setDailyMonitoringAction("caution")
-                          alert("주의 판정으로 저장되었습니다. 운영 로그에 기록됩니다.")
-                          setAlerts(alerts.map(a => a.id === selectedAlert.id ? { ...a, status: "acknowledged" } : a))
+                          setCautionCategory("")
+                          setCautionHashtags([])
+                          setCautionHashtagInput("")
+                          setCautionAdditionalLog("")
+                          setShowCautionDialog(true)
                         }}
                       >
                         <AlertCircle className="h-4 w-4 mr-2" />
@@ -5539,6 +5567,210 @@ const handleSelectAlert = (alert: AlertItem) => {
           </DialogContent>
         </Dialog>
 
+        {/* 특이사항 없음 다이얼로그 */}
+        <Dialog open={showNoIssueDialog} onOpenChange={setShowNoIssueDialog}>
+          <DialogContent className="max-w-lg">
+            <DialogHeader>
+              <DialogTitle className="flex items-center gap-2">
+                <CheckCircle className="h-5 w-5 text-green-600" />
+                특이사항 없음 확인
+              </DialogTitle>
+              <p className="text-sm text-muted-foreground mt-1">
+                오늘의 운전 현황을 확인하고 최종 저장합니다.
+              </p>
+            </DialogHeader>
+            <div className="space-y-4 py-4">
+              {/* TOB 기반 이벤트 요약 */}
+              <div className="p-3 bg-muted/50 rounded-lg border">
+                <div className="flex items-center gap-2 mb-2">
+                  <Sparkles className="h-4 w-4 text-teal-600" />
+                  <span className="text-sm font-medium">오늘의 운전 요약 (AI)</span>
+                </div>
+                <p className="text-sm text-muted-foreground leading-relaxed">
+                  {getTodayEventSummary()}
+                </p>
+              </div>
+
+              {/* 추가 메모 입력 */}
+              <div className="space-y-2">
+                <Label className="text-sm font-medium">추가 메모 (선택)</Label>
+                <Textarea
+                  value={noIssueAdditionalNote}
+                  onChange={(e) => setNoIssueAdditionalNote(e.target.value)}
+                  placeholder="추가로 기록하고 싶은 내용을 입력하세요..."
+                  className="min-h-20 text-sm"
+                />
+              </div>
+
+              {/* 저장 정보 */}
+              <div className="p-2.5 bg-green-50 border border-green-200 rounded-lg">
+                <div className="flex items-start gap-2">
+                  <CheckCircle className="h-4 w-4 text-green-600 mt-0.5 shrink-0" />
+                  <div className="text-xs text-green-800">
+                    <p className="font-medium">저장 시 처리 내용</p>
+                    <ul className="mt-1 space-y-0.5 text-green-700">
+                      <li>- Daily Monitoring 완료 처리</li>
+                      <li>- 운영 로그에 "특이사항 없음" 기록</li>
+                      <li>- 담당자: {selectedAlert?.assignee || "김지수"}</li>
+                    </ul>
+                  </div>
+                </div>
+              </div>
+            </div>
+            <div className="flex justify-end gap-2 pt-2 border-t">
+              <Button variant="outline" onClick={() => setShowNoIssueDialog(false)}>
+                취소
+              </Button>
+              <Button 
+                className="bg-green-600 hover:bg-green-700"
+                onClick={() => {
+                  setDailyMonitoringAction("normal")
+                  setAlerts(alerts.map(a => a.id === selectedAlert?.id ? { ...a, status: "resolved" } : a))
+                  setShowNoIssueDialog(false)
+                  alert("특이사항 없음으로 저장되었습니다.")
+                }}
+              >
+                <CheckCircle className="h-4 w-4 mr-2" />
+                저장
+              </Button>
+            </div>
+          </DialogContent>
+        </Dialog>
+
+        {/* 주의 (운영 로그 추가) 다이얼로그 */}
+        <Dialog open={showCautionDialog} onOpenChange={setShowCautionDialog}>
+          <DialogContent className="max-w-lg max-h-[85vh] overflow-y-auto">
+            <DialogHeader>
+              <DialogTitle className="flex items-center gap-2">
+                <AlertCircle className="h-5 w-5 text-amber-600" />
+                주의 판정 및 운영 로그 추가
+              </DialogTitle>
+              <p className="text-sm text-muted-foreground mt-1">
+                문제 유형을 분류하고 상세 내용을 기록합니다.
+              </p>
+            </DialogHeader>
+            <div className="space-y-4 py-4">
+              {/* 1차 카테고라이징 */}
+              <div className="space-y-2">
+                <Label className="text-sm font-medium">문제 유형 (1차 분류) <span className="text-red-500">*</span></Label>
+                <Select value={cautionCategory} onValueChange={setCautionCategory}>
+                  <SelectTrigger>
+                    <SelectValue placeholder="문제 유형을 선택하세요" />
+                  </SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="process-deviation">공정 편차 (Process Deviation)</SelectItem>
+                    <SelectItem value="equipment-issue">장치 이상 (Equipment Issue)</SelectItem>
+                    <SelectItem value="quality-concern">품질 우려 (Quality Concern)</SelectItem>
+                    <SelectItem value="safety-observation">안전 관찰 (Safety Observation)</SelectItem>
+                    <SelectItem value="efficiency-drop">효율 저하 (Efficiency Drop)</SelectItem>
+                    <SelectItem value="environmental">환경 관련 (Environmental)</SelectItem>
+                    <SelectItem value="operational-limit">운전 한계 (Operational Limit)</SelectItem>
+                    <SelectItem value="external-factor">외부 요인 (External Factor)</SelectItem>
+                  </SelectContent>
+                </Select>
+              </div>
+
+              {/* 2차 해시태그 설명 */}
+              <div className="space-y-2">
+                <Label className="text-sm font-medium">상세 분류 (해시태그)</Label>
+                <div className="flex flex-wrap gap-1.5 mb-2">
+                  {cautionHashtags.map((tag, idx) => (
+                    <Badge 
+                      key={idx} 
+                      variant="secondary"
+                      className="text-xs cursor-pointer hover:bg-destructive/20"
+                      onClick={() => setCautionHashtags(cautionHashtags.filter((_, i) => i !== idx))}
+                    >
+                      {tag}
+                      <X className="h-3 w-3 ml-1" />
+                    </Badge>
+                  ))}
+                </div>
+                <div className="flex gap-2">
+                  <Input
+                    value={cautionHashtagInput}
+                    onChange={(e) => setCautionHashtagInput(e.target.value)}
+                    placeholder="#태그 입력 후 Enter"
+                    className="text-sm"
+                    onKeyDown={(e) => {
+                      if (e.key === "Enter" && cautionHashtagInput.trim()) {
+                        e.preventDefault()
+                        const tag = cautionHashtagInput.startsWith("#") ? cautionHashtagInput : `#${cautionHashtagInput}`
+                        if (!cautionHashtags.includes(tag)) {
+                          setCautionHashtags([...cautionHashtags, tag])
+                        }
+                        setCautionHashtagInput("")
+                      }
+                    }}
+                  />
+                </div>
+                {/* 추천 해시태그 */}
+                <div className="mt-2">
+                  <span className="text-xs text-muted-foreground mb-1.5 block">추천 태그 (과거 사례 기반)</span>
+                  <div className="flex flex-wrap gap-1">
+                    {recommendedHashtags.filter(t => !cautionHashtags.includes(t)).slice(0, 8).map((tag, idx) => (
+                      <Badge 
+                        key={idx} 
+                        variant="outline"
+                        className="text-[10px] cursor-pointer hover:bg-primary/10 hover:border-primary"
+                        onClick={() => setCautionHashtags([...cautionHashtags, tag])}
+                      >
+                        {tag}
+                        <Plus className="h-2.5 w-2.5 ml-0.5" />
+                      </Badge>
+                    ))}
+                  </div>
+                </div>
+              </div>
+
+              {/* 추가 로그 입력 */}
+              <div className="space-y-2">
+                <Label className="text-sm font-medium">상세 내용 및 조치 사항</Label>
+                <Textarea
+                  value={cautionAdditionalLog}
+                  onChange={(e) => setCautionAdditionalLog(e.target.value)}
+                  placeholder="문제 상황 설명, 조치 내용, 향후 계획 등을 상세히 기록하세요..."
+                  className="min-h-24 text-sm"
+                />
+              </div>
+
+              {/* 저장 정보 */}
+              <div className="p-2.5 bg-amber-50 border border-amber-200 rounded-lg">
+                <div className="flex items-start gap-2">
+                  <AlertCircle className="h-4 w-4 text-amber-600 mt-0.5 shrink-0" />
+                  <div className="text-xs text-amber-800">
+                    <p className="font-medium">저장 시 처리 내용</p>
+                    <ul className="mt-1 space-y-0.5 text-amber-700">
+                      <li>- Daily Monitoring "주의" 판정 처리</li>
+                      <li>- 운영 로그에 상세 기록 저장</li>
+                      <li>- 지속 관찰 대상으로 등록</li>
+                      <li>- 관련 담당자에게 알림 발송</li>
+                    </ul>
+                  </div>
+                </div>
+              </div>
+            </div>
+            <div className="flex justify-end gap-2 pt-2 border-t">
+              <Button variant="outline" onClick={() => setShowCautionDialog(false)}>
+                취소
+              </Button>
+              <Button 
+                className="bg-amber-600 hover:bg-amber-700"
+                disabled={!cautionCategory}
+                onClick={() => {
+                  setDailyMonitoringAction("caution")
+                  setAlerts(alerts.map(a => a.id === selectedAlert?.id ? { ...a, status: "acknowledged" } : a))
+                  setShowCautionDialog(false)
+                  alert(`주의 판정이 저장되었습니다.\n\n분류: ${cautionCategory}\n태그: ${cautionHashtags.join(", ") || "없음"}`)
+                }}
+              >
+                <Save className="h-4 w-4 mr-2" />
+                저장
+              </Button>
+            </div>
+          </DialogContent>
+        </Dialog>
+
         {/* 이벤트 생성 다이얼로그 - 새 이벤트과 동일한 양식 */}
         <Dialog open={showTicketDialog} onOpenChange={setShowTicketDialog}>
           <DialogContent className="max-w-2xl max-h-[90vh] overflow-y-auto">
@@ -5804,7 +6036,7 @@ const handleSelectAlert = (alert: AlertItem) => {
                   <div className="flex items-center justify-between p-2 bg-green-50 rounded border border-green-100">
                     <div className="flex items-center gap-2">
                       <Badge variant="outline" className="bg-green-100 text-green-700 border-green-200 text-xs">승인</Badge>
-                      <span className="text-xs">공정팀 검토 완료 - 김철수 수석</span>
+                      <span className="text-xs">공정팀 검토 완료 - 김��수 수석</span>
                     </div>
                     <span className="text-xs text-muted-foreground">2025-01-28</span>
                   </div>
