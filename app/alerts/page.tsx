@@ -1194,17 +1194,22 @@ const [approvalComment, setApprovalComment] = useState("")
     return suggestions[Math.floor(Math.random() * suggestions.length)]
   }
 
-  // 추천 해시태그 (과거 사례 기반) - 특이사항 없음용
+  // 추천 해시태그 (과거 사례 기반) - 특이사항 없음용 (구체적 이벤트 기반)
   const mildRecommendedHashtags = [
-    "#P-101A→B", "#C-201전환", "#AutoMode", "#ManualMode", "#정기점검완료",
-    "#Rate조정", "#안정운전", "#연료전환", "#예열완료", "#정상복귀"
+    "#P-101A→B전환", "#P-201A→B전환", "#C-301A→B전환", "#K-201A→B전환",
+    "#O2ReactorSwitch", "#FeedPumpS/W", "#RecycleCompS/W", 
+    "#AutoMode전환", "#ManualMode전환", "#CascadeMode설정",
+    "#정기PerformanceTest", "#YieldTest완료", "#HeatBalance점검",
+    "#StrainerCleaning", "#Rate미세조정", "#FeedBlend비율변경"
   ]
 
-  // 추천 해시태그 (과거 사례 기반) - 주의용
+  // 추천 해시태그 (과거 사례 기반) - 주의용 (구체적 이벤트 기반)
   const cautionRecommendedHashtags = [
-    "#온도이상", "#압력변동", "#유량편차", "#촉매활성저하", "#열교환기성능",
-    "#Fouling", "#진동증가", "#Leak감지", "#품질이탈", "#정비필요",
-    "#긴급대응", "#모니터링강화", "#환경규제", "#안전관련"
+    "#R-101온도상승", "#R-201WABT접근", "#E-201Fouling진행", "#E-101UA저하",
+    "#C-301진동증가", "#K-201Surge감지", "#P-101SealLeak", "#P-201BearingTemp",
+    "#HighSulfurCrude도입", "#LowAPICrude전환", "#ReactorDP상승",
+    "#촉매활성저하", "#COT상한접근", "#FeedNozzle막힘",
+    "#FlareRelease", "#WWT부하증가", "#Steam압력변동", "#전력불안정"
   ]
 
   // 오늘 TOB 기반 이벤트 요약 (모의 데이터)
@@ -1566,7 +1571,7 @@ const handleSelectAlert = (alert: AlertItem) => {
     return orderA - orderB
   })
   
-  // 팀장의 경우 Alert는 "상" 등급만 표시 (전체 담당 공정 기준)
+  // 팀장의 경우 Alert는 "상" ��급만 표시 (전체 담당 공정 기준)
   const filteredAlerts = isTeamLead 
     ? alerts.filter(a => a.type === "alert" && a.alertGrade === "high")
     : alerts.filter(a => a.type === "alert")
@@ -3170,7 +3175,7 @@ const handleSelectAlert = (alert: AlertItem) => {
                                   handleCreateTicket({
                                     ...selectedAlert,
                                     title: `[운전변수] ${selectedAlert.unit || "HCR"} 변수 이상`,
-                                    description: "���요 운전변수에서 감지된 이상 현황"
+                                    description: "���요 운전변��에서 감지된 이상 현황"
                                   })
                                 }}
                               >
@@ -3814,7 +3819,7 @@ const handleSelectAlert = (alert: AlertItem) => {
                                       { name: "WABT 상승 추세", value: "402\u00b0C (+2\u00b0C/주)", change: "지속 관찰", status: "warning" as const },
                                       { name: "에너지 효율 (EII)", value: "97.8 (개선)", change: "-0.4", status: "normal" as const },
                                       { name: "처리량 준수율", value: "98.5%", change: "+0.3%p", status: "normal" as const },
-                                      { name: "무사고 일수", value: "439일", change: "+7일", status: "normal" as const },
+                                      { name: "무사고 일���", value: "439일", change: "+7일", status: "normal" as const },
                                     ].map((v, i) => (
                                       <div key={i} className="flex items-center gap-2 text-xs">
                                         <span className={cn("w-1.5 h-1.5 rounded-full shrink-0", v.status === "warning" ? "bg-amber-500" : "bg-green-500")} />
