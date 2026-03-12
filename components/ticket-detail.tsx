@@ -1653,7 +1653,10 @@ function ThreadHistory({ ticket, showComments = false }: { ticket: Ticket; showC
                   </div>
                   {isDetailedView ? (
                     <div className="space-y-2">
-                      <p className="text-sm text-foreground whitespace-pre-wrap">{getDetailedContent(msg)}</p>
+                      <div 
+                        className="text-sm text-foreground prose prose-sm max-w-none [&_img]:max-w-full [&_img]:h-auto [&_img]:rounded-lg [&_img]:my-2"
+                        dangerouslySetInnerHTML={{ __html: getDetailedContent(msg) }}
+                      />
                       {/* 상세 보기에서 관련 데이터 박스 표시 */}
                       {msg.messageType === "opinion" && msg.role === "assignee" && (() => {
                         const matchingOpinion = (ticket.opinions || []).find(op => {
@@ -1727,7 +1730,10 @@ function ThreadHistory({ ticket, showComments = false }: { ticket: Ticket; showC
               <div>
                 <Label className="text-xs text-muted-foreground mb-2 block">내용</Label>
                 <div className="bg-muted/30 rounded-lg p-4 max-h-[300px] overflow-y-auto">
-                  <p className="text-sm text-foreground whitespace-pre-wrap">{getDetailedContent(selectedMessage)}</p>
+                  <div 
+                    className="text-sm text-foreground prose prose-sm max-w-none [&_img]:max-w-full [&_img]:h-auto [&_img]:rounded-lg [&_img]:my-2"
+                    dangerouslySetInnerHTML={{ __html: getDetailedContent(selectedMessage) }}
+                  />
                 </div>
               </div>
               
