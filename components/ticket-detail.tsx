@@ -1846,7 +1846,10 @@ function SubmittedOpinionsView({ opinions }: { opinions?: EventOpinion[] }) {
             {op.fields.map((f, i) => (
               <div key={i}>
                 <p className="text-[10px] font-medium text-muted-foreground mb-0.5">{f.label}</p>
-                <p className="text-sm text-foreground bg-muted/30 rounded px-3 py-2 whitespace-pre-wrap">{f.value}</p>
+                <div 
+                  className="text-sm text-foreground bg-muted/30 rounded px-3 py-2 prose prose-sm max-w-none [&_img]:max-w-full [&_img]:h-auto [&_img]:rounded-lg [&_img]:my-2"
+                  dangerouslySetInnerHTML={{ __html: f.value }}
+                />
               </div>
             ))}
           </div>
@@ -2120,7 +2123,7 @@ function EventGroupView({ ticket }: { ticket: Ticket }) {
 const TEAM_LEADERS = [
   { id: "leader-1", name: "박영희", team: "공정기술팀", role: "팀장" },
   { id: "leader-2", name: "정수민", team: "장치기술팀", role: "팀장" },
-  { id: "leader-3", name: "강동원", team: "운전팀", role: "팀장" },
+  { id: "leader-3", name: "강동원", team: "운��팀", role: "팀장" },
   { id: "leader-4", name: "김현수", team: "안전환경팀", role: "팀��" },
   { id: "leader-5", name: "유재석", team: "DX팀", role: "팀장" },
   { id: "leader-6", name: "이상훈", team: "Hydroprocessing기술팀", role: "팀장" },
@@ -2677,9 +2680,6 @@ export function TicketDetail({ ticket: initialTicket }: TicketDetailProps) {
         <ContextDataPanel ticket={ticket} />
       </div>
 
-      {/* Submitted Opinions */}
-      <SubmittedOpinionsView opinions={ticket.opinions} />
-
       {/* Main Tabs: 이벤트 설명 및 의견 작성 / 히스토리 및 커뮤니케이션 */}
       <Card className="p-6">
         <Tabs defaultValue="opinion-writing">
@@ -2687,6 +2687,11 @@ export function TicketDetail({ ticket: initialTicket }: TicketDetailProps) {
             <TabsTrigger value="opinion-writing" className="gap-2">
               <FileText className="h-4 w-4" />
               이벤트 설명 및 의견 작성
+              {(ticket.opinions?.filter(o => o.status === "submitted").length || 0) > 0 && (
+                <Badge variant="secondary" className="ml-1 text-[10px]">
+                  {ticket.opinions?.filter(o => o.status === "submitted").length || 0}
+                </Badge>
+              )}
             </TabsTrigger>
             <TabsTrigger value="history-comm" className="gap-2">
               <History className="h-4 w-4" />
@@ -2701,6 +2706,9 @@ export function TicketDetail({ ticket: initialTicket }: TicketDetailProps) {
 
           {/* Tab 1: 이벤트 설명 및 의견 작성 */}
           <TabsContent value="opinion-writing" className="space-y-6">
+            {/* Submitted Opinions - 제출된 의견 먼저 표시 */}
+            <SubmittedOpinionsView opinions={ticket.opinions} />
+
             {/* Active working area */}
             {isActive && (
               <>
@@ -2723,8 +2731,8 @@ export function TicketDetail({ ticket: initialTicket }: TicketDetailProps) {
               <AdditionalReviewerSection ticket={ticket} onAssign={refreshTicket} />
             )}
 
-            {/* 활성 상태가 아닐 때 메시지 */}
-            {!isActive && !hasIncompleteAdditionalReviews && (
+            {/* 활성 상태가 아니고 제출된 의견도 없을 때 메시지 */}
+            {!isActive && !hasIncompleteAdditionalReviews && (ticket.opinions?.filter(o => o.status === "submitted").length || 0) === 0 && (
               <div className="text-center py-12 text-muted-foreground">
                 <FileText className="h-12 w-12 mx-auto mb-4 opacity-30" />
                 <p className="text-sm">현재 의견 작성이 필요하지 않습니다.</p>
