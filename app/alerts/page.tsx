@@ -398,7 +398,7 @@ const SAMPLE_ALERTS: AlertItem[] = [
       suggestedActions: [
         "Online Cleaning 실시 (Chemical Injection)",
         "운전 조건 변경 - Feed Rate 감량 검토",
-        "Bypass 운전으로 ���환 후 Cleaning ���행",
+        "Bypass 운전으로 ����환 후 Cleaning ���행",
         "TA Scope 반영 검토 (Mechanical Cleaning)",
       ],
     },
@@ -2704,7 +2704,7 @@ const handleSelectAlert = (alert: AlertItem) => {
                                 <span className="text-green-600 ml-2">긴급 감량 운전 실시, Quench 주입량 증가, 촉매 활성도 점검 후 정상화</span>
                               </div>
                               <Button variant="link" className="text-xs p-0 h-auto" onClick={() => router.push("/tickets/1")}>
-                                관련 이벤트 TKT-2024-0654 보기
+                                관련 이벤트 TKT-2024-0654 보���
                               </Button>
                             </div>
                           </div>
@@ -4509,7 +4509,7 @@ const handleSelectAlert = (alert: AlertItem) => {
                           </div>
                           <div className="ml-10 mt-2 text-sm text-foreground">
                             <p>촉매 성능 분석 결과를 공유드립니다.</p>
-                            <p className="mt-2">현재 WABT 기준 약 7도 상승이 확인되었으며, 6개월 내 촉매 교체가 필요할 것으로 판단됩니다. 상세 데이터는 첨부된 리포트를 참조해주세요.</p>
+                            <p className="mt-2">현재 WABT 기준 약 7도 상승이 확인되었으며, 6개월 내 촉매 교체가 필요할 것으로 판단됩니다. ���세 데이터는 첨부된 리포트를 참조해주세요.</p>
                             <div className="mt-3 flex items-center gap-2">
                               <Badge variant="outline" className="text-xs">
                                 <FileText className="h-3 w-3 mr-1" />
@@ -4753,7 +4753,7 @@ const handleSelectAlert = (alert: AlertItem) => {
                       <CardContent className="pt-4">
                         <div className="flex items-center gap-2 mb-3">
                           <FileText className="h-5 w-5 text-primary" />
-                          <span className="font-medium">Mode Switch 가이드 발행</span>
+                          <span className="font-medium">Mode Switch 가이드 발��</span>
                         </div>
                         <p className="text-sm text-muted-foreground mb-4">
                           예정된 Mode Switch에 대한 운전 가이드를 작성하고 관련 팀에 배포합니다.
@@ -5233,6 +5233,7 @@ const handleSelectAlert = (alert: AlertItem) => {
                 <BarChart3 className="h-5 w-5" />
                 장치 정보 및 정비이력
               </DialogTitle>
+              <DialogDescription className="sr-only">장치 정보와 정비 이력을 확인합니다.</DialogDescription>
             </DialogHeader>
             <div className="space-y-4">
               <div className="grid grid-cols-2 gap-3">
@@ -5300,6 +5301,7 @@ const handleSelectAlert = (alert: AlertItem) => {
                 관련 P&ID 도면
                 {selectedAlert?.data?.tagId && <Badge variant="secondary" className="font-mono text-xs">{selectedAlert.data.tagId}</Badge>}
               </DialogTitle>
+              <DialogDescription className="sr-only">관련 P&ID 도면을 확인합니다.</DialogDescription>
             </DialogHeader>
             {(() => {
               const eq = getTagEq(selectedAlert?.data?.tagId)
@@ -5407,6 +5409,7 @@ const handleSelectAlert = (alert: AlertItem) => {
                 장치 데이터시트
                 {selectedAlert?.data?.tagId && <Badge variant="secondary" className="font-mono text-xs">{selectedAlert.data.tagId}</Badge>}
               </DialogTitle>
+              <DialogDescription className="sr-only">장치 데이터시트를 확인합니다.</DialogDescription>
             </DialogHeader>
             {(() => {
               const eq = getTagEq(selectedAlert?.data?.tagId)
@@ -5748,9 +5751,9 @@ const handleSelectAlert = (alert: AlertItem) => {
                 <AlertCircle className="h-5 w-5 text-amber-600" />
                 주의 판정 및 운영 로그 추가
               </DialogTitle>
-              <p className="text-sm text-muted-foreground mt-1">
+              <DialogDescription>
                 문제 유형을 분류하고 상세 내용을 기록합니다.
-              </p>
+              </DialogDescription>
             </DialogHeader>
             <div className="space-y-4 py-4">
               {/* 1차 카테고라이징 */}
@@ -5882,6 +5885,7 @@ const handleSelectAlert = (alert: AlertItem) => {
                 <FileText className="h-5 w-5" />
                 이벤트 생성
               </DialogTitle>
+              <DialogDescription className="sr-only">새로운 이벤트를 생성합니다.</DialogDescription>
             </DialogHeader>
             <div className="space-y-6 py-4">
               <div className="space-y-2">
@@ -6006,7 +6010,7 @@ const handleSelectAlert = (alert: AlertItem) => {
                     <Activity className="h-5 w-5" />
                     {selectedAnomalyCategory.name}
                   </DialogTitle>
-                  <p className="text-sm text-muted-foreground mt-1">{selectedAnomalyCategory.description}</p>
+                  <DialogDescription>{selectedAnomalyCategory.description}</DialogDescription>
                 </DialogHeader>
                 <div className="space-y-4 py-4">
                   {selectedAnomalyCategory.top3.map((item, idx) => (
@@ -6074,6 +6078,7 @@ const handleSelectAlert = (alert: AlertItem) => {
                 <FileText className="h-5 w-5" />
                 ESR 상세 정보
               </DialogTitle>
+              <DialogDescription className="sr-only">ESR 상세 정보를 확인합니다.</DialogDescription>
             </DialogHeader>
             <div className="space-y-4 py-4">
               <div className="grid grid-cols-2 gap-4">
@@ -6178,7 +6183,7 @@ const handleSelectAlert = (alert: AlertItem) => {
                 <MessageSquare className="h-5 w-5" />
                 DCS 수정 요청 (CSR)
               </DialogTitle>
-              <p className="text-sm text-muted-foreground mt-1">IT운영팀으로 DCS Configuration 수정을 요청합니다.</p>
+              <DialogDescription>IT운영팀으로 DCS Configuration 수정을 요청합니다.</DialogDescription>
             </DialogHeader>
             <div className="space-y-4 py-4">
               <div className="p-3 bg-amber-50 border border-amber-200 rounded-lg">
@@ -6331,7 +6336,7 @@ const handleSelectAlert = (alert: AlertItem) => {
           </DialogContent>
         </Dialog>
 
-        {/* 변수 추가 다이얼로그 */}
+        {/* 변수 추가 다���얼로그 */}
         <Dialog open={showAddVarDialog} onOpenChange={(open) => { setShowAddVarDialog(open); if (!open) setAddVarSearch("") }}>
           <DialogContent className="max-w-md">
             <DialogHeader>
@@ -6476,7 +6481,7 @@ const handleSelectAlert = (alert: AlertItem) => {
                 Standing Issue 추가 등록
               </DialogTitle>
               <DialogDescription>
-                공정 특이사항을 Standing Issue로 등록합니다. 등록 시 기술팀장에게 자동 공유됩니다.
+                공정 특이사항��� Standing Issue로 등록합니다. 등록 시 기술팀장에게 자동 공유됩니다.
               </DialogDescription>
             </DialogHeader>
             <div className="space-y-4 py-4">
