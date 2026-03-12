@@ -398,7 +398,7 @@ const SAMPLE_ALERTS: AlertItem[] = [
       suggestedActions: [
         "Online Cleaning 실시 (Chemical Injection)",
         "운전 조건 변경 - Feed Rate 감량 검토",
-        "Bypass 운전으로 ��환 후 Cleaning ���행",
+        "Bypass 운전으로 ���환 후 Cleaning ���행",
         "TA Scope 반영 검토 (Mechanical Cleaning)",
       ],
     },
@@ -5706,23 +5706,6 @@ const handleSelectAlert = (alert: AlertItem) => {
                 저장
               </Button>
             </div>
-                <p className="text-sm text-muted-foreground leading-relaxed">
-                  {getTodayEventSummary()}
-                </p>
-              </div>
-
-              {/* 추��� 메모 입력 */}
-              <div className="space-y-2">
-                <Label className="text-sm font-medium">추가 메모 (선택)</Label>
-                <Textarea
-                  value={noIssueAdditionalNote}
-                  onChange={(e) => setNoIssueAdditionalNote(e.target.value)}
-                  placeholder="추가로 기록하고 싶은 내용을 입력하세요..."
-                  className="min-h-20 text-sm"
-                />
-              </div>
-
-              {/* 저장 정보 */}
               <div className="p-2.5 bg-green-50 border border-green-200 rounded-lg">
                 <div className="flex items-start gap-2">
                   <CheckCircle className="h-4 w-4 text-green-600 mt-0.5 shrink-0" />
