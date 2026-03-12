@@ -1,6 +1,7 @@
 "use client"
 
 import { cn } from "@/lib/utils"
+import { RichTextEditor } from "@/components/rich-text-editor"
 import { Badge } from "@/components/ui/badge"
 import { Button } from "@/components/ui/button"
 import { Card } from "@/components/ui/card"
@@ -982,27 +983,27 @@ function OpinionWritingCanvas({
       </div>
 
       <div className="space-y-4">
-        {/* 자유 텍스트 입력 (템플릿 미사용 시) */}
+        {/* 자유 텍스트 입력 (템플릿 미사용 시) - 리치 텍스트 에디터 */}
         {!useTemplate && (
           <div>
-            <Textarea
+            <RichTextEditor
               value={freeText}
-              onChange={(e) => setFreeText(e.target.value)}
-              placeholder="기술검토 의견을 자유롭게 작성해주세요..."
-              className="min-h-[160px] text-sm"
+              onChange={setFreeText}
+              placeholder="기술검토 의견을 자유롭게 작성해주세요... (이미지 붙여넣기, 링크 추가 가능)"
+              minHeight="160px"
             />
           </div>
         )}
 
-        {/* 템플릿 필드 (템플릿 사용 시) */}
+        {/* 템플릿 필드 (템플릿 사용 시) - 리치 텍스트 에디터 */}
         {useTemplate && fields.map((field, idx) => (
           <div key={idx}>
-            <Label className="text-xs font-medium">{field.label}</Label>
-            <Textarea
+            <Label className="text-xs font-medium mb-1.5 block">{field.label}</Label>
+            <RichTextEditor
               value={field.value}
-              onChange={(e) => handleFieldChange(idx, e.target.value)}
+              onChange={(value) => handleFieldChange(idx, value)}
               placeholder={`${field.label}을(를) 입력해주세요...`}
-              className="mt-1.5 min-h-[80px] text-sm"
+              minHeight="80px"
             />
           </div>
         ))}
@@ -1286,7 +1287,7 @@ function AdditionalReviewerSection({ ticket, onAssign }: { ticket: Ticket; onAss
                   </div>
                 )}
                 
-                {/* 미완료 �����자: 의견 입력 필드 (모든 배정된 검토자) */}
+                {/* ��완료 �����자: 의견 입력 필드 (모든 배정된 검토자) */}
                 {reviewer.status !== "completed" && (
                   <div className="p-3 space-y-3 bg-white/50">
                     <div>
