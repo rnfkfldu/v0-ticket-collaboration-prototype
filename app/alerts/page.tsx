@@ -218,7 +218,7 @@ const INITIAL_STANDING_ISSUES: StandingIssue[] = [
     status: "watching",
     unit: "CDU",
     linkedTicketId: "2",
-    linkedTicketTitle: "E-101 세정 �������획",
+    linkedTicketTitle: "E-101 세정 ���������획",
     registeredBy: "u-engineer-1",
     createdDate: "2024-11-20",
     lastUpdated: "2025-01-30",
@@ -4391,7 +4391,7 @@ const handleSelectAlert = (alert: AlertItem) => {
                     )
                   })()}
 
-                  {/* 이상징후/장기모니터링/효율성 - 엔지니어 의견 섹션 (daily-monitoring은 별도 처리) */}
+                  {/* 이상징후/장기모니��링/효율성 - 엔지니어 의견 섹션 (daily-monitoring은 별도 처리) */}
                   {selectedAlert.type === "notice" && ["anomaly", "long-term", "efficiency"].includes(selectedAlert.subType) && (
                     <Card className="border-primary/30">
                       <CardHeader className="pb-2">
@@ -5494,6 +5494,7 @@ const handleSelectAlert = (alert: AlertItem) => {
                   </Badge>
                 )}
               </div>
+              <DialogDescription className="sr-only">알람 발생 이력을 확인합니다.</DialogDescription>
               {selectedAlert?.occurrenceHistory && selectedAlert.occurrenceHistory.length > 0 && (
                 <p className="text-xs text-muted-foreground mt-1">
                   최초 발생: {selectedAlert.occurrenceHistory[selectedAlert.occurrenceHistory.length - 1]?.timestamp}
@@ -6148,11 +6149,12 @@ const handleSelectAlert = (alert: AlertItem) => {
         {/* Custom KPI 추가 다이얼로그 - 운전변수 리스트에서 선택 */}
         <Dialog open={showAddKpiDialog} onOpenChange={(open) => { setShowAddKpiDialog(open); if (!open) { setKpiSearchQuery(""); setKpiName(""); setKpiValue(""); setKpiTarget(""); setKpiUnit("") } }}>
           <DialogContent className="max-w-md">
-            <DialogHeader>
+<DialogHeader>
               <DialogTitle className="flex items-center gap-2 text-sm">
                 <TrendingUp className="h-4 w-4 text-emerald-500" />
-                퍼포먼�� 지표 추가
+                퍼포먼스 지표 추가
               </DialogTitle>
+              <DialogDescription className="sr-only">새로운 퍼포먼스 지표를 추가합니다.</DialogDescription>
             </DialogHeader>
             <div className="space-y-3 py-2">
               <div className="space-y-1.5">
@@ -6235,6 +6237,7 @@ const handleSelectAlert = (alert: AlertItem) => {
                 <Thermometer className="h-4 w-4" />
                 모니터링 변수 추가
               </DialogTitle>
+              <DialogDescription className="sr-only">모니터링할 변수를 추가합니다.</DialogDescription>
             </DialogHeader>
             <div className="space-y-3 py-2">
               <Input 
@@ -6299,6 +6302,7 @@ const handleSelectAlert = (alert: AlertItem) => {
                     <TrendingUp className="h-4 w-4" />
                     {selectedVarForTrend.tag} - {selectedVarForTrend.name}
                   </DialogTitle>
+                  <DialogDescription className="sr-only">운전변수 트렌드를 확인합니다.</DialogDescription>
                 </DialogHeader>
                 <div className="space-y-3 py-2">
                   <div className="flex items-center gap-3 text-xs">
@@ -6369,9 +6373,9 @@ const handleSelectAlert = (alert: AlertItem) => {
                 <ClipboardList className="h-5 w-5" />
                 Standing Issue 추가 등록
               </DialogTitle>
-              <p className="text-sm text-muted-foreground mt-1">
+              <DialogDescription>
                 공정 특이사항을 Standing Issue로 등록합니다. 등록 시 기술팀장에게 자동 공유됩니다.
-              </p>
+              </DialogDescription>
             </DialogHeader>
             <div className="space-y-4 py-4">
               <div className="space-y-2">
@@ -6502,6 +6506,7 @@ const handleSelectAlert = (alert: AlertItem) => {
                 <Clock className="h-5 w-5" />
                 Shelved Alert 처리
               </DialogTitle>
+              <DialogDescription className="sr-only">알람을 일시적으로 보류 처리합니다.</DialogDescription>
             </DialogHeader>
             <div className="space-y-4 py-4">
               <div className="p-3 bg-amber-50 border border-amber-200 rounded-lg">
@@ -6587,6 +6592,7 @@ const handleSelectAlert = (alert: AlertItem) => {
                 <ClipboardList className="h-5 w-5 text-red-500" />
                 조치 입력 (티켓 생성)
               </DialogTitle>
+              <DialogDescription className="sr-only">조치 사항을 입력하고 티켓을 생성합니다.</DialogDescription>
             </DialogHeader>
             {selectedAlert?.healthMonitoring && (
               <div className="space-y-4 py-2">
@@ -6704,6 +6710,7 @@ const handleSelectAlert = (alert: AlertItem) => {
                   <Badge variant="outline" className="ml-2 font-mono text-xs">{selectedAlert.data.tagId}</Badge>
                 )}
               </DialogTitle>
+              <DialogDescription className="sr-only">관련 트렌드를 전체 화면으로 확인합니다.</DialogDescription>
               {selectedAlert?.data?.tagId && (() => {
                 const group = getMonitoringGroup(selectedAlert.data.tagId!)
                 return (
@@ -6856,6 +6863,7 @@ const handleSelectAlert = (alert: AlertItem) => {
                 <CheckCircle className="h-5 w-5 text-green-600" />
                 완료 보고서 승인
               </DialogTitle>
+              <DialogDescription className="sr-only">완료 보고서를 승인합니다.</DialogDescription>
             </DialogHeader>
             <div className="space-y-4 py-4">
               <div className="p-3 bg-green-50 border border-green-200 rounded-lg">
