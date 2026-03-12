@@ -58,6 +58,11 @@ import {
   Thermometer,
   FileBarChart,
   RefreshCw,
+  FlaskConical,
+  Droplet,
+  Power,
+  Atom,
+  Check,
 } from "lucide-react"
 import { cn } from "@/lib/utils"
 import { HEALTH_CATEGORIES, PROCESSES, getEquipmentData, type HealthCategory } from "@/lib/health-data"
@@ -398,7 +403,7 @@ const SAMPLE_ALERTS: AlertItem[] = [
       suggestedActions: [
         "Online Cleaning 실시 (Chemical Injection)",
         "운전 조건 변경 - Feed Rate 감량 검토",
-        "Bypass 운전으로 전환 후 Cleaning ���행",
+        "Bypass 운전으로 ��환 후 Cleaning ���행",
         "TA Scope 반영 검토 (Mechanical Cleaning)",
       ],
     },
@@ -424,7 +429,7 @@ const SAMPLE_ALERTS: AlertItem[] = [
       {
         id: "cat-1",
         name: "유사운전조건 기준 Deviation 정도",
-        description: "유사한 피드조건/운전모드에서 예전대비 현재의 운전점이 얼마나 달라졌는지 보여주고, 많이 달라진 항목은 이상치로 관리",
+        description: "유사한 피드조건/운전모드에서 예전대비 현재의 운전점이 ���마나 달라졌는지 보여주고, 많이 달라진 항목은 이상치로 관리",
         top3: [
           { tagId: "TI-2001", description: "HCR Reactor Inlet Temp", severity: "high", deviation: "+8.2C vs 동일 피드조건 평균", detail: "Arabian Medium 처리 시 과거 6회 평균 대비 온도가 유의미하게 높음. WABT 상승 추세와 연계 가능." },
           { tagId: "FI-1001", description: "CDU Feed Flow Rate", severity: "medium", deviation: "-3.5% vs 동일 모드 평균", detail: "Full Rate 운전 모드에서 Feed Flow가 과거 대비 소폭 낮음. 계기 Drift 가능성 검토 필요." },
@@ -1137,7 +1142,32 @@ const [approvalComment, setApprovalComment] = useState("")
   // 특이사항 없음 / 주의 팝업 상태
   const [showNoIssueDialog, setShowNoIssueDialog] = useState(false)
   const [noIssueAdditionalNote, setNoIssueAdditionalNote] = useState("")
+  const [selectedOperationCategories, setSelectedOperationCategories] = useState<string[]>([])
   const [showCautionDialog, setShowCautionDialog] = useState(false)
+
+  // 운전 분류 카테고리 정의
+  const operationCategories = [
+    { id: "normal", label: "정상 운전", icon: "check-circle", description: "특이사항 없이 정상 운전" },
+    { id: "equipment-sw", label: "장치 S/W", icon: "refresh-cw", description: "Pump, Compressor 등 장치 전환" },
+    { id: "process-test", label: "공정 테스트", icon: "flask", description: "Performance Test, Yield Test 등" },
+    { id: "feed-change", label: "원료 전환", icon: "droplet", description: "Crude 변경, Feed 원료 전환" },
+    { id: "rate-change", label: "Rate 변경", icon: "trending-up", description: "Feed Rate 증감, Turn-down 등" },
+    { id: "maintenance", label: "정비 작업", icon: "wrench", description: "예방정비, 긴급정비 진행" },
+    { id: "startup-shutdown", label: "S/U · S/D", icon: "power", description: "Unit Start-up 또는 Shutdown" },
+    { id: "catalyst", label: "촉매 관련", icon: "atom", description: "촉매 활성, 재생, 교체 등" },
+  ]
+
+  // AI 기반 오늘의 운전 분류 추천 (모의)
+  const getAISuggestedCategories = () => {
+    // 실제로는 TOB 데이터 기반으로 AI가 분류
+    const suggestions = [
+      ["normal"],
+      ["normal", "equipment-sw"],
+      ["feed-change", "rate-change"],
+      ["normal", "maintenance"],
+    ]
+    return suggestions[Math.floor(Math.random() * suggestions.length)]
+  }
   const [cautionCategory, setCautionCategory] = useState("")
   const [cautionHashtags, setCautionHashtags] = useState<string[]>([])
   const [cautionHashtagInput, setCautionHashtagInput] = useState("")
@@ -1418,7 +1448,7 @@ const [approvalComment, setApprovalComment] = useState("")
         if (alertItem.data?.items) {
           desc += "\n\n### 상세 항목"
           alertItem.data.items.forEach(item => {
-            desc += `\n- ${item.name}: ${item.value} (${item.status === "warning" ? "주의" : "정상"})`
+            desc += `\n- ${item.name}: ${item.value} (${item.status === "warning" ? "��의" : "정상"})`
           })
         }
         
@@ -4883,6 +4913,7 @@ const handleSelectAlert = (alert: AlertItem) => {
                         className="bg-transparent"
                         onClick={() => {
                           setNoIssueAdditionalNote("")
+                          setSelectedOperationCategories(getAISuggestedCategories())
                           setShowNoIssueDialog(true)
                         }}
                       >
@@ -5570,7 +5601,7 @@ const handleSelectAlert = (alert: AlertItem) => {
 
         {/* 특이사항 없음 다이얼로그 */}
         <Dialog open={showNoIssueDialog} onOpenChange={setShowNoIssueDialog}>
-          <DialogContent className="max-w-lg">
+          <DialogContent className="max-w-xl max-h-[85vh] overflow-y-auto">
             <DialogHeader>
               <DialogTitle className="flex items-center gap-2">
                 <CheckCircle className="h-5 w-5 text-green-600" />
@@ -5592,6 +5623,83 @@ const handleSelectAlert = (alert: AlertItem) => {
                 </p>
               </div>
 
+              {/* 오늘의 운전 분류 (AI 추천 + 수정 가능) */}
+              <div className="space-y-2">
+                <div className="flex items-center justify-between">
+                  <Label className="text-sm font-medium">오늘의 운전 분류</Label>
+                  <Badge variant="outline" className="text-[10px] gap-1">
+                    <Sparkles className="h-3 w-3" />
+                    AI 추천
+                  </Badge>
+                </div>
+                <p className="text-xs text-muted-foreground">AI가 추천한 분류입니다. 필요시 수정하세요.</p>
+                <div className="grid grid-cols-2 gap-2 mt-2">
+                  {operationCategories.map((cat) => {
+                    const isSelected = selectedOperationCategories.includes(cat.id)
+                    return (
+                      <button
+                        key={cat.id}
+                        type="button"
+                        onClick={() => {
+                          if (isSelected) {
+                            setSelectedOperationCategories(selectedOperationCategories.filter(c => c !== cat.id))
+                          } else {
+                            setSelectedOperationCategories([...selectedOperationCategories, cat.id])
+                          }
+                        }}
+                        className={cn(
+                          "flex items-start gap-2.5 p-2.5 rounded-lg border text-left transition-all",
+                          isSelected 
+                            ? "border-green-500 bg-green-50 ring-1 ring-green-500" 
+                            : "border-border hover:border-muted-foreground/50 hover:bg-muted/30"
+                        )}
+                      >
+                        <div className={cn(
+                          "w-5 h-5 rounded flex items-center justify-center shrink-0 mt-0.5",
+                          isSelected ? "bg-green-500 text-white" : "bg-muted"
+                        )}>
+                          {isSelected ? (
+                            <Check className="h-3 w-3" />
+                          ) : (
+                            <span className="text-[10px] text-muted-foreground">
+                              {cat.id === "normal" && <CheckCircle className="h-3 w-3" />}
+                              {cat.id === "equipment-sw" && <RefreshCw className="h-3 w-3" />}
+                              {cat.id === "process-test" && <FlaskConical className="h-3 w-3" />}
+                              {cat.id === "feed-change" && <Droplet className="h-3 w-3" />}
+                              {cat.id === "rate-change" && <TrendingUp className="h-3 w-3" />}
+                              {cat.id === "maintenance" && <Wrench className="h-3 w-3" />}
+                              {cat.id === "startup-shutdown" && <Power className="h-3 w-3" />}
+                              {cat.id === "catalyst" && <Atom className="h-3 w-3" />}
+                            </span>
+                          )}
+                        </div>
+                        <div className="min-w-0 flex-1">
+                          <p className={cn("text-xs font-medium", isSelected && "text-green-700")}>{cat.label}</p>
+                          <p className="text-[10px] text-muted-foreground leading-tight mt-0.5">{cat.description}</p>
+                        </div>
+                      </button>
+                    )
+                  })}
+                </div>
+                {selectedOperationCategories.length > 0 && (
+                  <div className="flex flex-wrap gap-1.5 mt-2 pt-2 border-t">
+                    <span className="text-xs text-muted-foreground">선택됨:</span>
+                    {selectedOperationCategories.map(catId => {
+                      const cat = operationCategories.find(c => c.id === catId)
+                      return cat ? (
+                        <Badge key={catId} className="text-[10px] bg-green-100 text-green-700 hover:bg-green-200">
+                          {cat.label}
+                          <X className="h-3 w-3 ml-1 cursor-pointer" onClick={(e) => {
+                            e.stopPropagation()
+                            setSelectedOperationCategories(selectedOperationCategories.filter(c => c !== catId))
+                          }} />
+                        </Badge>
+                      ) : null
+                    })}
+                  </div>
+                )}
+              </div>
+
               {/* 추가 메모 입력 */}
               <div className="space-y-2">
                 <Label className="text-sm font-medium">추가 메모 (선택)</Label>
@@ -5599,7 +5707,7 @@ const handleSelectAlert = (alert: AlertItem) => {
                   value={noIssueAdditionalNote}
                   onChange={(e) => setNoIssueAdditionalNote(e.target.value)}
                   placeholder="추가로 기록하고 싶은 내용을 입력하세요..."
-                  className="min-h-20 text-sm"
+                  className="min-h-16 text-sm"
                 />
               </div>
 
@@ -5612,6 +5720,9 @@ const handleSelectAlert = (alert: AlertItem) => {
                     <ul className="mt-1 space-y-0.5 text-green-700">
                       <li>- Daily Monitoring 완료 처리</li>
                       <li>- 운영 로그에 "특이사항 없음" 기록</li>
+                      {selectedOperationCategories.length > 0 && (
+                        <li>- 운전 분류: {selectedOperationCategories.map(id => operationCategories.find(c => c.id === id)?.label).join(", ")}</li>
+                      )}
                       <li>- 담당자: {selectedAlert?.assignee || "김지수"}</li>
                     </ul>
                   </div>
@@ -5628,7 +5739,8 @@ const handleSelectAlert = (alert: AlertItem) => {
                   setDailyMonitoringAction("normal")
                   setAlerts(alerts.map(a => a.id === selectedAlert?.id ? { ...a, status: "resolved" } : a))
                   setShowNoIssueDialog(false)
-                  alert("특이사항 없음으로 저장되었습니다.")
+                  const categoryLabels = selectedOperationCategories.map(id => operationCategories.find(c => c.id === id)?.label).join(", ")
+                  alert(`특이사항 없음으로 저장되었습니다.\n운전 분류: ${categoryLabels || "미선택"}`)
                 }}
               >
                 <CheckCircle className="h-4 w-4 mr-2" />
@@ -6091,7 +6203,7 @@ const handleSelectAlert = (alert: AlertItem) => {
               </div>
 
               <div className="space-y-2">
-                <Label htmlFor="csr-desc">수정 요청 내용 *</Label>
+                <Label htmlFor="csr-desc">수정 요청 내��� *</Label>
                 <Textarea
                   id="csr-desc"
                   value={csrDescription}
@@ -6384,7 +6496,7 @@ const handleSelectAlert = (alert: AlertItem) => {
                   id="daily-report-title"
                   value={dailyReportTitle}
                   onChange={(e) => setDailyReportTitle(e.target.value)}
-                  placeholder="Standing Issue 제목을 입력하세요"
+                  placeholder="Standing Issue 제목을 입��하세요"
                 />
               </div>
 
