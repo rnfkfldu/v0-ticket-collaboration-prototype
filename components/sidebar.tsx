@@ -159,8 +159,7 @@ export function Sidebar({ unreadAlerts = 3 }: SidebarProps) {
       icon: Inbox,
       items: [
         { label: "내 이벤트", href: "/actions/tickets", icon: Inbox },
-        { label: "과제 목록", href: "/roadmap", icon: Layers },
-        { label: "최적화 기회 발굴", href: "/roadmap/opportunities", icon: TrendingUp },
+        { label: "내 과제", href: "/actions/tasks", icon: Layers },
       ]
     },
     // 팀 대시보드: 팀장에게만 팀 업무 분석 대시보드 표시
@@ -480,7 +479,6 @@ export function Sidebar({ unreadAlerts = 3 }: SidebarProps) {
     actions: "운전 조치",
     review: "리뷰/KPI",
     optimization: "공정 최적화",
-    roadmap: "전략 과제",
     knowledge: "지식/문서",
     "data-admin": "데이터/설정",
     "oop-outside": "OOP Outside",

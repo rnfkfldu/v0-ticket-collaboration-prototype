@@ -84,14 +84,7 @@ const mainMenus: MainMenuItem[] = [
     description: "공정 최적화 및 인사이트",
     requiresFlag: "showOptimization"
   },
-  { 
-    id: "roadmap",
-    label: "전략 과제", 
-    href: "/roadmap",
-    icon: Target,
-    description: "TA Worklist 및 전략 과제 관리",
-    requiresFlag: "showStrategicTasks"
-  },
+  
   { 
     id: "knowledge",
     label: "지식/문서", 
