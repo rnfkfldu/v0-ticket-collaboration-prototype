@@ -14,7 +14,8 @@ import { Tabs, TabsList, TabsTrigger, TabsContent } from "@/components/ui/tabs"
 import { RadioGroup, RadioGroupItem } from "@/components/ui/radio-group"
 import { ScrollArea } from "@/components/ui/scroll-area"
 import { Separator } from "@/components/ui/separator"
-import { Search, ChevronRight, Link, Layers, Plus, Users, Wrench, Calendar, Target, AlertTriangle, CheckCircle, X, GripVertical, Trash2 } from "lucide-react"
+import { Search, ChevronRight, Link, Layers, Plus, Users, Wrench, Calendar, Target, AlertTriangle, CheckCircle, X, GripVertical, Trash2, GitBranch } from "lucide-react"
+import { EventRelationCanvas } from "@/components/event-relation-canvas"
 import { cn } from "@/lib/utils"
 import { type WorkItem, type Milestone, type WorklistUseCase, type LinkedTicket } from "@/lib/workbench-data"
 import { getWorklists, saveWorklist, getTickets } from "@/lib/storage"
@@ -53,6 +54,15 @@ export default function WorkbenchPage() {
   const [showTicketLinkDialog, setShowTicketLinkDialog] = useState(false)
   const [ticketSearchQuery, setTicketSearchQuery] = useState("")
   const availableTickets = getTickets()
+  
+  // Event relations state
+  const [eventRelations, setEventRelations] = useState<Array<{
+    id: string
+    sourceId: string
+    targetId: string
+    type: "parent-child" | "sequence"
+  }>>([])
+  const [showCanvasView, setShowCanvasView] = useState(false)
 
   // Mutable work items list from storage
   const [items, setItems] = useState<WorkItem[]>(() => getWorklists())
@@ -508,28 +518,74 @@ export default function WorkbenchPage() {
             {/* Step 2 - Simple Mode: Ticket Linking */}
             {createStep === 2 && createMode === "simple" && (
               <div className="space-y-4 py-4">
-                <div>
-                  <Label className="text-base font-medium">관련 이벤트 연결 (선택)</Label>
-                  <p className="text-sm text-muted-foreground mt-1">이 워크리스트와 관련된 기존 이벤트를 연결할 수 있습니다.</p>
+                <div className="flex items-center justify-between">
+                  <div>
+                    <Label className="text-base font-medium">관련 이벤트 연결 (선택)</Label>
+                    <p className="text-sm text-muted-foreground mt-1">이 워크리스트와 관련된 기존 이벤트를 연결하고 관계를 설정합니다.</p>
+                  </div>
+                  {(newWorklist.linkedTickets?.length || 0) >= 2 && (
+                    <Button 
+                      variant={showCanvasView ? "default" : "outline"} 
+                      size="sm"
+                      className="gap-2"
+                      onClick={() => setShowCanvasView(!showCanvasView)}
+                    >
+                      <GitBranch className="h-4 w-4" />
+                      {showCanvasView ? "리스트 보기" : "관계 캔버스"}
+                    </Button>
+                  )}
                 </div>
                 
-                {/* Linked tickets list */}
-                {(newWorklist.linkedTickets?.length || 0) > 0 && (
+                {/* Canvas View - 이벤트 관계 설정 */}
+                {showCanvasView && (newWorklist.linkedTickets?.length || 0) >= 2 && (
                   <div className="space-y-2">
-                    {newWorklist.linkedTickets?.map(ticket => (
-                      <div key={ticket.id} className="flex items-center gap-3 p-3 rounded-lg border bg-muted/30">
-                        <Link className="h-4 w-4 text-muted-foreground" />
-                        <div className="flex-1 min-w-0">
-                          <p className="text-sm font-medium truncate">{ticket.title}</p>
-                          <p className="text-xs text-muted-foreground">#{ticket.id}</p>
-                        </div>
-                        <Badge variant="outline" className="text-xs">{ticket.ticketType}</Badge>
-                        <Button variant="ghost" size="icon" className="h-7 w-7" onClick={() => handleUnlinkTicket(ticket.id)}>
-                          <X className="h-3.5 w-3.5 text-muted-foreground" />
-                        </Button>
-                      </div>
-                    ))}
+                    <div className="flex items-center justify-between">
+                      <p className="text-xs text-muted-foreground">
+                        노드를 드래그하여 위치를 조정하고, 연결 버튼을 드래그하여 이벤트 간 관계를 설정하세요.
+                      </p>
+                      {eventRelations.length > 0 && (
+                        <Badge variant="secondary" className="text-xs">
+                          {eventRelations.length}개 관계 설정됨
+                        </Badge>
+                      )}
+                    </div>
+                    <EventRelationCanvas
+                      events={newWorklist.linkedTickets?.map(t => ({
+                        id: t.id,
+                        title: t.title,
+                        status: t.status,
+                        ticketType: t.ticketType
+                      })) || []}
+                      relations={eventRelations}
+                      onRelationsChange={setEventRelations}
+                      onRemoveEvent={(eventId) => handleUnlinkTicket(eventId)}
+                      className="h-[350px]"
+                    />
                   </div>
+                )}
+                
+                {/* List View - 기존 리스트 뷰 */}
+                {!showCanvasView && (
+                  <>
+                    {/* Linked tickets list */}
+                    {(newWorklist.linkedTickets?.length || 0) > 0 && (
+                      <div className="space-y-2">
+                        {newWorklist.linkedTickets?.map(ticket => (
+                          <div key={ticket.id} className="flex items-center gap-3 p-3 rounded-lg border bg-muted/30">
+                            <Link className="h-4 w-4 text-muted-foreground" />
+                            <div className="flex-1 min-w-0">
+                              <p className="text-sm font-medium truncate">{ticket.title}</p>
+                              <p className="text-xs text-muted-foreground">#{ticket.id}</p>
+                            </div>
+                            <Badge variant="outline" className="text-xs">{ticket.ticketType}</Badge>
+                            <Button variant="ghost" size="icon" className="h-7 w-7" onClick={() => handleUnlinkTicket(ticket.id)}>
+                              <X className="h-3.5 w-3.5 text-muted-foreground" />
+                            </Button>
+                          </div>
+                        ))}
+                      </div>
+                    )}
+                  </>
                 )}
                 
                 {/* Search and add tickets */}
@@ -581,6 +637,7 @@ export default function WorkbenchPage() {
                 
                 <p className="text-xs text-muted-foreground">
                   이벤트 연결 없이 생성해도 됩니다. 워크리스트 상세 페이지에서 언제든 연결할 수 있습니다.
+                  {(newWorklist.linkedTickets?.length || 0) >= 2 && " 2개 이상 연결 시 관계 캔버스에서 모-자/전-후 관계를 설정할 수 있습니다."}
                 </p>
               </div>
             )}

@@ -159,6 +159,8 @@ export function Sidebar({ unreadAlerts = 3 }: SidebarProps) {
       icon: Inbox,
       items: [
         { label: "내 이벤트", href: "/actions/tickets", icon: Inbox },
+        { label: "과제 목록", href: "/roadmap", icon: Layers },
+        { label: "최적화 기회 발굴", href: "/roadmap/opportunities", icon: TrendingUp },
       ]
     },
     // 팀 대시보드: 팀장에게만 팀 업무 분석 대시보드 표시
@@ -334,18 +336,8 @@ export function Sidebar({ unreadAlerts = 3 }: SidebarProps) {
     },
   ]
 
-  // 전략 과제 메뉴 구조
-  const roadmapMenu: MenuSection[] = [
-    {
-      id: "worklist",
-      label: "과제 관리",
-      icon: FileText,
-      items: [
-        { label: "과제 목록", href: "/roadmap", icon: FileText },
-        { label: "최적화 기회 발굴", href: "/roadmap/opportunities", icon: TrendingUp },
-      ]
-    },
-  ]
+  // 전략 과제 메뉴 구조 - 운전 조치 > 내 업무로 이동됨
+  const roadmapMenu: MenuSection[] = []
 
   // 외부 협업 메뉴 구조
   const oopOutsideMenu: MenuSection[] = [
