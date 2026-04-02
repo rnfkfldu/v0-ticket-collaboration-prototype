@@ -287,7 +287,7 @@ export default function WorkbenchPage() {
                     <tr
                       key={item.id}
                       className={cn("border-b hover:bg-muted/30 transition-colors cursor-pointer", (item.status === "closed" || item.status === "completed") && "opacity-60")}
-                      onClick={() => router.push(`/roadmap/${item.id}`)}
+                      onClick={() => router.push(`/actions/tasks/${item.id}`)}
                     >
                       <td className="p-3 font-mono text-xs text-muted-foreground">{item.id}</td>
                       <td className="p-3 text-sm font-medium text-primary hover:underline">{item.title}</td>
