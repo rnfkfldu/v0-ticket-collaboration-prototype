@@ -46,6 +46,13 @@ export default function WorkItemDetailPage() {
     targetId: string
     type: "parent-child" | "sequence"
   }>>([])
+  
+  // Event due dates state
+  const [eventDueDates, setEventDueDates] = useState<Array<{
+    eventId: string
+    dueDate: string
+  }>>([])
+  
   const [activeView, setActiveView] = useState<"list" | "gantt" | "canvas">("list")
 
   const allTickets = getTickets()
@@ -599,6 +606,7 @@ export default function WorkItemDetailPage() {
                         linkedTickets={item.linkedTickets}
                         startDate={item.startDate}
                         endDate={item.targetDate}
+                        eventDueDates={eventDueDates}
                       />
                     </Card>
                   </TabsContent>
@@ -629,11 +637,14 @@ export default function WorkItemDetailPage() {
                           id: t.id,
                           title: t.title,
                           status: t.status,
-                          ticketType: t.ticketType
+                          ticketType: t.ticketType,
+                          dueDate: eventDueDates.find(d => d.eventId === t.id)?.dueDate
                         }))}
                         relations={eventRelations}
                         onRelationsChange={setEventRelations}
                         onRemoveEvent={(eventId) => handleUnlinkTicket(eventId)}
+                        eventDueDates={eventDueDates}
+                        onDueDatesChange={setEventDueDates}
                         className="h-[400px]"
                       />
                       <div className="mt-4 pt-4 border-t flex items-center justify-between">

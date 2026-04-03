@@ -35,8 +35,15 @@ import {
   DialogTitle,
   DialogFooter,
 } from "@/components/ui/dialog"
+import {
+  Popover,
+  PopoverContent,
+  PopoverTrigger,
+} from "@/components/ui/popover"
 import { Label } from "@/components/ui/label"
+import { Input } from "@/components/ui/input"
 import { RadioGroup, RadioGroupItem } from "@/components/ui/radio-group"
+import { Calendar } from "lucide-react"
 
 // 이벤트 노드 타입
 interface EventNode {
@@ -44,6 +51,7 @@ interface EventNode {
   title: string
   status: string
   ticketType?: string
+  dueDate?: string
   x: number
   y: number
 }
@@ -56,16 +64,25 @@ interface EventRelation {
   type: "parent-child" | "sequence" // 모-자 관계 또는 전-후 관계
 }
 
+// 이벤트 Due Date 변경 타입
+export interface EventDueDate {
+  eventId: string
+  dueDate: string
+}
+
 interface EventRelationCanvasProps {
   events: Array<{
     id: string
     title: string
     status: string
     ticketType?: string
+    dueDate?: string
   }>
   relations?: EventRelation[]
   onRelationsChange?: (relations: EventRelation[]) => void
   onRemoveEvent?: (eventId: string) => void
+  eventDueDates?: EventDueDate[]
+  onDueDatesChange?: (dueDates: EventDueDate[]) => void
   className?: string
 }
 
@@ -74,11 +91,14 @@ export function EventRelationCanvas({
   relations: initialRelations = [],
   onRelationsChange,
   onRemoveEvent,
+  eventDueDates: initialDueDates = [],
+  onDueDatesChange,
   className 
 }: EventRelationCanvasProps) {
   const canvasRef = useRef<HTMLDivElement>(null)
   const [nodes, setNodes] = useState<EventNode[]>([])
   const [relations, setRelations] = useState<EventRelation[]>(initialRelations)
+  const [dueDates, setDueDates] = useState<EventDueDate[]>(initialDueDates)
   const [draggingNode, setDraggingNode] = useState<string | null>(null)
   const [dragOffset, setDragOffset] = useState({ x: 0, y: 0 })
   const [connecting, setConnecting] = useState<{ sourceId: string; startX: number; startY: number } | null>(null)
@@ -92,13 +112,14 @@ export function EventRelationCanvas({
   useEffect(() => {
     const cols = 3
     const nodeWidth = 200
-    const nodeHeight = 80
+    const nodeHeight = 100
     const gap = 40
     
     const newNodes = events.map((event, index) => {
       const existingNode = nodes.find(n => n.id === event.id)
+      const existingDueDate = dueDates.find(d => d.eventId === event.id)?.dueDate || event.dueDate
       if (existingNode) {
-        return { ...existingNode, title: event.title, status: event.status, ticketType: event.ticketType }
+        return { ...existingNode, title: event.title, status: event.status, ticketType: event.ticketType, dueDate: existingDueDate }
       }
       const row = Math.floor(index / cols)
       const col = index % cols
@@ -107,12 +128,13 @@ export function EventRelationCanvas({
         title: event.title,
         status: event.status,
         ticketType: event.ticketType,
+        dueDate: existingDueDate,
         x: col * (nodeWidth + gap) + 20,
         y: row * (nodeHeight + gap) + 20
       }
     })
     setNodes(newNodes)
-  }, [events])
+  }, [events, dueDates])
 
   // 노드 드래그 핸들러
   const handleMouseDown = (e: React.MouseEvent, nodeId: string) => {
@@ -153,7 +175,7 @@ export function EventRelationCanvas({
       // 연결 종료 - 타겟 노드 찾기
       const targetNode = nodes.find(n => {
         const nodeWidth = 200
-        const nodeHeight = 70
+        const nodeHeight = 90
         return mousePos.x >= n.x && mousePos.x <= n.x + nodeWidth &&
                mousePos.y >= n.y && mousePos.y <= n.y + nodeHeight &&
                n.id !== connecting.sourceId
@@ -219,6 +241,28 @@ export function EventRelationCanvas({
     onRelationsChange?.(updatedRelations)
   }
 
+  // Due Date 업데이트
+  const updateDueDate = (eventId: string, newDate: string) => {
+    const existingIdx = dueDates.findIndex(d => d.eventId === eventId)
+    let updatedDueDates: EventDueDate[]
+    
+    if (existingIdx >= 0) {
+      updatedDueDates = dueDates.map((d, i) => 
+        i === existingIdx ? { ...d, dueDate: newDate } : d
+      )
+    } else {
+      updatedDueDates = [...dueDates, { eventId, dueDate: newDate }]
+    }
+    
+    setDueDates(updatedDueDates)
+    onDueDatesChange?.(updatedDueDates)
+    
+    // Update node as well
+    setNodes(prev => prev.map(n => 
+      n.id === eventId ? { ...n, dueDate: newDate } : n
+    ))
+  }
+
   // 줌
   const handleZoomIn = () => setZoom(prev => Math.min(prev + 0.1, 2))
   const handleZoomOut = () => setZoom(prev => Math.max(prev - 0.1, 0.5))
@@ -227,7 +271,7 @@ export function EventRelationCanvas({
   // 연결선 그리기
   const renderConnection = (sourceNode: EventNode, targetNode: EventNode, relation: EventRelation) => {
     const nodeWidth = 200
-    const nodeHeight = 70
+    const nodeHeight = 90
     
     // 소스와 타겟의 중심 좌표
     const sx = sourceNode.x + nodeWidth / 2
@@ -412,6 +456,26 @@ export function EventRelationCanvas({
                       <div className="flex items-center gap-1.5 mt-1">
                         <Badge variant="outline" className="text-[9px]">{node.id}</Badge>
                         <Badge variant="secondary" className="text-[9px]">{node.status}</Badge>
+                      </div>
+                      {/* Due Date 입력 */}
+                      <div className="flex items-center gap-1.5 mt-2">
+                        <Calendar className="h-3 w-3 text-muted-foreground" />
+                        <input
+                          type="date"
+                          value={node.dueDate || ""}
+                          onChange={(e) => {
+                            e.stopPropagation()
+                            updateDueDate(node.id, e.target.value)
+                          }}
+                          onMouseDown={(e) => e.stopPropagation()}
+                          className="text-[10px] bg-transparent border-none p-0 h-4 w-[90px] text-muted-foreground focus:text-foreground focus:outline-none cursor-pointer"
+                          placeholder="Due Date"
+                        />
+                        {node.dueDate && (
+                          <span className="text-[9px] text-muted-foreground">
+                            {new Date(node.dueDate) < new Date() ? "(지남)" : ""}
+                          </span>
+                        )}
                       </div>
                     </div>
                     {/* 연결 핸들 */}

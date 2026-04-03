@@ -62,6 +62,10 @@ export default function WorkbenchPage() {
     targetId: string
     type: "parent-child" | "sequence"
   }>>([])
+  const [eventDueDates, setEventDueDates] = useState<Array<{
+    eventId: string
+    dueDate: string
+  }>>([])
   const [showCanvasView, setShowCanvasView] = useState(false)
 
   // Mutable work items list from storage
@@ -452,7 +456,7 @@ export default function WorkbenchPage() {
             {createStep === 1 && (
               <div className="space-y-4 py-4">
                 <div className="space-y-2">
-                  <Label>워크리스트 제목 *</Label>
+                  <Label>워크리스트 제�� *</Label>
                   <Input 
                     placeholder="예: VDU 분리도 개선 프로젝트"
                     value={newWorklist.title}
@@ -554,11 +558,14 @@ export default function WorkbenchPage() {
                         id: t.id,
                         title: t.title,
                         status: t.status,
-                        ticketType: t.ticketType
+                        ticketType: t.ticketType,
+                        dueDate: eventDueDates.find(d => d.eventId === t.id)?.dueDate
                       })) || []}
                       relations={eventRelations}
                       onRelationsChange={setEventRelations}
                       onRemoveEvent={(eventId) => handleUnlinkTicket(eventId)}
+                      eventDueDates={eventDueDates}
+                      onDueDatesChange={setEventDueDates}
                       className="h-[350px]"
                     />
                   </div>

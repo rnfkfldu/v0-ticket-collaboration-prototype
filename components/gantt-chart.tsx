@@ -3,22 +3,32 @@
 import { useMemo } from "react"
 import { Badge } from "@/components/ui/badge"
 import { cn } from "@/lib/utils"
-import { CheckCircle2, Circle, Ban, AlertTriangle } from "lucide-react"
+import { CheckCircle2, Circle, Ban, AlertTriangle, Ticket } from "lucide-react"
 import type { Milestone, LinkedTicket } from "@/lib/workbench-data"
 
+// 이벤트 Due Date 타입
+interface EventDueDate {
+  eventId: string
+  dueDate: string
+}
+
 interface GanttChartProps {
-  milestones: Milestone[]
-  linkedTickets: LinkedTicket[]
+  milestones?: Milestone[]
+  linkedTickets?: LinkedTicket[]
   startDate?: string
   endDate?: string
+  eventDueDates?: EventDueDate[]
+  showEventsOnly?: boolean
   className?: string
 }
 
 export function GanttChart({ 
-  milestones, 
-  linkedTickets, 
+  milestones = [], 
+  linkedTickets = [], 
   startDate, 
   endDate,
+  eventDueDates = [],
+  showEventsOnly = false,
   className 
 }: GanttChartProps) {
   // Calculate date range
@@ -29,6 +39,11 @@ export function GanttChart({
     milestones.forEach(ms => {
       if (ms.targetDate) dates.push(new Date(ms.targetDate))
       if (ms.completedDate) dates.push(new Date(ms.completedDate))
+    })
+    
+    // Collect dates from event due dates
+    eventDueDates.forEach(d => {
+      if (d.dueDate) dates.push(new Date(d.dueDate))
     })
     
     if (startDate) dates.push(new Date(startDate))
@@ -251,10 +266,129 @@ export function GanttChart({
           )
         })}
         
+        {/* Event Rows - Based on Due Dates */}
+        {(showEventsOnly || eventDueDates.length > 0) && linkedTickets.length > 0 && (
+          <>
+            {/* Events Header */}
+            {!showEventsOnly && milestones.length > 0 && (
+              <div className="flex h-6 bg-muted/30 border-b text-[10px]">
+                <div className="w-48 shrink-0 px-3 flex items-center font-medium border-r text-muted-foreground">
+                  연결 이벤트
+                </div>
+                <div className="flex-1" />
+              </div>
+            )}
+            
+            {/* Event Rows */}
+            {linkedTickets.map((ticket, idx) => {
+              const eventDueDate = eventDueDates.find(d => d.eventId === ticket.id)
+              const hasDueDate = !!eventDueDate?.dueDate
+              const isOverdue = hasDueDate && new Date(eventDueDate!.dueDate) < new Date()
+              const isCompleted = ticket.status === "resolved" || ticket.status === "completed"
+              
+              // Calculate bar position based on due date
+              let barStart = 5 // Default start
+              let barEnd = 0
+              
+              if (hasDueDate) {
+                barEnd = getDatePosition(eventDueDate!.dueDate)
+                // Start from today or earlier
+                const todayPos = getDatePosition(new Date().toISOString().split('T')[0])
+                barStart = Math.min(todayPos - 10, barEnd - 15)
+                if (barStart < 0) barStart = 0
+              }
+              
+              const rowBgIdx = showEventsOnly ? idx : milestones.length + idx
+              
+              return (
+                <div 
+                  key={ticket.id} 
+                  className={cn(
+                    "flex min-h-10 border-b last:border-b-0",
+                    rowBgIdx % 2 === 0 ? "bg-background" : "bg-muted/20"
+                  )}
+                >
+                  {/* Event Name */}
+                  <div className="w-48 shrink-0 px-3 py-2 border-r flex items-center gap-2">
+                    <Ticket className={cn(
+                      "h-3 w-3",
+                      isCompleted ? "text-emerald-600" : isOverdue ? "text-red-500" : "text-blue-500"
+                    )} />
+                    <div className="min-w-0 flex-1">
+                      <p className="text-xs truncate">{ticket.title}</p>
+                      <p className="text-[9px] text-muted-foreground">{ticket.id}</p>
+                    </div>
+                  </div>
+                  
+                  {/* Gantt Bar Area */}
+                  <div className="flex-1 relative py-2 px-1">
+                    {/* Today Line */}
+                    <div 
+                      className="absolute top-0 bottom-0 w-px bg-red-400 z-10"
+                      style={{ left: `${todayPosition}%` }}
+                    />
+                    
+                    {/* Gantt Bar */}
+                    {hasDueDate && (
+                      <div 
+                        className={cn(
+                          "absolute top-1/2 -translate-y-1/2 h-5 rounded-md flex items-center px-2",
+                          isCompleted 
+                            ? "bg-emerald-100 border border-emerald-300" 
+                            : isOverdue 
+                              ? "bg-red-100 border border-red-300"
+                              : "bg-blue-100 border border-blue-300"
+                        )}
+                        style={{
+                          left: `${Math.min(barStart, barEnd)}%`,
+                          width: `${Math.max(Math.abs(barEnd - barStart), 5)}%`,
+                          minWidth: '40px'
+                        }}
+                      >
+                        <div 
+                          className={cn(
+                            "h-1.5 rounded-full",
+                            isCompleted ? "bg-emerald-500" : isOverdue ? "bg-red-500" : "bg-blue-500"
+                          )}
+                          style={{
+                            width: isCompleted ? "100%" : "50%"
+                          }}
+                        />
+                      </div>
+                    )}
+                    
+                    {/* Due date marker */}
+                    {hasDueDate && (
+                      <div 
+                        className="absolute top-1/2 -translate-y-1/2"
+                        style={{ left: `${getDatePosition(eventDueDate!.dueDate)}%` }}
+                      >
+                        <div className={cn(
+                          "text-[9px] whitespace-nowrap -translate-x-1/2",
+                          isOverdue ? "text-red-500" : "text-muted-foreground"
+                        )}>
+                          {eventDueDate!.dueDate}
+                        </div>
+                      </div>
+                    )}
+                    
+                    {/* No due date indicator */}
+                    {!hasDueDate && (
+                      <div className="absolute inset-0 flex items-center justify-center">
+                        <span className="text-[10px] text-muted-foreground/50">Due Date 미설정</span>
+                      </div>
+                    )}
+                  </div>
+                </div>
+              )
+            })}
+          </>
+        )}
+        
         {/* Empty state */}
-        {milestones.length === 0 && (
+        {milestones.length === 0 && linkedTickets.length === 0 && (
           <div className="flex items-center justify-center py-12 text-sm text-muted-foreground">
-            마일스톤이 없습니다
+            마일스톤 또는 이벤트가 없습니다
           </div>
         )}
       </div>
