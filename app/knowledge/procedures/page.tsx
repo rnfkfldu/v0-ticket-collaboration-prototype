@@ -11,12 +11,27 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@
 import {
   Shield, Search, FileText, ChevronRight, ExternalLink, ArrowLeft,
   History, AlertTriangle, CheckCircle, Link2, BarChart3, Clock,
-  GitBranch, Layout, TrendingUp
+  GitBranch, Layout, TrendingUp, ThumbsUp, ThumbsDown
 } from "lucide-react"
+import {
+  Tooltip,
+  TooltipContent,
+  TooltipProvider,
+  TooltipTrigger,
+} from "@/components/ui/tooltip"
 import { cn } from "@/lib/utils"
 
 type DocType = "sop" | "contingency" | "sdsu" | "decision-tree"
 type VersionEntry = { ver: string; date: string; author: string; summary: string }
+
+// 사용자 피드백 (좋아요/싫어요)
+interface UserFeedback {
+  odId: string
+  odName: string
+  type: "like" | "dislike"
+  date: string
+  comment?: string
+}
 
 interface ProcedureDoc {
   id: string
@@ -34,6 +49,7 @@ interface ProcedureDoc {
   sections?: { title: string; content: string }[]
   steps?: { step: string; action: string; criteria: string }[]
   decisionNodes?: { condition: string; yes: string; no: string }[]
+  feedback?: UserFeedback[]
 }
 
 const typeLabels: Record<DocType, string> = { sop: "SOP", contingency: "Contingency Plan", sdsu: "SD/SU 절차서", "decision-tree": "Decision Tree" }
@@ -87,7 +103,7 @@ const PROCEDURES: ProcedureDoc[] = [
     ] },
 
   // Contingency Plans
-  { id: "CP-001", title: "CDU Feed Pump Total Failure 대응", type: "contingency", process: "CDU", status: "approved", currentVersion: "v3.2", lastUpdated: "2025-02-10", owner: "Operations",
+{ id: "CP-001", title: "CDU Feed Pump Total Failure 대응", type: "contingency", process: "CDU", status: "approved", currentVersion: "v3.2", lastUpdated: "2025-02-10", owner: "Operations",
     description: "CDU Feed Pump 전수 정지 시 의사결정 및 조치 절차. Standby Pump, 감량운전, ESD 단계별 대응.",
     linkedDashboards: [{ label: "CDU Emergency Dashboard", href: "/operations/custom-dashboard" }, { label: "Feed System Overview", href: "/operations/custom-dashboard?view=feed" }],
     linkedTrendBundles: [{ label: "CDU Feed/Column 트렌드 묶음", id: "cdu-feed-trend" }],
@@ -96,6 +112,12 @@ const PROCEDURES: ProcedureDoc[] = [
       { ver: "v3.1", date: "2025-01-05", author: "김지수", summary: "Standby Pump 가동 절차 보완" },
       { ver: "v3.0", date: "2024-11-20", author: "박영희", summary: "전면 개정 - Decision Tree 재구성" },
       { ver: "v2.1", date: "2024-06-15", author: "이철수", summary: "환경부서 통보 절차 추가" },
+    ],
+    feedback: [
+      { odId: "OD-A", odName: "김철수", type: "like", date: "2025-02-12", comment: "실무에 바로 적용 가능한 절차입니다" },
+      { odId: "OD-B", odName: "이영희", type: "like", date: "2025-02-11" },
+      { odId: "OD-C", odName: "박민수", type: "like", date: "2025-02-10", comment: "감량운전 절차가 상세해서 좋습니다" },
+      { odId: "OD-D", odName: "정수민", type: "dislike", date: "2025-02-09", comment: "ESD 전환 기준이 좀 더 명확했으면 좋겠습니다" },
     ],
     steps: [
       { step: "1단계", action: "Standby Pump 즉시 기동", criteria: "Standby 상태 확인, 30초 이내 기동" },
@@ -111,6 +133,10 @@ const PROCEDURES: ProcedureDoc[] = [
       { ver: "v2.3", date: "2024-10-10", author: "김지수", summary: "감량 운전 우선순위 조정" },
       { ver: "v2.2", date: "2024-07-05", author: "박영희", summary: "Boiler #3 추가 반영" },
     ],
+    feedback: [
+      { odId: "OD-A", odName: "김철수", type: "like", date: "2025-01-30" },
+      { odId: "OD-E", odName: "최영수", type: "like", date: "2025-01-29", comment: "비필수 소비처 목록이 명확합니다" },
+    ],
     steps: [
       { step: "경보 발생", action: "Steam Header 38kg 이하 경보 확인", criteria: "PI-U001 실시간 확인" },
       { step: "1단계", action: "Standby Boiler 추가 기동", criteria: "기동 소요 약 15분" },
@@ -123,6 +149,13 @@ const PROCEDURES: ProcedureDoc[] = [
     versions: [
       { ver: "v4.1", date: "2025-02-05", author: "Plant Manager", summary: "Emergency Generator 자동 절체 절차 보완" },
       { ver: "v4.0", date: "2024-09-01", author: "이철수", summary: "전면 개정" },
+    ],
+    feedback: [
+      { odId: "OD-A", odName: "김철수", type: "like", date: "2025-02-08", comment: "전원 상실 시 체크리스트로 활용하기 좋습니다" },
+      { odId: "OD-B", odName: "이영희", type: "like", date: "2025-02-07" },
+      { odId: "OD-C", odName: "박민수", type: "dislike", date: "2025-02-06", comment: "UPS 잔량 30분 기준이 너무 짧다고 생각합니다" },
+      { odId: "OD-F", odName: "한지영", type: "like", date: "2025-02-05" },
+      { odId: "OD-G", odName: "오대현", type: "like", date: "2025-02-05" },
     ],
     steps: [
       { step: "즉시", action: "UPS 자동 전환 확인 (DCS, Safety System)", criteria: "UPS Battery 잔량 > 30분" },
@@ -282,7 +315,7 @@ export default function ProceduresPage() {
                 {/* SOP Sections */}
                 {selectedDoc.sections && selectedDoc.sections.length > 0 && (
                   <div className="space-y-3">
-                    <h3 className="text-sm font-semibold text-muted-foreground">상세 내용</h3>
+                    <h3 className="text-sm font-semibold text-muted-foreground">상세 ���용</h3>
                     {selectedDoc.sections.map((s, i) => (
                       <Card key={i}>
                         <CardContent className="pt-4 pb-4">
@@ -375,6 +408,99 @@ export default function ProceduresPage() {
                   <div className="p-3 rounded-lg bg-indigo-50 border border-indigo-100 text-xs text-indigo-700">
                     Live Document는 Notice를 통해 주기적으로 업데이트되며, 버전 이력에서 변경 내역을 확인할 수 있습니다.
                   </div>
+                )}
+                
+                {/* Feedback Section - 좋아요/싫어요 */}
+                {(selectedDoc.type === "contingency" || selectedDoc.type === "sdsu" || selectedDoc.type === "decision-tree") && (
+                  <Card>
+                    <CardContent className="pt-4 pb-4">
+                      <div className="flex items-center justify-between mb-4">
+                        <h3 className="text-xs font-semibold text-muted-foreground flex items-center gap-1.5">
+                          피드백
+                          {selectedDoc.feedback && selectedDoc.feedback.length > 0 && (
+                            <Badge variant="secondary" className="text-[10px]">{selectedDoc.feedback.length}</Badge>
+                          )}
+                        </h3>
+                        <div className="flex items-center gap-2">
+                          <TooltipProvider>
+                            <Tooltip>
+                              <TooltipTrigger asChild>
+                                <Button variant="outline" size="sm" className="h-7 gap-1.5 text-emerald-600 hover:text-emerald-700 hover:bg-emerald-50">
+                                  <ThumbsUp className="h-3.5 w-3.5" />
+                                  도움됨
+                                </Button>
+                              </TooltipTrigger>
+                              <TooltipContent>이 문서가 도움이 되었다면 클릭하세요</TooltipContent>
+                            </Tooltip>
+                          </TooltipProvider>
+                          <TooltipProvider>
+                            <Tooltip>
+                              <TooltipTrigger asChild>
+                                <Button variant="outline" size="sm" className="h-7 gap-1.5 text-red-500 hover:text-red-600 hover:bg-red-50">
+                                  <ThumbsDown className="h-3.5 w-3.5" />
+                                  개선필요
+                                </Button>
+                              </TooltipTrigger>
+                              <TooltipContent>개선이 필요하다면 클릭하세요</TooltipContent>
+                            </Tooltip>
+                          </TooltipProvider>
+                        </div>
+                      </div>
+                      
+                      {/* Feedback summary */}
+                      {selectedDoc.feedback && selectedDoc.feedback.length > 0 && (
+                        <div className="space-y-3">
+                          <div className="flex items-center gap-4 p-3 rounded-lg bg-muted/30">
+                            <div className="flex items-center gap-1.5 text-emerald-600">
+                              <ThumbsUp className="h-4 w-4" />
+                              <span className="font-semibold">{selectedDoc.feedback.filter(f => f.type === "like").length}</span>
+                              <span className="text-xs text-muted-foreground">도움됨</span>
+                            </div>
+                            <div className="flex items-center gap-1.5 text-red-500">
+                              <ThumbsDown className="h-4 w-4" />
+                              <span className="font-semibold">{selectedDoc.feedback.filter(f => f.type === "dislike").length}</span>
+                              <span className="text-xs text-muted-foreground">개선필요</span>
+                            </div>
+                          </div>
+                          
+                          {/* Feedback list */}
+                          <div className="space-y-2">
+                            {selectedDoc.feedback.map((fb, idx) => (
+                              <div key={idx} className={cn(
+                                "flex items-start gap-3 p-2.5 rounded-lg border",
+                                fb.type === "like" ? "bg-emerald-50/50 border-emerald-100" : "bg-red-50/50 border-red-100"
+                              )}>
+                                <div className={cn(
+                                  "h-6 w-6 rounded-full flex items-center justify-center shrink-0",
+                                  fb.type === "like" ? "bg-emerald-100" : "bg-red-100"
+                                )}>
+                                  {fb.type === "like" 
+                                    ? <ThumbsUp className="h-3 w-3 text-emerald-600" />
+                                    : <ThumbsDown className="h-3 w-3 text-red-500" />
+                                  }
+                                </div>
+                                <div className="flex-1 min-w-0">
+                                  <div className="flex items-center gap-2">
+                                    <span className="text-xs font-medium">{fb.odName}</span>
+                                    <span className="text-[10px] text-muted-foreground">{fb.date}</span>
+                                  </div>
+                                  {fb.comment && (
+                                    <p className="text-xs text-muted-foreground mt-0.5">{fb.comment}</p>
+                                  )}
+                                </div>
+                              </div>
+                            ))}
+                          </div>
+                        </div>
+                      )}
+                      
+                      {(!selectedDoc.feedback || selectedDoc.feedback.length === 0) && (
+                        <p className="text-xs text-muted-foreground text-center py-4">
+                          아직 피드백이 없습니다. 이 문서에 대한 의견을 남겨주세요.
+                        </p>
+                      )}
+                    </CardContent>
+                  </Card>
                 )}
               </div>
 
@@ -469,6 +595,9 @@ export default function ProceduresPage() {
             {filtered.map(d => {
               const Icon = typeIcons[d.type]
               const hasLinks = (d.linkedDashboards && d.linkedDashboards.length > 0) || (d.linkedTrendBundles && d.linkedTrendBundles.length > 0)
+              const likes = d.feedback?.filter(f => f.type === "like").length || 0
+              const dislikes = d.feedback?.filter(f => f.type === "dislike").length || 0
+              const hasFeedback = likes > 0 || dislikes > 0
               return (
                 <Card key={d.id} className="cursor-pointer hover:bg-muted/30 transition-colors" onClick={() => setSelectedDoc(d)}>
                   <CardContent className="py-3 px-4">
@@ -489,6 +618,18 @@ export default function ProceduresPage() {
                           <span>Updated: {d.lastUpdated}</span>
                           {hasLinks && (
                             <span className="flex items-center gap-0.5 text-blue-500"><Link2 className="h-3 w-3" />연동</span>
+                          )}
+                          {hasFeedback && (
+                            <span className="flex items-center gap-2 ml-2">
+                              <span className="flex items-center gap-0.5 text-emerald-600">
+                                <ThumbsUp className="h-3 w-3" />{likes}
+                              </span>
+                              {dislikes > 0 && (
+                                <span className="flex items-center gap-0.5 text-red-500">
+                                  <ThumbsDown className="h-3 w-3" />{dislikes}
+                                </span>
+                              )}
+                            </span>
                           )}
                         </div>
                       </div>
