@@ -236,13 +236,13 @@ export function Sidebar({ unreadAlerts = 3 }: SidebarProps) {
       ]
     },
     {
-      id: "cases",
-      label: "운영사례/케이스",
+      id: "logs",
+      label: "운전 로그",
       icon: History,
       items: [
-        { label: "종결 이벤트/Alert", href: "/knowledge/cases", icon: FileText },
-        { label: "운영 로그", href: "/knowledge/cases?tab=logs", icon: Layers },
-        { label: "회의록/TOB", href: "/knowledge/cases?tab=meetings", icon: Users },
+        { label: "종결 이벤트/Alert", href: "/knowledge/closed-events", icon: FileText },
+        { label: "공정 기록", href: "/knowledge/process-logs", icon: Layers },
+        { label: "회의록/TOB", href: "/knowledge/meetings", icon: Users },
       ]
     },
     {
