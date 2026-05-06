@@ -236,21 +236,22 @@ export function Sidebar({ unreadAlerts = 3 }: SidebarProps) {
       ]
     },
     {
-      id: "logs",
-      label: "운전 로그",
+      id: "event-knowledge",
+      label: "이벤트 지식",
       icon: History,
       items: [
-        { label: "종결 이벤트/Alert", href: "/knowledge/closed-events", icon: FileText },
-        { label: "공정 기록", href: "/knowledge/process-logs", icon: Layers },
-        { label: "회의록/TOB", href: "/knowledge/meetings", icon: Users },
+        { label: "종결 이벤트", href: "/knowledge/closed-events", icon: FileText },
+        { label: "최종 레포트", href: "/knowledge/final-reports", icon: FileBarChart },
       ]
     },
     {
-      id: "final-reports",
-      label: "최종 레포트",
-      icon: FileBarChart,
+      id: "process-logs",
+      label: "공정 기록",
+      icon: Layers,
       items: [
-        { label: "최종 레포트", href: "/knowledge/final-reports", icon: FileBarChart },
+        { label: "공정 연대기", href: "/knowledge/process-logs", icon: CalendarDays },
+        { label: "공정 변수 히스토리", href: "/knowledge/variable-history", icon: TrendingUp },
+        { label: "회의록/TOB", href: "/knowledge/meetings", icon: Users },
       ]
     },
     {
