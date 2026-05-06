@@ -8,10 +8,12 @@ import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs"
+import { ScrollArea } from "@/components/ui/scroll-area"
 import {
   Search, Layers, Box, Tag, Calendar, Clock, User, Filter,
   AlertTriangle, CheckCircle, Activity, TrendingUp, TrendingDown,
-  ThermometerSun, Gauge, Zap, ChevronRight, ChevronDown, FileText
+  ThermometerSun, Gauge, Zap, ChevronRight, ChevronDown, FileText,
+  X, ArrowLeft, CalendarDays
 } from "lucide-react"
 import { cn } from "@/lib/utils"
 
@@ -134,6 +136,41 @@ const PROCESS_LOGS: ProcessLog[] = [
     operator: "정수민", severity: "warning", status: "resolved",
     linkedEventId: "EVT-2024-0075",
     metrics: [{ name: "Vibration", value: "7.5", unit: "mm/s", trend: "up" }] },
+  
+  // 더 많은 날짜의 로그 추가
+  { id: "LOG-016", date: "2025-01-29", time: "06:00", source: "daily-monitoring", level: "process", process: "HCR", 
+    title: "HCR 공정 일일 모니터링 - 정상", description: "전반적으로 안정 운전.",
+    operator: "김철수", severity: "info", status: "normal" },
+  { id: "LOG-017", date: "2025-01-28", time: "06:00", source: "daily-monitoring", level: "process", process: "CDU", 
+    title: "CDU 공정 일일 모니터링 - 정상", description: "정상 운전 유지.",
+    operator: "박민수", severity: "info", status: "normal" },
+  { id: "LOG-018", date: "2025-01-27", time: "14:00", source: "tag-observation", level: "tag", process: "FCC", tag: "TI-3001",
+    title: "Riser 온도 모니터링", description: "Riser 온도 안정.",
+    operator: "이연구원", severity: "info", status: "normal" },
+  { id: "LOG-019", date: "2025-01-26", time: "09:00", source: "anomaly-detection", level: "equipment", process: "SRU", equipment: "R-4001",
+    title: "SRU Reactor 온도 이상", description: "Reactor 입구 온도 상승 감지.",
+    operator: "한지훈", severity: "warning", status: "resolved" },
+  { id: "LOG-020", date: "2025-01-25", time: "06:00", source: "daily-monitoring", level: "process", process: "VDU", 
+    title: "VDU 공정 일일 모니터링", description: "정상 운전.",
+    operator: "최지훈", severity: "info", status: "normal" },
+]
+
+// 주요 트렌드/장치 목록
+const KEY_TRENDS = [
+  { id: "TI-2001", name: "HCR 1st Reactor Inlet Temp", process: "HCR", equipment: "R-2001", type: "temperature" },
+  { id: "TI-2002", name: "HCR 2nd Reactor Inlet Temp", process: "HCR", equipment: "R-2001", type: "temperature" },
+  { id: "UA-E101", name: "CDU Desalter UA", process: "CDU", equipment: "E-101", type: "coefficient" },
+  { id: "TI-1101", name: "VDU Heater TMT", process: "VDU", equipment: "H-1001", type: "temperature" },
+  { id: "PI-3001", name: "FCC Riser Pressure", process: "FCC", equipment: "Reactor", type: "pressure" },
+  { id: "VI-C301", name: "CCR Compressor Vibration", process: "CCR", equipment: "C-3001", type: "vibration" },
+]
+
+const KEY_EQUIPMENT = [
+  { id: "R-2001", name: "HCR Reactor", process: "HCR" },
+  { id: "E-101", name: "CDU Desalter", process: "CDU" },
+  { id: "H-1001", name: "VDU Heater", process: "VDU" },
+  { id: "C-3001", name: "CCR Net Gas Compressor", process: "CCR" },
+  { id: "Reactor", name: "FCC Reactor/Regenerator", process: "FCC" },
 ]
 
 const PROCESSES = ["전체", "CDU", "VDU", "HCR", "CCR", "FCC", "SRU"]
@@ -164,70 +201,147 @@ const levelIcons: Record<HierarchyLevel, React.ElementType> = {
   "tag": Tag
 }
 
-const levelLabels: Record<HierarchyLevel, string> = {
-  "process": "공정",
-  "equipment": "장치",
-  "tag": "태그"
+// 날짜 범위 생성 (최근 14일)
+function generateDateRange(days: number = 14): string[] {
+  const dates: string[] = []
+  const today = new Date("2025-02-04") // 데모용 고정 날짜
+  for (let i = 0; i < days; i++) {
+    const date = new Date(today)
+    date.setDate(date.getDate() - i)
+    dates.push(date.toISOString().split('T')[0])
+  }
+  return dates
+}
+
+// 날짜별 상태 계산
+function getDayStatus(date: string, logs: ProcessLog[]): "normal" | "warning" | "critical" | "empty" {
+  const dayLogs = logs.filter(l => l.date === date)
+  if (dayLogs.length === 0) return "empty"
+  if (dayLogs.some(l => l.severity === "critical")) return "critical"
+  if (dayLogs.some(l => l.severity === "warning")) return "warning"
+  return "normal"
 }
 
 export default function ProcessLogsPage() {
-  const [search, setSearch] = useState("")
   const [processFilter, setProcessFilter] = useState("전체")
-  const [levelFilter, setLevelFilter] = useState<HierarchyLevel | "all">("all")
-  const [sourceFilter, setSourceFilter] = useState<LogSource | "all">("all")
-  const [dateRange, setDateRange] = useState<"today" | "week" | "month" | "all">("week")
-  const [expandedGroups, setExpandedGroups] = useState<Set<string>>(new Set(["2025-02-04", "2025-02-03"]))
+  const [selectedDate, setSelectedDate] = useState<string | null>(null)
+  const [selectedTrend, setSelectedTrend] = useState<string | null>(null)
+  const [selectedEquipment, setSelectedEquipment] = useState<string | null>(null)
+  const [activeTab, setActiveTab] = useState<"timeline" | "trends" | "equipment">("timeline")
+  const [dateRangeDays, setDateRangeDays] = useState(14)
 
-  // 필터링된 로그
+  // 날짜 범위
+  const dateRange = useMemo(() => generateDateRange(dateRangeDays), [dateRangeDays])
+
+  // 공정 필터링된 로그
   const filteredLogs = useMemo(() => {
-    return PROCESS_LOGS.filter(log => {
-      if (search && !log.title.toLowerCase().includes(search.toLowerCase()) && 
-          !log.description.toLowerCase().includes(search.toLowerCase()) &&
-          !log.tag?.toLowerCase().includes(search.toLowerCase()) &&
-          !log.equipment?.toLowerCase().includes(search.toLowerCase())) return false
-      if (processFilter !== "전체" && log.process !== processFilter) return false
-      if (levelFilter !== "all" && log.level !== levelFilter) return false
-      if (sourceFilter !== "all" && log.source !== sourceFilter) return false
-      // Date range filter (simplified for demo)
-      return true
-    })
-  }, [search, processFilter, levelFilter, sourceFilter, dateRange])
+    if (processFilter === "전체") return PROCESS_LOGS
+    return PROCESS_LOGS.filter(l => l.process === processFilter)
+  }, [processFilter])
 
-  // 날짜별 그룹핑
-  const groupedLogs = useMemo(() => {
-    const groups: Record<string, ProcessLog[]> = {}
-    filteredLogs.forEach(log => {
-      if (!groups[log.date]) groups[log.date] = []
-      groups[log.date].push(log)
-    })
-    // 날짜 내림차순 정렬
-    return Object.entries(groups).sort((a, b) => b[0].localeCompare(a[0]))
-  }, [filteredLogs])
+  // 선택된 날짜의 로그
+  const selectedDateLogs = useMemo(() => {
+    if (!selectedDate) return []
+    return filteredLogs.filter(l => l.date === selectedDate).sort((a, b) => b.time.localeCompare(a.time))
+  }, [selectedDate, filteredLogs])
 
-  // 통계
-  const stats = useMemo(() => {
-    return {
-      total: filteredLogs.length,
-      byLevel: {
-        process: filteredLogs.filter(l => l.level === "process").length,
-        equipment: filteredLogs.filter(l => l.level === "equipment").length,
-        tag: filteredLogs.filter(l => l.level === "tag").length,
-      },
-      bySeverity: {
-        info: filteredLogs.filter(l => l.severity === "info").length,
-        warning: filteredLogs.filter(l => l.severity === "warning").length,
-        critical: filteredLogs.filter(l => l.severity === "critical").length,
+  // 선택된 트렌드/장치의 로그
+  const selectedTrendLogs = useMemo(() => {
+    if (!selectedTrend) return []
+    return filteredLogs.filter(l => l.tag === selectedTrend || l.relatedTags?.includes(selectedTrend))
+  }, [selectedTrend, filteredLogs])
+
+  const selectedEquipmentLogs = useMemo(() => {
+    if (!selectedEquipment) return []
+    return filteredLogs.filter(l => l.equipment === selectedEquipment)
+  }, [selectedEquipment, filteredLogs])
+
+  // 날짜별 통계
+  const dateStats = useMemo(() => {
+    const stats: Record<string, { total: number; normal: number; warning: number; critical: number }> = {}
+    dateRange.forEach(date => {
+      const dayLogs = filteredLogs.filter(l => l.date === date)
+      stats[date] = {
+        total: dayLogs.length,
+        normal: dayLogs.filter(l => l.severity === "info").length,
+        warning: dayLogs.filter(l => l.severity === "warning").length,
+        critical: dayLogs.filter(l => l.severity === "critical").length,
       }
-    }
-  }, [filteredLogs])
-
-  const toggleGroup = (date: string) => {
-    setExpandedGroups(prev => {
-      const next = new Set(prev)
-      if (next.has(date)) next.delete(date)
-      else next.add(date)
-      return next
     })
+    return stats
+  }, [dateRange, filteredLogs])
+
+  // 요일 이름
+  const getDayName = (dateStr: string) => {
+    const days = ["일", "월", "화", "수", "목", "금", "토"]
+    return days[new Date(dateStr).getDay()]
+  }
+
+  const renderLogItem = (log: ProcessLog) => {
+    const LevelIcon = levelIcons[log.level]
+    return (
+      <div 
+        key={log.id}
+        className={cn(
+          "p-3 rounded-lg border transition-colors",
+          log.severity === "critical" && "border-red-200 bg-red-50/50",
+          log.severity === "warning" && "border-amber-200 bg-amber-50/50",
+          log.severity === "info" && "border-border bg-card"
+        )}
+      >
+        <div className="flex items-start gap-3">
+          <div className={cn(
+            "h-8 w-8 rounded-lg flex items-center justify-center shrink-0",
+            log.severity === "critical" && "bg-red-100",
+            log.severity === "warning" && "bg-amber-100",
+            log.severity === "info" && "bg-blue-100"
+          )}>
+            <LevelIcon className={cn(
+              "h-4 w-4",
+              log.severity === "critical" && "text-red-600",
+              log.severity === "warning" && "text-amber-600",
+              log.severity === "info" && "text-blue-600"
+            )} />
+          </div>
+          <div className="flex-1 min-w-0">
+            <div className="flex items-center gap-2 flex-wrap">
+              <Badge className={cn("text-[10px] border", sourceColors[log.source])}>{sourceLabels[log.source]}</Badge>
+              <span className="text-xs text-muted-foreground">{log.time}</span>
+              <span className="text-xs font-mono text-muted-foreground">{log.process}</span>
+              {log.equipment && <span className="text-xs font-mono text-muted-foreground">/ {log.equipment}</span>}
+              {log.tag && <Badge variant="outline" className="text-[10px]">{log.tag}</Badge>}
+            </div>
+            <p className="text-sm font-medium mt-1">{log.title}</p>
+            <p className="text-xs text-muted-foreground mt-0.5 line-clamp-2">{log.description}</p>
+            
+            {/* Metrics */}
+            {log.metrics && log.metrics.length > 0 && (
+              <div className="flex items-center gap-3 mt-2 flex-wrap">
+                {log.metrics.map((m, idx) => (
+                  <div key={idx} className="flex items-center gap-1 text-xs bg-muted/50 px-2 py-0.5 rounded">
+                    <span className="text-muted-foreground">{m.name}:</span>
+                    <span className="font-medium">{m.value}{m.unit}</span>
+                    {m.trend === "up" && <TrendingUp className="h-3 w-3 text-red-500" />}
+                    {m.trend === "down" && <TrendingDown className="h-3 w-3 text-blue-500" />}
+                  </div>
+                ))}
+              </div>
+            )}
+            
+            {/* Related Tags & Event */}
+            <div className="flex items-center gap-2 mt-2 flex-wrap">
+              {log.relatedTags && log.relatedTags.map(t => (
+                <Badge key={t} variant="secondary" className="text-[10px]">{t}</Badge>
+              ))}
+              {log.linkedEventId && (
+                <Badge variant="outline" className="text-[10px] text-blue-600">{log.linkedEventId}</Badge>
+              )}
+              <span className="text-[10px] text-muted-foreground ml-auto">{log.operator}</span>
+            </div>
+          </div>
+        </div>
+      </div>
+    )
   }
 
   return (
@@ -236,263 +350,369 @@ export default function ProcessLogsPage() {
         <header className="border-b border-border bg-card px-6 py-4">
           <h1 className="text-lg font-bold">공정 기록</h1>
           <p className="text-sm text-muted-foreground mt-0.5">
-            플랫폼 전체의 공정/장치/태그 단위 로그를 종합하여 조회합니다
+            플랫폼 전체의 공정/장치/태그 단위 로그를 시간 연대기별로 조회합니다
           </p>
         </header>
 
-        <main className="p-6 space-y-4">
+        <main className="p-6">
           {/* Filters */}
-          <Card>
-            <CardContent className="pt-4">
-              <div className="flex flex-wrap items-center gap-3">
-                <div className="relative flex-1 min-w-[200px] max-w-md">
-                  <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
-                  <Input 
-                    placeholder="로그 검색 (제목, 태그, 장치명...)" 
-                    value={search} 
-                    onChange={e => setSearch(e.target.value)} 
-                    className="pl-9" 
-                  />
-                </div>
-                
-                <Select value={processFilter} onValueChange={setProcessFilter}>
-                  <SelectTrigger className="w-28">
-                    <Layers className="h-3.5 w-3.5 mr-1.5 text-muted-foreground" />
-                    <SelectValue />
-                  </SelectTrigger>
-                  <SelectContent>
-                    {PROCESSES.map(p => <SelectItem key={p} value={p}>{p}</SelectItem>)}
-                  </SelectContent>
-                </Select>
+          <div className="flex items-center gap-3 mb-4">
+            <Select value={processFilter} onValueChange={setProcessFilter}>
+              <SelectTrigger className="w-32">
+                <Layers className="h-3.5 w-3.5 mr-1.5 text-muted-foreground" />
+                <SelectValue />
+              </SelectTrigger>
+              <SelectContent>
+                {PROCESSES.map(p => <SelectItem key={p} value={p}>{p}</SelectItem>)}
+              </SelectContent>
+            </Select>
 
-                <Select value={levelFilter} onValueChange={(v) => setLevelFilter(v as HierarchyLevel | "all")}>
-                  <SelectTrigger className="w-28">
-                    <Filter className="h-3.5 w-3.5 mr-1.5 text-muted-foreground" />
-                    <SelectValue placeholder="계층" />
-                  </SelectTrigger>
-                  <SelectContent>
-                    <SelectItem value="all">전체 계층</SelectItem>
-                    <SelectItem value="process">공정</SelectItem>
-                    <SelectItem value="equipment">장치</SelectItem>
-                    <SelectItem value="tag">태그</SelectItem>
-                  </SelectContent>
-                </Select>
-
-                <Select value={sourceFilter} onValueChange={(v) => setSourceFilter(v as LogSource | "all")}>
-                  <SelectTrigger className="w-40">
-                    <FileText className="h-3.5 w-3.5 mr-1.5 text-muted-foreground" />
-                    <SelectValue placeholder="소스" />
-                  </SelectTrigger>
-                  <SelectContent>
-                    <SelectItem value="all">전체 소스</SelectItem>
-                    {Object.entries(sourceLabels).map(([key, label]) => (
-                      <SelectItem key={key} value={key}>{label}</SelectItem>
-                    ))}
-                  </SelectContent>
-                </Select>
-
-                <Select value={dateRange} onValueChange={(v) => setDateRange(v as typeof dateRange)}>
-                  <SelectTrigger className="w-28">
-                    <Calendar className="h-3.5 w-3.5 mr-1.5 text-muted-foreground" />
-                    <SelectValue />
-                  </SelectTrigger>
-                  <SelectContent>
-                    <SelectItem value="today">오늘</SelectItem>
-                    <SelectItem value="week">최근 1주</SelectItem>
-                    <SelectItem value="month">최근 1개월</SelectItem>
-                    <SelectItem value="all">전체</SelectItem>
-                  </SelectContent>
-                </Select>
-              </div>
-            </CardContent>
-          </Card>
-
-          {/* Stats Cards */}
-          <div className="grid grid-cols-2 md:grid-cols-4 lg:grid-cols-7 gap-3">
-            <Card className="cursor-pointer hover:bg-muted/30" onClick={() => { setLevelFilter("all"); setSourceFilter("all"); }}>
-              <CardContent className="py-3 text-center">
-                <p className="text-xs text-muted-foreground">전체 로그</p>
-                <p className="text-2xl font-bold mt-1">{stats.total}</p>
-              </CardContent>
-            </Card>
-            <Card className={cn("cursor-pointer hover:bg-muted/30", levelFilter === "process" && "ring-2 ring-primary")} onClick={() => setLevelFilter("process")}>
-              <CardContent className="py-3 text-center">
-                <p className="text-xs text-muted-foreground flex items-center justify-center gap-1">
-                  <Layers className="h-3 w-3" />공정
-                </p>
-                <p className="text-2xl font-bold mt-1">{stats.byLevel.process}</p>
-              </CardContent>
-            </Card>
-            <Card className={cn("cursor-pointer hover:bg-muted/30", levelFilter === "equipment" && "ring-2 ring-primary")} onClick={() => setLevelFilter("equipment")}>
-              <CardContent className="py-3 text-center">
-                <p className="text-xs text-muted-foreground flex items-center justify-center gap-1">
-                  <Box className="h-3 w-3" />장치
-                </p>
-                <p className="text-2xl font-bold mt-1">{stats.byLevel.equipment}</p>
-              </CardContent>
-            </Card>
-            <Card className={cn("cursor-pointer hover:bg-muted/30", levelFilter === "tag" && "ring-2 ring-primary")} onClick={() => setLevelFilter("tag")}>
-              <CardContent className="py-3 text-center">
-                <p className="text-xs text-muted-foreground flex items-center justify-center gap-1">
-                  <Tag className="h-3 w-3" />태그
-                </p>
-                <p className="text-2xl font-bold mt-1">{stats.byLevel.tag}</p>
-              </CardContent>
-            </Card>
-            <Card className="cursor-pointer hover:bg-muted/30">
-              <CardContent className="py-3 text-center">
-                <p className="text-xs text-blue-600">정상</p>
-                <p className="text-2xl font-bold mt-1 text-blue-600">{stats.bySeverity.info}</p>
-              </CardContent>
-            </Card>
-            <Card className="cursor-pointer hover:bg-muted/30">
-              <CardContent className="py-3 text-center">
-                <p className="text-xs text-amber-600">주의</p>
-                <p className="text-2xl font-bold mt-1 text-amber-600">{stats.bySeverity.warning}</p>
-              </CardContent>
-            </Card>
-            <Card className="cursor-pointer hover:bg-muted/30">
-              <CardContent className="py-3 text-center">
-                <p className="text-xs text-red-600">위험</p>
-                <p className="text-2xl font-bold mt-1 text-red-600">{stats.bySeverity.critical}</p>
-              </CardContent>
-            </Card>
+            <Select value={String(dateRangeDays)} onValueChange={(v) => setDateRangeDays(Number(v))}>
+              <SelectTrigger className="w-32">
+                <Calendar className="h-3.5 w-3.5 mr-1.5 text-muted-foreground" />
+                <SelectValue />
+              </SelectTrigger>
+              <SelectContent>
+                <SelectItem value="7">최근 7일</SelectItem>
+                <SelectItem value="14">최근 14일</SelectItem>
+                <SelectItem value="30">최근 30일</SelectItem>
+              </SelectContent>
+            </Select>
           </div>
 
-          {/* Grouped Log List */}
-          <div className="space-y-3">
-            {groupedLogs.map(([date, logs]) => (
-              <Card key={date}>
-                <button 
-                  className="w-full px-4 py-3 flex items-center justify-between hover:bg-muted/30 transition-colors"
-                  onClick={() => toggleGroup(date)}
-                >
-                  <div className="flex items-center gap-3">
-                    <Calendar className="h-4 w-4 text-muted-foreground" />
-                    <span className="font-medium">{date}</span>
-                    <Badge variant="secondary" className="text-xs">{logs.length}건</Badge>
-                  </div>
-                  {expandedGroups.has(date) ? (
-                    <ChevronDown className="h-4 w-4 text-muted-foreground" />
-                  ) : (
-                    <ChevronRight className="h-4 w-4 text-muted-foreground" />
-                  )}
-                </button>
+          {/* Main Tabs */}
+          <Tabs value={activeTab} onValueChange={(v) => setActiveTab(v as typeof activeTab)}>
+            <TabsList className="mb-4">
+              <TabsTrigger value="timeline" className="gap-1.5">
+                <CalendarDays className="h-4 w-4" />
+                일별 타임라인
+              </TabsTrigger>
+              <TabsTrigger value="trends" className="gap-1.5">
+                <Activity className="h-4 w-4" />
+                주요 트렌드
+              </TabsTrigger>
+              <TabsTrigger value="equipment" className="gap-1.5">
+                <Box className="h-4 w-4" />
+                주요 장치
+              </TabsTrigger>
+            </TabsList>
 
-                {expandedGroups.has(date) && (
-                  <CardContent className="pt-0 pb-3 space-y-2">
-                    {logs.sort((a, b) => b.time.localeCompare(a.time)).map(log => {
-                      const LevelIcon = levelIcons[log.level]
-                      return (
-                        <div 
-                          key={log.id}
-                          className={cn(
-                            "p-3 rounded-lg border transition-colors hover:bg-muted/30",
-                            log.severity === "critical" && "border-red-200 bg-red-50/30",
-                            log.severity === "warning" && "border-amber-200 bg-amber-50/30",
-                            log.severity === "info" && "border-border"
-                          )}
-                        >
-                          <div className="flex items-start gap-3">
-                            {/* Level Icon */}
+            {/* Timeline Tab */}
+            <TabsContent value="timeline" className="mt-0">
+              <div className="grid grid-cols-1 lg:grid-cols-3 gap-4">
+                {/* Calendar Timeline */}
+                <Card className="lg:col-span-1">
+                  <CardHeader className="pb-2">
+                    <CardTitle className="text-sm font-semibold flex items-center gap-2">
+                      <CalendarDays className="h-4 w-4 text-primary" />
+                      날짜별 현황
+                    </CardTitle>
+                  </CardHeader>
+                  <CardContent>
+                    <div className="space-y-1">
+                      {dateRange.map(date => {
+                        const status = getDayStatus(date, filteredLogs)
+                        const stats = dateStats[date]
+                        const isSelected = selectedDate === date
+                        
+                        return (
+                          <button
+                            key={date}
+                            onClick={() => setSelectedDate(isSelected ? null : date)}
+                            className={cn(
+                              "w-full flex items-center gap-3 px-3 py-2 rounded-lg transition-colors text-left",
+                              isSelected ? "bg-primary text-primary-foreground" : "hover:bg-muted/50",
+                              !isSelected && status === "critical" && "bg-red-50",
+                              !isSelected && status === "warning" && "bg-amber-50",
+                            )}
+                          >
+                            {/* Status Indicator */}
                             <div className={cn(
-                              "h-8 w-8 rounded-lg flex items-center justify-center shrink-0",
-                              log.level === "process" && "bg-blue-100",
-                              log.level === "equipment" && "bg-amber-100",
-                              log.level === "tag" && "bg-purple-100"
-                            )}>
-                              <LevelIcon className={cn(
-                                "h-4 w-4",
-                                log.level === "process" && "text-blue-600",
-                                log.level === "equipment" && "text-amber-600",
-                                log.level === "tag" && "text-purple-600"
-                              )} />
+                              "h-3 w-3 rounded-full shrink-0",
+                              status === "critical" && (isSelected ? "bg-red-300" : "bg-red-500"),
+                              status === "warning" && (isSelected ? "bg-amber-300" : "bg-amber-500"),
+                              status === "normal" && (isSelected ? "bg-emerald-300" : "bg-emerald-500"),
+                              status === "empty" && "bg-muted-foreground/30"
+                            )} />
+                            
+                            {/* Date */}
+                            <div className="flex-1">
+                              <div className="flex items-center gap-2">
+                                <span className={cn("text-sm font-medium", isSelected && "text-primary-foreground")}>
+                                  {date.slice(5)} ({getDayName(date)})
+                                </span>
+                              </div>
                             </div>
-
-                            {/* Content */}
-                            <div className="flex-1 min-w-0">
-                              <div className="flex items-center gap-2 flex-wrap">
-                                <span className="text-xs text-muted-foreground">{log.time}</span>
-                                <Badge className={cn("text-[10px]", sourceColors[log.source])}>
-                                  {sourceLabels[log.source]}
+                            
+                            {/* Counts */}
+                            <div className="flex items-center gap-1.5 shrink-0">
+                              {stats.critical > 0 && (
+                                <Badge variant={isSelected ? "secondary" : "destructive"} className="h-5 px-1.5 text-[10px]">
+                                  {stats.critical}
                                 </Badge>
-                                <Badge variant="outline" className="text-[10px]">{log.process}</Badge>
-                                {log.equipment && (
-                                  <Badge variant="outline" className="text-[10px] bg-muted">{log.equipment}</Badge>
-                                )}
-                                {log.tag && (
-                                  <Badge variant="outline" className="text-[10px] bg-purple-50 text-purple-700">{log.tag}</Badge>
-                                )}
-                                {log.linkedEventId && (
-                                  <Badge variant="outline" className="text-[10px] bg-blue-50 text-blue-700">
-                                    {log.linkedEventId}
-                                  </Badge>
-                                )}
-                              </div>
-                              <p className="text-sm font-medium mt-1">{log.title}</p>
-                              <p className="text-xs text-muted-foreground mt-0.5 line-clamp-2">{log.description}</p>
-
-                              {/* Metrics */}
-                              {log.metrics && log.metrics.length > 0 && (
-                                <div className="flex items-center gap-3 mt-2 flex-wrap">
-                                  {log.metrics.map((m, i) => (
-                                    <div key={i} className="flex items-center gap-1.5 text-xs bg-muted/50 px-2 py-1 rounded">
-                                      <span className="text-muted-foreground">{m.name}:</span>
-                                      <span className="font-medium">{m.value} {m.unit}</span>
-                                      {m.trend === "up" && <TrendingUp className="h-3 w-3 text-red-500" />}
-                                      {m.trend === "down" && <TrendingDown className="h-3 w-3 text-blue-500" />}
-                                      {m.trend === "stable" && <Activity className="h-3 w-3 text-emerald-500" />}
-                                    </div>
-                                  ))}
-                                </div>
                               )}
-
-                              {/* Related Tags */}
-                              {log.relatedTags && log.relatedTags.length > 0 && (
-                                <div className="flex items-center gap-1.5 mt-2">
-                                  <span className="text-[10px] text-muted-foreground">관련 태그:</span>
-                                  {log.relatedTags.map(t => (
-                                    <Badge key={t} variant="secondary" className="text-[9px]">{t}</Badge>
-                                  ))}
-                                </div>
+                              {stats.warning > 0 && (
+                                <Badge variant={isSelected ? "secondary" : "outline"} className={cn("h-5 px-1.5 text-[10px]", !isSelected && "border-amber-300 text-amber-700")}>
+                                  {stats.warning}
+                                </Badge>
+                              )}
+                              {stats.normal > 0 && (
+                                <span className={cn("text-xs", isSelected ? "text-primary-foreground/70" : "text-muted-foreground")}>
+                                  +{stats.normal}
+                                </span>
                               )}
                             </div>
+                          </button>
+                        )
+                      })}
+                    </div>
+                    
+                    {/* Legend */}
+                    <div className="flex items-center gap-4 mt-4 pt-4 border-t text-[10px] text-muted-foreground">
+                      <div className="flex items-center gap-1">
+                        <div className="h-2.5 w-2.5 rounded-full bg-emerald-500" />
+                        <span>정상</span>
+                      </div>
+                      <div className="flex items-center gap-1">
+                        <div className="h-2.5 w-2.5 rounded-full bg-amber-500" />
+                        <span>주의</span>
+                      </div>
+                      <div className="flex items-center gap-1">
+                        <div className="h-2.5 w-2.5 rounded-full bg-red-500" />
+                        <span>위험</span>
+                      </div>
+                    </div>
+                  </CardContent>
+                </Card>
 
-                            {/* Status & Operator */}
-                            <div className="text-right shrink-0">
-                              <div className={cn(
-                                "inline-flex items-center gap-1 text-[10px] px-1.5 py-0.5 rounded",
-                                log.status === "normal" && "bg-emerald-100 text-emerald-700",
-                                log.status === "abnormal" && "bg-amber-100 text-amber-700",
-                                log.status === "resolved" && "bg-blue-100 text-blue-700"
-                              )}>
-                                {log.status === "normal" && <CheckCircle className="h-3 w-3" />}
-                                {log.status === "abnormal" && <AlertTriangle className="h-3 w-3" />}
-                                {log.status === "resolved" && <CheckCircle className="h-3 w-3" />}
-                                {log.status === "normal" ? "정상" : log.status === "abnormal" ? "이상" : "해결됨"}
-                              </div>
-                              <p className="text-[10px] text-muted-foreground mt-1 flex items-center justify-end gap-1">
-                                <User className="h-3 w-3" />{log.operator}
-                              </p>
-                            </div>
+                {/* Day Detail */}
+                <Card className="lg:col-span-2">
+                  <CardHeader className="pb-2">
+                    <CardTitle className="text-sm font-semibold flex items-center justify-between">
+                      <div className="flex items-center gap-2">
+                        <FileText className="h-4 w-4 text-primary" />
+                        {selectedDate ? (
+                          <span>{selectedDate} 특이사항 ({selectedDateLogs.length}건)</span>
+                        ) : (
+                          <span>날짜를 선택하세요</span>
+                        )}
+                      </div>
+                      {selectedDate && (
+                        <Button variant="ghost" size="sm" onClick={() => setSelectedDate(null)}>
+                          <X className="h-4 w-4" />
+                        </Button>
+                      )}
+                    </CardTitle>
+                  </CardHeader>
+                  <CardContent>
+                    {selectedDate ? (
+                      selectedDateLogs.length > 0 ? (
+                        <ScrollArea className="h-[500px] pr-4">
+                          <div className="space-y-2">
+                            {selectedDateLogs.map(log => renderLogItem(log))}
                           </div>
+                        </ScrollArea>
+                      ) : (
+                        <div className="flex flex-col items-center justify-center py-12 text-muted-foreground">
+                          <CheckCircle className="h-12 w-12 mb-3 text-emerald-500" />
+                          <p className="text-sm font-medium">특이사항 없음</p>
+                          <p className="text-xs mt-1">해당 날짜에 기록된 특이사항이 없습니다</p>
                         </div>
                       )
-                    })}
+                    ) : (
+                      <div className="flex flex-col items-center justify-center py-12 text-muted-foreground">
+                        <CalendarDays className="h-12 w-12 mb-3 opacity-30" />
+                        <p className="text-sm">좌측 캘린더에서 날짜를 선택하면</p>
+                        <p className="text-sm">해당 일자의 특이사항을 확인할 수 있습니다</p>
+                      </div>
+                    )}
                   </CardContent>
-                )}
-              </Card>
-            ))}
-          </div>
+                </Card>
+              </div>
+            </TabsContent>
 
-          {filteredLogs.length === 0 && (
-            <Card>
-              <CardContent className="py-12 text-center text-muted-foreground">
-                <FileText className="h-12 w-12 mx-auto mb-4 opacity-30" />
-                <p>조건에 맞는 로그가 없습니다.</p>
-              </CardContent>
-            </Card>
-          )}
+            {/* Trends Tab */}
+            <TabsContent value="trends" className="mt-0">
+              <div className="grid grid-cols-1 lg:grid-cols-3 gap-4">
+                {/* Trend List */}
+                <Card className="lg:col-span-1">
+                  <CardHeader className="pb-2">
+                    <CardTitle className="text-sm font-semibold flex items-center gap-2">
+                      <Activity className="h-4 w-4 text-primary" />
+                      주요 트렌드
+                    </CardTitle>
+                  </CardHeader>
+                  <CardContent>
+                    <div className="space-y-1">
+                      {KEY_TRENDS.filter(t => processFilter === "전체" || t.process === processFilter).map(trend => {
+                        const trendLogs = filteredLogs.filter(l => l.tag === trend.id || l.relatedTags?.includes(trend.id))
+                        const hasIssue = trendLogs.some(l => l.severity !== "info")
+                        const isSelected = selectedTrend === trend.id
+                        
+                        return (
+                          <button
+                            key={trend.id}
+                            onClick={() => setSelectedTrend(isSelected ? null : trend.id)}
+                            className={cn(
+                              "w-full flex items-center gap-3 px-3 py-2.5 rounded-lg transition-colors text-left",
+                              isSelected ? "bg-primary text-primary-foreground" : "hover:bg-muted/50",
+                              !isSelected && hasIssue && "bg-amber-50"
+                            )}
+                          >
+                            <Tag className={cn("h-4 w-4 shrink-0", isSelected ? "text-primary-foreground" : "text-purple-500")} />
+                            <div className="flex-1 min-w-0">
+                              <p className={cn("text-sm font-medium truncate", isSelected && "text-primary-foreground")}>{trend.id}</p>
+                              <p className={cn("text-[10px] truncate", isSelected ? "text-primary-foreground/70" : "text-muted-foreground")}>{trend.name}</p>
+                            </div>
+                            {trendLogs.length > 0 && (
+                              <Badge variant={isSelected ? "secondary" : hasIssue ? "outline" : "secondary"} className={cn("text-[10px]", !isSelected && hasIssue && "border-amber-300 text-amber-700")}>
+                                {trendLogs.length}
+                              </Badge>
+                            )}
+                          </button>
+                        )
+                      })}
+                    </div>
+                  </CardContent>
+                </Card>
+
+                {/* Trend Logs */}
+                <Card className="lg:col-span-2">
+                  <CardHeader className="pb-2">
+                    <CardTitle className="text-sm font-semibold flex items-center justify-between">
+                      <div className="flex items-center gap-2">
+                        <Activity className="h-4 w-4 text-primary" />
+                        {selectedTrend ? (
+                          <span>{selectedTrend} 관련 로그 ({selectedTrendLogs.length}건)</span>
+                        ) : (
+                          <span>트렌드를 선택하세요</span>
+                        )}
+                      </div>
+                      {selectedTrend && (
+                        <Button variant="ghost" size="sm" onClick={() => setSelectedTrend(null)}>
+                          <X className="h-4 w-4" />
+                        </Button>
+                      )}
+                    </CardTitle>
+                  </CardHeader>
+                  <CardContent>
+                    {selectedTrend ? (
+                      selectedTrendLogs.length > 0 ? (
+                        <ScrollArea className="h-[500px] pr-4">
+                          <div className="space-y-2">
+                            {selectedTrendLogs.sort((a, b) => b.date.localeCompare(a.date) || b.time.localeCompare(a.time)).map(log => renderLogItem(log))}
+                          </div>
+                        </ScrollArea>
+                      ) : (
+                        <div className="flex flex-col items-center justify-center py-12 text-muted-foreground">
+                          <CheckCircle className="h-12 w-12 mb-3 text-emerald-500" />
+                          <p className="text-sm font-medium">로그 없음</p>
+                          <p className="text-xs mt-1">해당 트렌드에 대한 로그가 없습니다</p>
+                        </div>
+                      )
+                    ) : (
+                      <div className="flex flex-col items-center justify-center py-12 text-muted-foreground">
+                        <Activity className="h-12 w-12 mb-3 opacity-30" />
+                        <p className="text-sm">좌측에서 트렌드를 선택하면</p>
+                        <p className="text-sm">해당 트렌드 관련 로그를 확인할 수 있습니다</p>
+                      </div>
+                    )}
+                  </CardContent>
+                </Card>
+              </div>
+            </TabsContent>
+
+            {/* Equipment Tab */}
+            <TabsContent value="equipment" className="mt-0">
+              <div className="grid grid-cols-1 lg:grid-cols-3 gap-4">
+                {/* Equipment List */}
+                <Card className="lg:col-span-1">
+                  <CardHeader className="pb-2">
+                    <CardTitle className="text-sm font-semibold flex items-center gap-2">
+                      <Box className="h-4 w-4 text-primary" />
+                      주요 장치
+                    </CardTitle>
+                  </CardHeader>
+                  <CardContent>
+                    <div className="space-y-1">
+                      {KEY_EQUIPMENT.filter(e => processFilter === "전체" || e.process === processFilter).map(equip => {
+                        const equipLogs = filteredLogs.filter(l => l.equipment === equip.id)
+                        const hasIssue = equipLogs.some(l => l.severity !== "info")
+                        const isSelected = selectedEquipment === equip.id
+                        
+                        return (
+                          <button
+                            key={equip.id}
+                            onClick={() => setSelectedEquipment(isSelected ? null : equip.id)}
+                            className={cn(
+                              "w-full flex items-center gap-3 px-3 py-2.5 rounded-lg transition-colors text-left",
+                              isSelected ? "bg-primary text-primary-foreground" : "hover:bg-muted/50",
+                              !isSelected && hasIssue && "bg-amber-50"
+                            )}
+                          >
+                            <Box className={cn("h-4 w-4 shrink-0", isSelected ? "text-primary-foreground" : "text-amber-500")} />
+                            <div className="flex-1 min-w-0">
+                              <p className={cn("text-sm font-medium truncate", isSelected && "text-primary-foreground")}>{equip.id}</p>
+                              <p className={cn("text-[10px] truncate", isSelected ? "text-primary-foreground/70" : "text-muted-foreground")}>{equip.name}</p>
+                            </div>
+                            {equipLogs.length > 0 && (
+                              <Badge variant={isSelected ? "secondary" : hasIssue ? "outline" : "secondary"} className={cn("text-[10px]", !isSelected && hasIssue && "border-amber-300 text-amber-700")}>
+                                {equipLogs.length}
+                              </Badge>
+                            )}
+                          </button>
+                        )
+                      })}
+                    </div>
+                  </CardContent>
+                </Card>
+
+                {/* Equipment Logs */}
+                <Card className="lg:col-span-2">
+                  <CardHeader className="pb-2">
+                    <CardTitle className="text-sm font-semibold flex items-center justify-between">
+                      <div className="flex items-center gap-2">
+                        <Box className="h-4 w-4 text-primary" />
+                        {selectedEquipment ? (
+                          <span>{selectedEquipment} 관련 로그 ({selectedEquipmentLogs.length}건)</span>
+                        ) : (
+                          <span>장치를 선택하세요</span>
+                        )}
+                      </div>
+                      {selectedEquipment && (
+                        <Button variant="ghost" size="sm" onClick={() => setSelectedEquipment(null)}>
+                          <X className="h-4 w-4" />
+                        </Button>
+                      )}
+                    </CardTitle>
+                  </CardHeader>
+                  <CardContent>
+                    {selectedEquipment ? (
+                      selectedEquipmentLogs.length > 0 ? (
+                        <ScrollArea className="h-[500px] pr-4">
+                          <div className="space-y-2">
+                            {selectedEquipmentLogs.sort((a, b) => b.date.localeCompare(a.date) || b.time.localeCompare(a.time)).map(log => renderLogItem(log))}
+                          </div>
+                        </ScrollArea>
+                      ) : (
+                        <div className="flex flex-col items-center justify-center py-12 text-muted-foreground">
+                          <CheckCircle className="h-12 w-12 mb-3 text-emerald-500" />
+                          <p className="text-sm font-medium">로그 없음</p>
+                          <p className="text-xs mt-1">해당 장치에 대한 로그가 없습니다</p>
+                        </div>
+                      )
+                    ) : (
+                      <div className="flex flex-col items-center justify-center py-12 text-muted-foreground">
+                        <Box className="h-12 w-12 mb-3 opacity-30" />
+                        <p className="text-sm">좌측에서 장치를 선택하면</p>
+                        <p className="text-sm">해당 장치 관련 로그를 확인할 수 있습니다</p>
+                      </div>
+                    )}
+                  </CardContent>
+                </Card>
+              </div>
+            </TabsContent>
+          </Tabs>
         </main>
       </div>
     </AppShell>
