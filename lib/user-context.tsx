@@ -250,26 +250,11 @@ const UserContext = createContext<UserContextValue | null>(null)
 export function UserProvider({ children }: { children: ReactNode }) {
   const initialized = useRef(false)
   
-  const [currentUser, setCurrentUserState] = useState<UserProfile>(() => {
-    if (typeof document !== "undefined") {
-      const savedUserId = getCookie(USER_COOKIE_KEY)
-      if (savedUserId) {
-        const found = USER_PROFILES.find(u => u.id === savedUserId)
-        if (found) return found
-      }
-    }
-    return USER_PROFILES[0]
-  })
-  
-  const [scopeMode, setScopeModeState] = useState<ScopeMode>(() => {
-    if (typeof document !== "undefined") {
-      const savedScope = getCookie(SCOPE_COOKIE_KEY)
-      if (savedScope === "all-processes" || savedScope === "my-processes") {
-        return savedScope
-      }
-    }
-    return "my-processes"
-  })
+  // Initialize deterministically (same on server and client) to avoid hydration
+  // mismatch. Cookie-persisted values are synced in the useEffect below after mount.
+  const [currentUser, setCurrentUserState] = useState<UserProfile>(USER_PROFILES[0])
+
+  const [scopeMode, setScopeModeState] = useState<ScopeMode>("my-processes")
 
   useEffect(() => {
     if (initialized.current) return
@@ -346,7 +331,7 @@ export function getProcessesByDivision(processes: ProcessUnit[]) {
 export function getRoleDescription(role: UserRole): string {
   switch (role) {
     case "engineer":
-      return "담당 공정의 실시간 운전 현황을 모니터링하고 이벤트에 대응합니다."
+      return "담당 공정의 실시간 운전 현���을 모니터링하고 이벤트에 대응합니다."
     case "team-lead":
       return "팀 내 공정 전체를 관리하고 팀원들의 업무를 조율합니다."
     case "division-head":
