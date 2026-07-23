@@ -233,7 +233,7 @@ export default function ReferenceDataPage() {
       <div className="p-6 space-y-6">
         <div className="flex items-center justify-between">
           <div>
-            <h1 className="text-2xl font-bold">Reference Data</h1>
+            <h1 className="text-2xl font-bold">참조 데이터</h1>
             <p className="text-muted-foreground">외부 인터페이스 및 참조 데이터 카탈로그</p>
           </div>
           <div className="flex items-center gap-3">

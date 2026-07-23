@@ -191,7 +191,7 @@ export default function QualityGiveawayPage() {
           <div className="flex items-center gap-3">
             <Gauge className="h-5 w-5 text-primary" />
             <div>
-              <h1 className="text-lg font-semibold">Quality Giveaway Analysis</h1>
+              <h1 className="text-lg font-semibold">품질 Giveaway 분석</h1>
               <p className="text-sm text-muted-foreground">On-Spec 대비 과잉 품질 생산 현황 분석 및 개선 인사이트</p>
             </div>
           </div>

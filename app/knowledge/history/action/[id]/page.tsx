@@ -46,12 +46,12 @@ const actionHistoryDetails: Record<string, {
     assignee: "김철수",
     description: "Reactor Inlet Temperature High 알람에 대한 대응 조치. TI-2001 태그에서 온도 상승 알람이 발생하여 즉각 대응팀이 구성되었으며, Feed Flow 감량 등의 조치를 통해 온도를 안정화시킴.",
     actions: [
-      { time: "09:30", action: "티켓 생성 및 담당자 배정" },
+      { time: "09:30", action: "이벤트 생성 및 담당자 배정" },
       { time: "09:35", action: "현장 확인 및 상황 파악" },
       { time: "09:45", action: "Feed Flow 120 → 115 m3/h 감소" },
       { time: "10:30", action: "온도 안정화 추세 확인" },
       { time: "12:00", action: "정상 범위 진입 확인" },
-      { time: "14:00", action: "정상 운전 복귀 확인 후 티켓 종료" },
+      { time: "14:00", action: "정상 운전 복귀 확인 후 이벤트 종료" },
     ],
     relatedAlerts: ["TI-2001 High Alarm"],
     result: "성공"
@@ -143,7 +143,7 @@ const actionHistoryDetails: Record<string, {
     assignee: "정수민",
     description: "Regenerator Temperature High 알람 대응. TI-4001에서 온도 상승 알람이 발생하여 Air Flow 및 Catalyst Circulation Rate 조정으로 온도를 안정화시킴.",
     actions: [
-      { time: "14:20", action: "알람 발생 및 티켓 생성" },
+      { time: "14:20", action: "알람 발생 및 이벤트 생성" },
       { time: "14:30", action: "Air Flow 5% 감소" },
       { time: "14:45", action: "Catalyst Circulation Rate 감소" },
       { time: "15:30", action: "온도 하락 추세 확인" },
@@ -234,7 +234,7 @@ export default function ActionHistoryDetailPage({ params }: { params: Promise<{ 
               <CardHeader className="pb-3">
                 <CardTitle className="text-base flex items-center gap-2">
                   <Wrench className="h-4 w-4" />
-                  티켓 정보
+                  이벤트 정보
                 </CardTitle>
               </CardHeader>
               <CardContent>

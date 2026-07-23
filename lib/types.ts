@@ -2,7 +2,7 @@ export interface Ticket {
   id: string
   title: string
   description: string
-  ticketType: "Improvement" | "Trouble" | "Change" | "Analysis" | "Request" | "ModelImprovement" | "ProcessTest"
+  ticketType: "Improvement" | "Trouble" | "Change" | "Analysis" | "Request" | "ModelImprovement" | "ProcessTest" | "QuickInquiry"
   priority: "P1" | "P2" | "P3" | "P4"
   impact: "Safety" | "Quality" | "Throughput" | "Cost" | "Energy" | "Operations" | "Yield"
   owner: string
@@ -13,9 +13,21 @@ export interface Ticket {
   bottleneck?: string
   accessLevel: "Private" | "Team" | "Public"
   allowedTeams?: string[]
+  // 추가 접근 권한 설정
+  allowedUsers?: string[] // 추가로 접근 가능한 사용자 목록
+  // 에스컬레이션 정보
+  escalation?: {
+    escalatedTo: string // 에스컬레이션 대상자 (팀장 등)
+    escalatedBy: string // 에스컬레이션 요청자
+    escalatedAt: string // 에스컬레이션 시간
+    reason: string // 에스컬레이션 사유
+    status: "pending" | "acknowledged" | "resolved" // 에스컬레이션 상태
+    acknowledgedAt?: string
+    resolution?: string
+  }
   unit?: string
   area?: string
-  equipment?: string // Added equipment field
+  equipment?: string
   tags?: string[]
   fromTime?: string
   toTime?: string
@@ -50,11 +62,74 @@ export interface Ticket {
     testEndDate: string
     targetVariables: string[]
     operatingGuide: string
-    feedbackDeadline: string  // testEndDate + 30일
+    feedbackDeadline: string
     feedbackContent?: string
     testStatus: "planned" | "in-progress" | "completed" | "feedback-pending" | "closed"
     reviewedByProduction?: boolean
   }
+  // 이벤트 프로세스 플로우
+  processStatus?: "issued" | "accepted" | "verbal-closed" | "review" | "additional-review" | "publisher-confirm" | "review-complete" | "closed" | "hold"
+  processFlow?: EventProcessStep[]
+  // 추가 검토자 (여러 명 가능)
+  additionalReviewers?: {
+    id: string
+    name: string
+    team: string
+    status: "pending" | "in-progress" | "completed"
+    assignedAt: string
+    completedAt?: string
+    opinion?: string
+  }[]
+  // 종결 리포트
+  closureReport?: {
+    id: string
+    title: string
+    summary: string
+    background: string
+    actions: string
+    results: string
+    lessons: string
+    recommendations: string
+    teamOpinions?: { team: string; reviewer: string; opinion: string }[]
+    createdDate: string
+    author: string
+  }
+  // 의견 (opinions)
+  opinions?: EventOpinion[]
+  // 댓글
+  comments?: EventComment[]
+  // 임시 저장
+  draft?: string
+}
+
+export interface EventProcessStep {
+  step: "issued" | "accepted" | "verbal-closed" | "review" | "additional-review" | "publisher-confirm" | "review-complete" | "closed"
+  label: string
+  status: "completed" | "current" | "upcoming" | "skipped"
+  assignee?: string
+  team?: string
+  timestamp?: string
+}
+
+export interface EventOpinion {
+  id: string
+  author: string
+  team: string
+  templateType: string
+  templateLabel: string
+  fields: { label: string; value: string }[]
+  dataBoxes?: DataInsertBox[]
+  attachments?: { fileName: string; fileUrl: string }[]
+  status: "draft" | "submitted"
+  createdAt: string
+  submittedAt?: string
+}
+
+export interface EventComment {
+  id: string
+  author: string
+  content: string
+  timestamp: string
 }
 
 export interface WorkPackage {

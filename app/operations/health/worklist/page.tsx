@@ -345,7 +345,7 @@ export default function WorklistPage() {
         <div className="flex items-center justify-between">
           <div>
             <h1 className="text-2xl font-bold text-foreground">Long-Term Action Worklist</h1>
-            <p className="text-muted-foreground mt-1">장기 열화 대응 업무 항목 관리 - 복수의 티켓과 검토 내용 연결</p>
+            <p className="text-muted-foreground mt-1">장기 열화 대응 업무 항목 관리 - 복수의 이벤트과 검토 내용 연결</p>
           </div>
           <Button onClick={() => setShowCreateDialog(true)}>
             <Plus className="h-4 w-4 mr-2" />
@@ -423,7 +423,7 @@ export default function WorklistPage() {
                 <span>P</span>
                 <span>Owner</span>
                 <span>Due Date</span>
-                <span>연결 티켓</span>
+                <span>연결 이벤트</span>
                 <span />
               </div>
               {filteredItems.map((item) => {
@@ -500,7 +500,7 @@ export default function WorklistPage() {
                   <TabsList className="w-full justify-start">
                     <TabsTrigger value="overview">개요</TabsTrigger>
                     <TabsTrigger value="tickets" className="gap-1.5">
-                      연결 티켓
+                      연결 이벤트
                       {selectedItem.linkedTickets.length > 0 && (
                         <Badge variant="secondary" className="text-xs h-5 min-w-5 px-1">{selectedItem.linkedTickets.length}</Badge>
                       )}
@@ -582,7 +582,7 @@ export default function WorklistPage() {
                   {/* Linked Tickets Tab */}
                   <TabsContent value="tickets" className="space-y-4 mt-4">
                     <div className="flex items-center justify-between">
-                      <span className="text-sm font-medium">연결된 티켓 ({selectedItem.linkedTickets.length})</span>
+                      <span className="text-sm font-medium">연결된 이벤트 ({selectedItem.linkedTickets.length})</span>
                       <Button
                         size="sm"
                         variant="outline"
@@ -594,15 +594,15 @@ export default function WorklistPage() {
                         }}
                       >
                         <Link2 className="h-3.5 w-3.5 mr-1.5" />
-                        티켓 연결
+                        이벤트 연결
                       </Button>
                     </div>
 
                     {selectedItem.linkedTickets.length === 0 ? (
                       <div className="p-8 text-center border rounded-lg border-dashed">
                         <Ticket className="h-8 w-8 mx-auto mb-2 text-muted-foreground/40" />
-                        <p className="text-sm text-muted-foreground">연결된 티켓이 없습니다</p>
-                        <p className="text-xs text-muted-foreground mt-1">티켓을 연결하여 검토 진행 상황을 추적하세요</p>
+                        <p className="text-sm text-muted-foreground">연결된 이벤트이 없습니다</p>
+                        <p className="text-xs text-muted-foreground mt-1">이벤트을 연결하여 검토 진행 상황을 추적하세요</p>
                       </div>
                     ) : (
                       <div className="space-y-2">
@@ -702,13 +702,13 @@ export default function WorklistPage() {
           <DialogHeader>
             <DialogTitle className="flex items-center gap-2">
               <Link2 className="h-5 w-5" />
-              티켓 연결
+              이벤트 연결
             </DialogTitle>
-            <DialogDescription>이 업무 항목에 연결할 티켓을 선택하세요. 복수 선택 가능합니다.</DialogDescription>
+            <DialogDescription>이 업무 항목에 연결할 이벤트을 선택하세요. 복수 선택 가능합니다.</DialogDescription>
           </DialogHeader>
 
           <Input
-            placeholder="티켓 ID 또는 제목으로 검색..."
+            placeholder="이벤트 ID 또는 제목으로 검색..."
             value={linkSearchQuery}
             onChange={(e) => setLinkSearchQuery(e.target.value)}
             className="mt-2"
@@ -741,7 +741,7 @@ export default function WorklistPage() {
             })}
             {availableToLink.length === 0 && (
               <div className="p-6 text-center text-muted-foreground">
-                <p className="text-sm">연결 가능한 티켓이 없습니다</p>
+                <p className="text-sm">연결 가능한 이벤트이 없습니다</p>
               </div>
             )}
           </div>

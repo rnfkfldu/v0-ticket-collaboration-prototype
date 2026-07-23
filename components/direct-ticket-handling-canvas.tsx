@@ -102,7 +102,7 @@ export function DirectTicketHandlingCanvas({
       return
     }
 
-    let summary = `## ${ticketCategory} 티켓 처리 의견\n\n${content}\n\n`
+    let summary = `## ${ticketCategory} 이벤트 처리 의견\n\n${content}\n\n`
 
     if (dataBoxes.length > 0) {
       summary += `### 참조 데이터\n${dataBoxes.map((box) => `- ${box.config.title || getBoxTypeLabel(box.type)}: ${box.config.tags?.join(", ") || box.config.graphicNumber || "테이블"}`).join("\n")}\n\n`
@@ -113,7 +113,7 @@ export function DirectTicketHandlingCanvas({
     }
 
     sendOpinion(ticketId, summary, currentUser, dataBoxes)
-    alert("의견이 티켓 요청자에게 전송되었습니다")
+    alert("의견이 이벤트 요청자에게 전송되었습니다")
     onSuccess()
   }
 
@@ -149,7 +149,7 @@ export function DirectTicketHandlingCanvas({
           <div>
             <h3 className="text-lg font-semibold text-foreground">직접 처리</h3>
             <p className="text-sm text-muted-foreground mt-1">
-              {ticketCategory} 티켓 처리 내용을 자유롭게 작성해주세요
+              {ticketCategory} 이벤트 처리 내용을 자유롭게 작성해주세요
             </p>
           </div>
           <Button variant="ghost" size="sm" onClick={onCancel}>

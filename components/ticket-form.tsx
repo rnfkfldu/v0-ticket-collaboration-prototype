@@ -11,13 +11,74 @@ import { Textarea } from "@/components/ui/textarea"
 import { useState } from "react"
 import { useRouter } from "next/navigation"
 import { saveTicket, addWorkPackageToTicket } from "@/lib/storage"
+import { X, PlusCircle, Trash2, Shield, Users, Globe, Lock, UserPlus, ChevronDown, ChevronUp } from "lucide-react"
+import { Collapsible, CollapsibleContent, CollapsibleTrigger } from "@/components/ui/collapsible"
+import { RadioGroup, RadioGroupItem } from "@/components/ui/radio-group"
 import { Checkbox } from "@/components/ui/checkbox"
-import { X, PlusCircle, Trash2 } from "lucide-react"
 import { Badge } from "@/components/ui/badge"
 import type { DataInsertBox } from "@/lib/types"
 import { DataInsertBoxConfig } from "@/components/data-insert-box-config"
 import { DataVisualization } from "@/components/data-visualization"
 import { UNIT_OWNERS, AVAILABLE_TAGS } from "@/lib/process-data"
+import { cn } from "@/lib/utils"
+
+// 우선순위 자동 판정 로직
+function autoDeterminePriority(unit: string, equipment: string): { priority: string; label: string; reason: string } {
+  // Safety-critical units or reactor equipment -> P1
+  if (unit === "HCR" && equipment.toLowerCase().includes("reactor")) {
+    return { priority: "P1", label: "P1 - 긴급", reason: "HCR Reactor 관련 → Safety Critical" }
+  }
+  // Reactor-related
+  if (["HCR", "CCR"].includes(unit)) {
+    return { priority: "P2", label: "P2 - 높음", reason: `${unit} Unit → 공정 영향도 높음` }
+  }
+  // Main distillation
+  if (["CDU", "VDU"].includes(unit)) {
+    return { priority: "P2", label: "P2 - 높음", reason: `${unit} Unit → 처리량 직접 영향` }
+  }
+  return { priority: "P3", label: "P3 - 보통", reason: "일반 공정 기술검토" }
+}
+
+// 이벤트 유형 자동 판정 (제목과 설명 기반)
+function autoMapEventType(unit: string, title: string, description: string): { type: string; impact: string } {
+  const text = (title + " " + description).toLowerCase()
+  
+  // 키워드 기반 유형 판정
+  const troubleKeywords = ["문제", "이상", "고장", "불량", "오류", "에러", "트러블", "trouble", "alarm", "알람", "비정상", "누출", "leak"]
+  const changeKeywords = ["변경", "교체", "수정", "업데이트", "change", "update", "modification"]
+  const analysisKeywords = ["분석", "검토", "조사", "원인", "analysis", "investigate", "review"]
+  
+  const hasTrouble = troubleKeywords.some(k => text.includes(k))
+  const hasChange = changeKeywords.some(k => text.includes(k))
+  const hasAnalysis = analysisKeywords.some(k => text.includes(k))
+  
+  // 우선순위: Trouble > Change > Analysis > Improvement
+  let type = "Improvement"
+  if (hasTrouble) type = "Trouble"
+  else if (hasChange) type = "Change"
+  else if (hasAnalysis) type = "Analysis"
+  
+  // 영향 범위도 유닛과 키워드 기반으로 판정
+  let impact = "Cost"
+  if (["HCR", "CCR"].includes(unit) || text.includes("안전") || text.includes("safety")) {
+    impact = "Safety"
+  } else if (["CDU", "VDU"].includes(unit) || text.includes("처리량") || text.includes("throughput")) {
+    impact = "Throughput"
+  } else if (text.includes("품질") || text.includes("quality")) {
+    impact = "Quality"
+  } else if (text.includes("에너지") || text.includes("energy")) {
+    impact = "Energy"
+  }
+  
+  return { type, impact }
+}
+
+const IMPACT_LABELS: Record<string, string> = {
+  Safety: "안전", Quality: "품질", Throughput: "처리량", Cost: "비용", Energy: "에너지",
+}
+const TYPE_LABELS: Record<string, string> = {
+  Improvement: "개선", Trouble: "문제", Change: "변경", Analysis: "분석",
+}
 
 export function TicketForm() {
   const router = useRouter()
@@ -28,16 +89,12 @@ export function TicketForm() {
     priority: "P3",
     unit: "VDU",
     area: "",
-    equipment: "", // Added equipment field
+    equipment: "",
     tags: [] as string[],
     tagInput: "",
-    fromTime: "",
-    toTime: "",
+    timePeriods: [{ from: "", to: "" }] as { from: string; to: string }[],
     impact: "Throughput",
-    owner: UNIT_OWNERS["VDU"] || "", // Auto-populate owner based on unit
-    dueDate: "", // Added dueDate field
-    accessLevel: "Team",
-    allowedTeams: [] as string[],
+    owner: UNIT_OWNERS["VDU"] || "",
   })
 
   const [showAdditionalDetails, setShowAdditionalDetails] = useState(false)
@@ -46,16 +103,38 @@ export function TicketForm() {
   const [showDataBoxConfig, setShowDataBoxConfig] = useState(false)
   const [attachments, setAttachments] = useState<{ fileName: string; fileUrl: string }[]>([])
 
-  const availableTeams = ["Engineering", "Operations", "Maintenance", "QA", "Management"]
+  // Access control state
+  const [showAccessSettings, setShowAccessSettings] = useState(false)
+  const [accessLevel, setAccessLevel] = useState<"Private" | "Team" | "Public">("Private")
+  const [allowedTeams, setAllowedTeams] = useState<string[]>([])
+  const [allowedUsers, setAllowedUsers] = useState<string[]>([])
+  const [userSearchQuery, setUserSearchQuery] = useState("")
+  
+  // Available teams and users for selection
+  const AVAILABLE_TEAMS = [
+    { id: "proc-eng", name: "공정기술팀" },
+    { id: "maint", name: "장치기술팀" },
+    { id: "ops", name: "운전팀" },
+    { id: "safety", name: "안전환경팀" },
+    { id: "dx", name: "DX팀" },
+    { id: "quality", name: "품질관리팀" },
+  ]
+  
+  const AVAILABLE_USERS = [
+    { id: "user-1", name: "김철수", team: "공정기술팀", role: "팀원" },
+    { id: "user-2", name: "박영희", team: "공정기술팀", role: "팀장" },
+    { id: "user-3", name: "이민호", team: "장치기술팀", role: "팀원" },
+    { id: "user-4", name: "정수민", team: "장치기술팀", role: "팀장" },
+    { id: "user-5", name: "최지은", team: "운전팀", role: "팀원" },
+    { id: "user-6", name: "강동원", team: "운전팀", role: "팀장" },
+    { id: "user-7", name: "한소희", team: "안전환경팀", role: "팀원" },
+    { id: "user-8", name: "유재석", team: "DX팀", role: "팀장" },
+  ]
 
-  const toggleTeam = (team: string) => {
-    setFormData((prev) => ({
-      ...prev,
-      allowedTeams: prev.allowedTeams.includes(team)
-        ? prev.allowedTeams.filter((t) => t !== team)
-        : [...prev.allowedTeams, team],
-    }))
-  }
+  // Auto-determined values
+  const autoPriority = autoDeterminePriority(formData.unit, formData.equipment)
+  const autoEvent = autoMapEventType(formData.unit, formData.title, formData.description)
+  const currentUser = "김철수 (Hydroprocessing기술팀)"
 
   const addTag = () => {
     if (formData.tagInput.trim() && !formData.tags.includes(formData.tagInput.trim())) {
@@ -131,6 +210,20 @@ export function TicketForm() {
     })
   }
 
+  const addTimePeriod = () => {
+    setFormData({ ...formData, timePeriods: [...formData.timePeriods, { from: "", to: "" }] })
+  }
+
+  const removeTimePeriod = (index: number) => {
+    if (formData.timePeriods.length <= 1) return
+    setFormData({ ...formData, timePeriods: formData.timePeriods.filter((_, i) => i !== index) })
+  }
+
+  const updateTimePeriod = (index: number, field: "from" | "to", value: string) => {
+    const updated = formData.timePeriods.map((tp, i) => i === index ? { ...tp, [field]: value } : tp)
+    setFormData({ ...formData, timePeriods: updated })
+  }
+
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault()
 
@@ -152,30 +245,36 @@ export function TicketForm() {
       }
     }
 
+    const CURRENT_USER = "김지수"
+    const ticketId = `EVT-${Date.now().toString().slice(-6)}`
+    const timestamp = new Date().toLocaleString("ko-KR")
+    
     const newTicket = {
-      id: Date.now().toString(),
+      id: ticketId,
       title: formData.title,
       description: finalDescription,
-      ticketType: formData.ticketType as "Improvement" | "Trouble" | "Change" | "Analysis",
-      priority: formData.priority as "P1" | "P2" | "P3" | "P4",
-      impact: formData.impact as "Safety" | "Quality" | "Throughput" | "Cost" | "Energy",
+      ticketType: autoPriority.priority === "P1" ? "Trouble" : autoEvent.type as "Improvement" | "Trouble" | "Change" | "Analysis",
+      priority: autoPriority.priority as "P1" | "P2" | "P3" | "P4",
+      impact: autoEvent.impact as "Safety" | "Quality" | "Throughput" | "Cost" | "Energy",
       owner: formData.owner || "미배정",
+      requester: CURRENT_USER,
       status: "Open" as const,
       createdDate: new Date().toISOString().split("T")[0],
-      dueDate: formData.dueDate, // Include dueDate
+      dueDate: "",
       bottleneck: "시작 전",
-      accessLevel: formData.accessLevel as "Private" | "Team" | "Public",
-      allowedTeams: formData.accessLevel === "Team" ? formData.allowedTeams : undefined,
+      accessLevel: accessLevel,
+      allowedTeams: accessLevel === "Team" ? allowedTeams : undefined,
+      allowedUsers: allowedUsers.length > 0 ? allowedUsers : undefined,
       unit: formData.unit,
       area: formData.area || undefined,
-      equipment: formData.equipment || undefined, // Include equipment
+      equipment: formData.equipment || undefined,
       tags: formData.tags.length > 0 ? formData.tags : undefined,
-      fromTime: formData.fromTime || undefined,
-      toTime: formData.toTime || undefined,
+      fromTime: formData.timePeriods[0]?.from || undefined,
+      toTime: formData.timePeriods[0]?.to || undefined,
       context: {
         unit: formData.unit,
         area: formData.area || undefined,
-        equipment: formData.equipment || undefined, // Include equipment in context
+        equipment: formData.equipment || undefined,
         tags: formData.tags.length > 0 ? formData.tags : undefined,
       },
       workPackages: [],
@@ -186,6 +285,28 @@ export function TicketForm() {
               dataBoxes: additionalDataBoxes,
             }
           : undefined,
+      // 이벤트 프로세스 플로우 초기화
+      processStatus: "issued" as const,
+      processFlow: [
+        { step: "issued" as const, label: "이벤트 발행", status: "current" as const, assignee: CURRENT_USER, team: "공정기술팀", timestamp },
+        { step: "accepted" as const, label: "접수", status: "upcoming" as const },
+        { step: "review" as const, label: "기술검토", status: "upcoming" as const },
+        { step: "publisher-confirm" as const, label: "발행자 확인", status: "upcoming" as const },
+        { step: "closed" as const, label: "종결", status: "upcoming" as const },
+      ],
+      messages: [
+        {
+          id: `msg-${Date.now()}`,
+          ticketId: ticketId,
+          author: CURRENT_USER,
+          role: "requester" as const,
+          messageType: "opinion" as const,
+          content: `새로운 이벤트가 발행되었습니다: ${formData.title}`,
+          timestamp: new Date().toISOString(),
+        },
+      ],
+      opinions: [],
+      comments: [],
     }
 
     saveTicket(newTicket)
@@ -233,35 +354,68 @@ export function TicketForm() {
       addWorkPackageToTicket(newTicket.id, wp)
     })
 
-    router.push("/")
+    // 생성된 이벤트 상세 페이지로 이동
+    router.push(`/tickets/${newTicket.id}`)
   }
 
-  return (
+return (
     <Card className="p-6">
       <form onSubmit={handleSubmit} className="space-y-6">
+        {/* ===== ROW 1: 공정명 (필수) ===== */}
         <div className="space-y-2">
-          <Label htmlFor="title">티켓 제목</Label>
+          <Label htmlFor="unit" className="flex items-center gap-1">
+            <span className="text-destructive">*</span> 공정명
+          </Label>
+          <Select value={formData.unit} onValueChange={handleUnitChange}>
+            <SelectTrigger id="unit" className="w-full max-w-xs">
+              <SelectValue />
+            </SelectTrigger>
+            <SelectContent>
+              <SelectItem value="CDU">CDU</SelectItem>
+              <SelectItem value="VDU">VDU</SelectItem>
+              <SelectItem value="HCR">HCR</SelectItem>
+              <SelectItem value="CCR">CCR</SelectItem>
+              <SelectItem value="DHT">DHT</SelectItem>
+              <SelectItem value="NHT">NHT</SelectItem>
+              <SelectItem value="Utilities">Utilities</SelectItem>
+            </SelectContent>
+          </Select>
+          <p className="text-xs text-muted-foreground">
+            공정 선택 시 담당자가 자동 배정됩니다: <span className="font-medium text-foreground">{formData.owner || "미배정"}</span>
+          </p>
+        </div>
+
+        {/* ===== ROW 2: 제목 (필수) ===== */}
+        <div className="space-y-2">
+          <Label htmlFor="title" className="flex items-center gap-1">
+            <span className="text-destructive">*</span> 제목
+          </Label>
           <Input
             id="title"
-            placeholder="문제 또는 개선사항에 대한 간략한 설명"
+            placeholder="기술검토 요청 제목을 입력하세요"
             value={formData.title}
             onChange={(e) => setFormData({ ...formData, title: e.target.value })}
             required
+            className="text-base"
           />
         </div>
 
+        {/* ===== ROW 3: 상세 설명 (필수) ===== */}
         <div className="space-y-2">
-          <Label htmlFor="description">상세 설명</Label>
+          <Label htmlFor="description" className="flex items-center gap-1">
+            <span className="text-destructive">*</span> 상세 설명
+          </Label>
           <Textarea
             id="description"
-            placeholder="티켓에 대한 상세 설명"
-            rows={4}
+            placeholder="문의하고자 하는 내용을 상세히 기술해주세요. 제목과 내용을 바탕으로 이벤트 유형과 우선순위가 자동 분류됩니다."
+            rows={5}
             value={formData.description}
             onChange={(e) => setFormData({ ...formData, description: e.target.value })}
             required
           />
         </div>
 
+        {/* ===== ROW 4: 추가 설명 기입 (데이터 삽입, 첨부 등) ===== */}
         <div className="space-y-4">
           <Button
             type="button"
@@ -269,7 +423,7 @@ export function TicketForm() {
             onClick={() => setShowAdditionalDetails(!showAdditionalDetails)}
             className="w-full"
           >
-            {showAdditionalDetails ? "추가 설명 숨기기" : "추가 설명 기입"}
+            {showAdditionalDetails ? "추가 설명 숨기기" : "추가 설명 기입 (태그/DCS 화면/데이터 삽입)"}
           </Button>
 
           {showAdditionalDetails && (
@@ -357,247 +511,15 @@ export function TicketForm() {
                 placeholder="추가 설명을 입력하세요..."
                 value={additionalContent}
                 onChange={(e) => setAdditionalContent(e.target.value)}
-                rows={6}
+                rows={4}
               />
             </Card>
           )}
         </div>
 
-        <div className="space-y-4 p-4 border border-border rounded-lg bg-muted/30">
-          <h3 className="text-sm font-semibold text-foreground">공정 정보</h3>
-
-          <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-            <div className="space-y-2">
-              <Label htmlFor="unit">Unit *</Label>
-              <Select value={formData.unit} onValueChange={handleUnitChange}>
-                <SelectTrigger id="unit">
-                  <SelectValue />
-                </SelectTrigger>
-                <SelectContent>
-                  <SelectItem value="CDU">CDU</SelectItem>
-                  <SelectItem value="VDU">VDU</SelectItem>
-                  <SelectItem value="HCR">HCR</SelectItem>
-                  <SelectItem value="CCR">CCR</SelectItem>
-                  <SelectItem value="DHT">DHT</SelectItem>
-                  <SelectItem value="NHT">NHT</SelectItem>
-                  <SelectItem value="Utilities">Utilities</SelectItem>
-                </SelectContent>
-              </Select>
-            </div>
-
-            <div className="space-y-2">
-              <Label htmlFor="area">Area (선택사항)</Label>
-              <Input
-                id="area"
-                placeholder="예: Furnace section, Reactor zone"
-                value={formData.area}
-                onChange={(e) => setFormData({ ...formData, area: e.target.value })}
-              />
-            </div>
-          </div>
-
-          <div className="space-y-2">
-            <Label htmlFor="equipment">장치명 (선택사항)</Label>
-            <Input
-              id="equipment"
-              placeholder="예: Furnace-101, Reactor-A"
-              value={formData.equipment}
-              onChange={(e) => setFormData({ ...formData, equipment: e.target.value })}
-            />
-          </div>
-
-          <div className="space-y-2">
-            <Label htmlFor="tags">태그</Label>
-            <div className="flex gap-2">
-              <Select
-                value=""
-                onValueChange={(value) => {
-                  if (value && !formData.tags.includes(value)) {
-                    setFormData({
-                      ...formData,
-                      tags: [...formData.tags, value],
-                    })
-                  }
-                }}
-              >
-                <SelectTrigger>
-                  <SelectValue placeholder="태그 선택" />
-                </SelectTrigger>
-                <SelectContent>
-                  {AVAILABLE_TAGS[formData.unit]?.map((tag) => (
-                    <SelectItem key={tag} value={tag}>
-                      {tag}
-                    </SelectItem>
-                  ))}
-                </SelectContent>
-              </Select>
-            </div>
-            {formData.tags.length > 0 && (
-              <div className="flex flex-wrap gap-2 mt-2">
-                {formData.tags.map((tag) => (
-                  <Badge key={tag} variant="secondary" className="flex items-center gap-1">
-                    {tag}
-                    <button type="button" onClick={() => removeTag(tag)} className="ml-1 hover:bg-muted rounded-full">
-                      <X className="h-3 w-3" />
-                    </button>
-                  </Badge>
-                ))}
-              </div>
-            )}
-          </div>
-
-          <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-            <div className="space-y-2">
-              <Label htmlFor="fromTime">시작 시간</Label>
-              <Input
-                id="fromTime"
-                type="datetime-local"
-                value={formData.fromTime}
-                onChange={(e) => setFormData({ ...formData, fromTime: e.target.value })}
-              />
-            </div>
-
-            <div className="space-y-2">
-              <Label htmlFor="toTime">종료 시간</Label>
-              <Input
-                id="toTime"
-                type="datetime-local"
-                value={formData.toTime}
-                onChange={(e) => setFormData({ ...formData, toTime: e.target.value })}
-              />
-            </div>
-          </div>
-        </div>
-
-        <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
-          <div className="space-y-2">
-            <Label htmlFor="ticketType">티켓 유형</Label>
-            <Select
-              value={formData.ticketType}
-              onValueChange={(value) => setFormData({ ...formData, ticketType: value })}
-            >
-              <SelectTrigger id="ticketType">
-                <SelectValue />
-              </SelectTrigger>
-              <SelectContent>
-                <SelectItem value="Improvement">개선</SelectItem>
-                <SelectItem value="Trouble">문제</SelectItem>
-                <SelectItem value="Change">변경</SelectItem>
-                <SelectItem value="Analysis">분석</SelectItem>
-              </SelectContent>
-            </Select>
-          </div>
-
-          <div className="space-y-2">
-            <Label htmlFor="priority">우선순위</Label>
-            <Select value={formData.priority} onValueChange={(value) => setFormData({ ...formData, priority: value })}>
-              <SelectTrigger id="priority">
-                <SelectValue />
-              </SelectTrigger>
-              <SelectContent>
-                <SelectItem value="P1">P1 - 긴급</SelectItem>
-                <SelectItem value="P2">P2 - 높음</SelectItem>
-                <SelectItem value="P3">P3 - 보통</SelectItem>
-                <SelectItem value="P4">P4 - 낮음</SelectItem>
-              </SelectContent>
-            </Select>
-          </div>
-
-          <div className="space-y-2">
-            <Label htmlFor="impact">영향 범위</Label>
-            <Select value={formData.impact} onValueChange={(value) => setFormData({ ...formData, impact: value })}>
-              <SelectTrigger id="impact">
-                <SelectValue />
-              </SelectTrigger>
-              <SelectContent>
-                <SelectItem value="Safety">안전</SelectItem>
-                <SelectItem value="Quality">품질</SelectItem>
-                <SelectItem value="Throughput">처리량</SelectItem>
-                <SelectItem value="Cost">비용</SelectItem>
-                <SelectItem value="Energy">에너지</SelectItem>
-              </SelectContent>
-            </Select>
-          </div>
-
-          <div className="space-y-2">
-            <Label htmlFor="dueDate">희망 마감일</Label>
-            <Input
-              id="dueDate"
-              type="date"
-              value={formData.dueDate}
-              onChange={(e) => setFormData({ ...formData, dueDate: e.target.value })}
-            />
-          </div>
-        </div>
-
-        <div className="space-y-2">
-          <Label htmlFor="owner">담당자</Label>
-          <Input
-            id="owner"
-            value={formData.owner}
-            onChange={(e) => setFormData({ ...formData, owner: e.target.value })}
-          />
-          <p className="text-xs text-muted-foreground">Unit 선택 시 자동 설정됩니다</p>
-        </div>
-
-        <div className="space-y-4 p-4 border border-border rounded-lg bg-muted/30">
-          <div className="space-y-2">
-            <Label htmlFor="accessLevel" className="text-base font-semibold">
-              접근 권한
-            </Label>
-            <Select
-              value={formData.accessLevel}
-              onValueChange={(value) =>
-                setFormData({
-                  ...formData,
-                  accessLevel: value,
-                  allowedTeams: value === "Team" ? formData.allowedTeams : [],
-                })
-              }
-            >
-              <SelectTrigger id="accessLevel">
-                <SelectValue />
-              </SelectTrigger>
-              <SelectContent>
-                <SelectItem value="Private">비공개 - 나만 보기</SelectItem>
-                <SelectItem value="Team">팀 - 특정 팀</SelectItem>
-                <SelectItem value="Public">공개 - 모두</SelectItem>
-              </SelectContent>
-            </Select>
-            <p className="text-xs text-muted-foreground">
-              {formData.accessLevel === "Private" && "나만 이 티켓을 보고 편집할 수 있습니다"}
-              {formData.accessLevel === "Team" && "선택된 팀이 이 티켓을 보고 협업할 수 있습니다"}
-              {formData.accessLevel === "Public" && "모든 팀이 이 티켓을 보고 협업할 수 있습니다"}
-            </p>
-          </div>
-
-          {formData.accessLevel === "Team" && (
-            <div className="space-y-3">
-              <Label className="text-sm">접근 가능한 팀 선택</Label>
-              <div className="space-y-2">
-                {availableTeams.map((team) => (
-                  <div key={team} className="flex items-center space-x-2">
-                    <Checkbox
-                      id={team}
-                      checked={formData.allowedTeams.includes(team)}
-                      onCheckedChange={() => toggleTeam(team)}
-                    />
-                    <label
-                      htmlFor={team}
-                      className="text-sm font-medium leading-none peer-disabled:cursor-not-allowed peer-disabled:opacity-70 cursor-pointer"
-                    >
-                      {team}
-                    </label>
-                  </div>
-                ))}
-              </div>
-            </div>
-          )}
-        </div>
-
-        <div className="flex gap-3 pt-4">
+<div className="flex gap-3 pt-4">
           <Button type="submit" className="flex-1">
-            티켓 생성
+            이벤트 생성
           </Button>
           <Button type="button" variant="outline" onClick={() => router.push("/")}>
             취소

@@ -163,8 +163,11 @@ export default function LicensorQueryPage() {
   }
 
   const convertToTicket = (query: typeof SAMPLE_QUERIES[0]) => {
+    const ticketId = `EVT-${Date.now().toString().slice(-6)}`
+    const timestamp = new Date().toLocaleString("ko-KR")
+    
     const newTicket = {
-      id: Date.now().toString(),
+      id: ticketId,
       title: `[라이센서 질의] ${query.subject}`,
       description: `라이센서: ${query.licensor}\n카테고리: ${query.category}\n\n${query.messages.map(m => `[${m.timestamp}] ${m.author}: ${m.content}`).join('\n\n')}`,
       ticketType: "Request" as const,
@@ -187,11 +190,22 @@ export default function LicensorQueryPage() {
         content: m.content,
         timestamp: m.timestamp
       })),
-      workPackages: []
+      workPackages: [],
+      // 이벤트 프로세스 플로우 초기화
+      processStatus: "issued" as const,
+      processFlow: [
+        { step: "issued" as const, label: "이벤트 발행", status: "current" as const, assignee: "김지수", team: "공정기술팀", timestamp },
+        { step: "accepted" as const, label: "접수", status: "upcoming" as const },
+        { step: "review" as const, label: "기술검토", status: "upcoming" as const },
+        { step: "publisher-confirm" as const, label: "발행자 확인", status: "upcoming" as const },
+        { step: "closed" as const, label: "종결", status: "upcoming" as const },
+      ],
+      opinions: [],
+      comments: [],
     }
     saveTicket(newTicket)
-    alert("라이센서 질의가 티켓으로 변환되었습니다.")
-    router.push("/")
+    alert("라이센서 질의가 이벤트으로 변환되었습니다.")
+    router.push(`/tickets/${ticketId}`)
   }
 
   return (
@@ -222,7 +236,7 @@ export default function LicensorQueryPage() {
             <CardContent className="py-4">
               <p className="text-sm text-amber-800">
                 <strong>중요:</strong> 라이센서(UOP, Axens, Shell 등)와의 기술 질의 내용은 정유공장의 핵심 기술 자산입니다. 
-                모든 질의 내용은 티켓으로 변환하여 영구적으로 보관하시기 바랍니다.
+                모든 질의 내용은 이벤트으로 변환하여 영구적으로 보관하시기 바랍니다.
               </p>
             </CardContent>
           </Card>
@@ -392,7 +406,7 @@ export default function LicensorQueryPage() {
                       </div>
                     )}
 
-                    {/* 티켓 변환 */}
+                    {/* 이벤트 변환 */}
                     <Button 
                       variant="outline" 
                       size="sm" 
@@ -400,7 +414,7 @@ export default function LicensorQueryPage() {
                       onClick={() => convertToTicket(selectedQuery)}
                     >
                       <FileText className="h-3 w-3 mr-1" />
-                      티켓으로 자산화
+                      이벤트으로 자산화
                     </Button>
                   </CardContent>
                 </Card>

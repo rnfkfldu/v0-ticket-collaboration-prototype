@@ -2,7 +2,7 @@
 
 import React from "react"
 
-import { useState, useEffect, useMemo } from "react"
+import { useState, useEffect, useMemo, useCallback } from "react"
 import { Button } from "@/components/ui/button"
 import { Badge } from "@/components/ui/badge"
 import { 
@@ -47,12 +47,16 @@ import {
   Megaphone,
   MessageCircleQuestion,
   Headset,
-  CalendarDays
+  CalendarDays,
+  Search,
+  RefreshCw,
+  FolderOpen,
+  Home
 } from "lucide-react"
 import Link from "next/link"
 import { usePathname } from "next/navigation"
 import { cn } from "@/lib/utils"
-import { useUser, type ScopeMode } from "@/lib/user-context"
+import { useUser } from "@/lib/user-context"
 
 interface SidebarProps {
   unreadAlerts?: number
@@ -77,7 +81,8 @@ export function Sidebar({ unreadAlerts = 3 }: SidebarProps) {
   const [isCollapsed, setIsCollapsed] = useState(false)
   const [expandedSections, setExpandedSections] = useState<string[]>([])
   const pathname = usePathname()
-  const { currentUser, scopeMode, setScopeMode, visibleProcesses } = useUser()
+  const { currentUser } = useUser()
+  const isTeamLead = currentUser.role === "team-lead" || currentUser.role === "division-head" || currentUser.role === "plant-head"
 
   // 현재 상위 메뉴 결정 (URL 기반)
   const currentTopMenu = useMemo(() => {
@@ -96,253 +101,261 @@ export function Sidebar({ unreadAlerts = 3 }: SidebarProps) {
   // Operations 메뉴 구조
   const operationsMenu: MenuSection[] = [
     {
-      id: "overview",
-      label: "Overview",
-      icon: LayoutDashboard,
-      items: [{ label: "Overview", href: "/operations", icon: LayoutDashboard }]
+      id: "home",
+      label: "홈",
+      icon: Home,
+      items: [
+        { label: "홈 대시보드", href: "/", icon: Home },
+      ]
     },
     {
       id: "live-monitoring",
-      label: "Live Monitoring",
+      label: "실시간 모니터링",
       icon: Monitor,
       items: [
-        { label: "Unit Monitoring", href: "/operations/monitoring/unit", icon: Layers },
-        { label: "Custom Dashboards", href: "/operations/monitoring/custom", icon: LayoutDashboard },
+        { label: "일일 운전 현황", href: "/operations", icon: Layers },
         { 
-          label: "DCS Monitoring", 
+          label: "DCS 모니터링", 
           href: "/operations/monitoring/dcs", 
           icon: Monitor,
           children: [
-            { label: "DCS Screen View", href: "/operations/monitoring/dcs/screen", icon: Monitor },
-            { label: "Tag Drill-down", href: "/operations/monitoring/dcs/tag", icon: Target },
-            { label: "Alarm Context View", href: "/operations/monitoring/dcs/alarm", icon: Bell },
+            { label: "DCS 화면 조회", href: "/operations/monitoring/dcs/screen", icon: Monitor },
+            { label: "태그 상세분석", href: "/operations/monitoring/dcs/tag", icon: Target },
+            { label: "알람 상황판", href: "/operations/monitoring/dcs/alarm", icon: Bell },
           ]
         },
+        { label: "커스텀 대시보드", href: "/operations/custom-dashboard", icon: LayoutDashboard },
       ]
     },
     {
       id: "cross-unit",
-      label: "Cross-Unit View",
+      label: "공정 연계 분석",
       icon: Network,
       items: [
-        { label: "Utility Interconnection", href: "/operations/cross-unit/utility", icon: Zap },
-        { label: "Process Interconnection", href: "/operations/cross-unit/process", icon: Network },
-        { label: "Similar Process Comparison", href: "/operations/cross-unit/similar", icon: BarChart3 },
+        { label: "유틸리티 연계", href: "/operations/cross-unit/utility", icon: Zap },
+        { label: "공정간 연계", href: "/operations/cross-unit/process", icon: Network },
       ]
     },
     {
       id: "long-term",
-      label: "Long-Term Health",
+      label: "장기 건전성 관리",
       icon: TrendingUp,
       items: [
-        { label: "Overview", href: "/operations/health/overview", icon: LayoutDashboard },
-        { label: "Deposition", href: "/operations/health/deposition", icon: Flame },
-        { label: "Catalyst Performance", href: "/operations/health/catalyst", icon: ThermometerSun },
-        { label: "Integrity Risk", href: "/operations/health/integrity", icon: Shield },
-        { label: "Worklist", href: "/operations/health/worklist", icon: FileText },
+        { label: "Fouling", href: "/operations/health/fouling", icon: Flame },
+        { label: "Coking", href: "/operations/health/coking", icon: Flame },
+        { label: "촉매 Aging", href: "/operations/health/catalyst-aging", icon: Activity },
+        { label: "Hydraulics", href: "/operations/health/hydraulics", icon: Layers },
+        { label: "Separation", href: "/operations/health/separation", icon: Layers },
+        { label: "Energy", href: "/operations/health/energy", icon: Zap },
+        { label: "Mechanical", href: "/operations/health/mechanical", icon: Shield },
       ]
     },
   ]
 
-  // Actions 메뉴 구조 (기존)
+  // 조치/활동 메뉴 구조
   const actionsMenu: MenuSection[] = [
     {
       id: "alerts",
-      label: "Deviation & Alerts",
+      label: "내 알람",
       icon: Bell,
       items: [
         { label: "전체 알람", href: "/alerts", icon: Bell, count: 12 },
-        { label: "알람 분석 대시보드", href: "/alerts/dashboard", icon: BarChart3 },
       ]
     },
     {
       id: "workspace",
-      label: "My Action",
+      label: "내 업무",
       icon: Inbox,
       items: [
-        { label: "내 티켓", href: "/actions/tickets", icon: Inbox },
-        { label: "대시보드", href: "/dashboard", icon: LayoutDashboard },
+        { label: "내 이벤트", href: "/actions/tickets", icon: Inbox },
+        { label: "내 과제", href: "/actions/tasks", icon: Layers },
       ]
     },
+    // 팀 대시보드: 팀장에게만 팀 업무 분석 대시보드 표시
+    ...(isTeamLead ? [{
+      id: "team-dashboard",
+      label: "팀 대시보드",
+      icon: BarChart3,
+      items: [
+        { label: "알람 분석 대시보드", href: "/alerts/dashboard", icon: BarChart3 },
+        { label: "팀 업무 분석 대시보드", href: "/dashboard", icon: LayoutDashboard },
+      ]
+    }] : [{
+      id: "team-dashboard",
+      label: "팀 대시보드",
+      icon: BarChart3,
+      items: [
+        { label: "알람 분석 대시보드", href: "/alerts/dashboard", icon: BarChart3 },
+      ]
+    }]),
   ]
 
-  // Optimization 메뉴 구조
+  // 최적화/인사이트 메뉴 구조
   const optimizationMenu: MenuSection[] = [
     {
       id: "model-optimization",
-      label: "Model-Based Optimization",
+      label: "모델 기반 최적화",
       icon: Cpu,
       items: [
-        { label: "AI / ML Models", href: "/optimization/ai-ml", icon: Cpu },
-        { label: "RTO Models", href: "/optimization/rto", icon: Activity },
+        { label: "AI / ML 모델", href: "/optimization/ai-ml", icon: Cpu },
+        { label: "RTO 모델", href: "/optimization/rto", icon: Activity },
       ]
     },
     {
       id: "experiments",
-      label: "Experiments (Model Sandbox)",
+      label: "모델 실험실",
       icon: Box,
       items: [
-        { label: "Model Sandbox", href: "/optimization/experiments", icon: Box },
+        { label: "모델 구축", href: "/optimization/experiments", icon: Cpu },
+        { label: "운영 검증", href: "/optimization/experiments?tab=validate", icon: Eye },
       ]
     },
     {
       id: "whatif",
-      label: "What-if Simulation",
+      label: "What-if 시뮬레이션",
       icon: Target,
       items: [
-        { label: "What-if Simulation", href: "/optimization/what-if", icon: Target },
+        { label: "시뮬레이션 실행", href: "/optimization/what-if", icon: Target },
+        { label: "저장된 시나리오", href: "/optimization/what-if/saved", icon: FolderOpen },
       ]
     },
     {
       id: "opt-insight",
-      label: "Optimization Insight",
+      label: "최적화 인사이트",
       icon: Eye,
       items: [
-        { label: "Binding Constraint Analysis", href: "/optimization/insight/binding", icon: AlertTriangle },
-        { label: "Marginal Value Analysis", href: "/optimization/insight/marginal", icon: TrendingUp },
-        { label: "LP Vector Analysis", href: "/optimization/insight/lp-vector", icon: LineChart },
-        { label: "Quality Giveaway Analysis", href: "/optimization/insight/quality-giveaway", icon: Gauge },
+        { label: "제약조건 분석", href: "/optimization/insight/binding", icon: AlertTriangle },
+        { label: "유사 공정 비교", href: "/operations/cross-unit/similar", icon: BarChart3 },
+        { label: "한계가치 분석", href: "/optimization/insight/marginal", icon: TrendingUp },
+        { label: "LP 벡터 분석", href: "/optimization/insight/lp-vector", icon: LineChart },
+        { label: "품질 Giveaway 분석", href: "/optimization/insight/quality-giveaway", icon: Gauge },
+        { label: "촉매 수명/사용량", href: "/optimization/insight/catalyst", icon: Activity },
       ]
     },
   ]
 
-  // Knowledge 메뉴 구조
+  // 지식/문서 메뉴 구조
   const knowledgeMenu: MenuSection[] = [
     {
-      id: "knowledge-asset",
-      label: "Knowledge Asset",
-      icon: Layers,
+      id: "doc-search",
+      label: "문서 검색",
+      icon: Search,
       items: [
-        { label: "Knowledge Asset", href: "/knowledge/assets", icon: Layers },
-        { label: "Reports", href: "/knowledge/reports", icon: FileBarChart },
+        { label: "문서 검색 (AI)", href: "/knowledge/search", icon: Search },
       ]
     },
     {
-      id: "playbooks",
-      label: "Operating Playbooks",
-      icon: BookOpen,
-      items: [
-        { label: "Operating Playbooks", href: "/knowledge", icon: BookOpen },
-      ]
-    },
-    {
-      id: "contingency",
-      label: "Operation Contingency Plan",
-      icon: Shield,
-      items: [
-        { label: "Contingency Plan", href: "/knowledge/contingency", icon: Shield },
-      ]
-    },
-    {
-      id: "history",
-      label: "Operating History",
+      id: "event-knowledge",
+      label: "이벤트 지식",
       icon: History,
       items: [
-        { label: "Process Unit History", href: "/knowledge/history/process", icon: Activity },
-        { label: "Alert History", href: "/knowledge/history/alert", icon: Bell },
-        { label: "Action History", href: "/knowledge/history/action", icon: Wrench },
+        { label: "종결 이벤트", href: "/knowledge/closed-events", icon: FileText },
+        { label: "최종 레포트", href: "/knowledge/final-reports", icon: FileBarChart },
       ]
     },
     {
-      id: "team-knowledge",
-      label: "Team Knowledge",
-      icon: Users,
+      id: "process-logs",
+      label: "공정 기록",
+      icon: Layers,
       items: [
-        { label: "Team Knowledge", href: "/knowledge/team", icon: Users },
+        { label: "공정 연대기", href: "/knowledge/process-logs", icon: CalendarDays },
+        { label: "공정 변수 히스토리", href: "/knowledge/variable-history", icon: TrendingUp },
+        { label: "회의록/TOB", href: "/knowledge/meetings", icon: Users },
       ]
     },
     {
-      id: "terminology",
-      label: "용어 관리",
+      id: "guides",
+      label: "운영 가이드",
       icon: BookOpen,
       items: [
-        { label: "용어 관리", href: "/knowledge/terminology", icon: BookOpen },
+        { label: "Operation Guide", href: "/knowledge/guides", icon: BookOpen },
+        { label: "반복성 가이드", href: "/knowledge/guides?tab=repeatable", icon: RefreshCw },
       ]
     },
     {
-      id: "notes",
-      label: "Personal Notes",
-      icon: StickyNote,
+      id: "procedures",
+      label: "절차서/표준",
+      icon: Shield,
       items: [
-        { label: "Personal Notes", href: "/knowledge/notes", icon: StickyNote },
+        { label: "절차서/표준", href: "/knowledge/procedures", icon: Shield },
       ]
     },
     {
-      id: "logs",
-      label: "System Logs",
-      icon: FileText,
+      id: "learning",
+      label: "학습/용어",
+      icon: BookOpen,
       items: [
-        { label: "System Logs", href: "/knowledge/logs", icon: FileText },
+        { label: "사전/온톨로지 뷰", href: "/knowledge/learning", icon: BookOpen },
       ]
     },
   ]
 
-  // Data & Admin 메뉴 구조
+  // 데이터 및 관리 메뉴 구조
   const dataAdminMenu: MenuSection[] = [
     {
       id: "data-quality",
-      label: "Data Quality Monitoring",
+      label: "데이터 품질 관리",
       icon: Shield,
       items: [
-        { label: "Data Quality Monitoring", href: "/admin", icon: Shield },
-        { label: "SSoT Management", href: "/admin/ssot", icon: Database },
+        { label: "데이터 품질 현황", href: "/admin", icon: Shield },
+        { label: "SSoT 관리", href: "/admin/ssot", icon: Database },
       ]
     },
     {
       id: "master-data",
-      label: "Master Data Management",
+      label: "기준정보 관리",
       icon: Server,
       items: [
-        { label: "Master Data Management", href: "/admin/master-data", icon: Server },
+        { label: "기준정보 관리", href: "/admin/master-data", icon: Server },
       ]
     },
     {
       id: "data-mart",
-      label: "Data Mart",
+      label: "데이터 마트",
       icon: Database,
       items: [
-        { label: "Data Mart", href: "/admin/data-mart", icon: Database },
+        { label: "데이터 마트", href: "/admin/data-mart", icon: Database },
       ]
     },
     {
       id: "reference-data",
-      label: "Reference Data",
+      label: "참조 데이터",
       icon: FileText,
       items: [
-        { label: "Reference Data", href: "/admin/reference-data", icon: FileText },
+        { label: "참조 데이터", href: "/admin/reference-data", icon: FileText },
+      ]
+    },
+    {
+      id: "alert-management",
+      label: "Alert 관리",
+      icon: Bell,
+      items: [
+        { label: "Alert 전체 리스트", href: "/admin/alert-management", icon: Bell },
+        { label: "개인화 Alert", href: "/admin/alert-management/personal", icon: Users },
+        { label: "Alert 현황", href: "/admin/alert-management/status", icon: BarChart3 },
       ]
     },
     {
       id: "system-settings",
-      label: "System Settings",
+      label: "시스템 설정",
       icon: Settings,
       items: [
-        { label: "System Settings", href: "/admin/settings", icon: Settings },
+        { label: "시스템 설정", href: "/admin/settings", icon: Settings },
       ]
     },
   ]
 
-  // Workbench 메뉴 구조
-  const roadmapMenu: MenuSection[] = [
-    {
-      id: "worklist",
-      label: "Worklist",
-      icon: FileText,
-      items: [
-        { label: "Worklist", href: "/roadmap", icon: FileText },
-        { label: "Optimization Opportunities", href: "/roadmap/opportunities", icon: TrendingUp },
-      ]
-    },
-  ]
+  // 전략 과제 메뉴 구조 - 운전 조치 > 내 업무로 이동됨
+  const roadmapMenu: MenuSection[] = []
 
-  // OOP Outside 메뉴 구조 (기존 3rd Party)
+  // 외부 협업 메뉴 구조
   const oopOutsideMenu: MenuSection[] = [
     {
       id: "third-party",
-      label: "3rd Party 분석",
+      label: "외부 기관 분석",
       icon: Building2,
       items: [
-        { label: "3rd Party 분석 데이터", href: "/oop-outside/analysis", icon: Database },
+        { label: "외부 분석 데이터", href: "/oop-outside/analysis", icon: Database },
         { label: "라이센서 질의", href: "/oop-outside/licensor", icon: HelpCircle },
       ]
     },
@@ -372,22 +385,30 @@ export function Sidebar({ unreadAlerts = 3 }: SidebarProps) {
     },
   ]
 
-  // Review 메뉴 구조
+  // 리뷰/KPI 메뉴 구조
   const reviewMenu: MenuSection[] = [
     {
       id: "review-monthly",
-      label: "Monthly Review",
+      label: "월간 운전 리뷰",
       icon: BarChart3,
       items: [
-        { label: "Monthly Review", href: "/review/monthly", icon: BarChart3 },
+        { label: "월간 운전 리뷰", href: "/review/monthly", icon: BarChart3 },
+      ]
+    },
+    {
+      id: "review-financial",
+      label: "Financial Impact",
+      icon: TrendingUp,
+      items: [
+        { label: "Financial Impact", href: "/review/financial-impact", icon: TrendingUp },
       ]
     },
     {
       id: "review-health",
-      label: "System Health Review",
+      label: "시스템 건전성 리뷰",
       icon: Shield,
       items: [
-        { label: "System Health Review", href: "/review/system-health", icon: Shield },
+        { label: "시스템 건전성 리뷰", href: "/review/system-health", icon: Shield },
       ]
     },
     {
@@ -429,31 +450,47 @@ export function Sidebar({ unreadAlerts = 3 }: SidebarProps) {
     }
   }, [pathname, currentMenu])
 
-  const toggleSection = (sectionId: string) => {
+  const toggleSection = useCallback((sectionId: string) => {
     setExpandedSections(prev => 
       prev.includes(sectionId) 
         ? prev.filter(id => id !== sectionId)
         : [...prev, sectionId]
     )
-  }
+  }, [])
+
+  // 모든 메뉴 항목의 href를 수집하여 가장 구체적인 매칭만 활성화
+  const allHrefs = useMemo(() => {
+    const hrefs: string[] = []
+    currentMenu.forEach(section => {
+      section.items.forEach(item => {
+        hrefs.push(item.href)
+        item.children?.forEach(child => hrefs.push(child.href))
+      })
+    })
+    return hrefs
+  }, [currentMenu])
 
   const isItemActive = (href: string) => {
-    // 홈 경로("/")는 정확히 일치할 때만 활성화
-    if (href === "/") {
-      return pathname === "/"
+    if (href === "/") return pathname === "/"
+    // 정확 일치
+    if (pathname === href) return true
+    // 하위 경로 일치 - 단, 더 구체적인 다른 href가 매칭되면 제외
+    if (pathname.startsWith(href + "/")) {
+      const hasMoreSpecific = allHrefs.some(
+        other => other !== href && other.startsWith(href + "/") && (pathname === other || pathname.startsWith(other + "/"))
+      )
+      return !hasMoreSpecific
     }
-    // 그 외는 정확히 일치하거나 하위 경로일 때 활성화
-    return pathname === href || pathname.startsWith(href + "/")
+    return false
   }
 
   const menuTitles: Record<string, string> = {
-    operations: "Operations",
-    actions: "Actions",
-    review: "Review",
-    optimization: "Optimization",
-    roadmap: "Workbench",
-    knowledge: "Knowledge",
-    "data-admin": "Data & Admin",
+    operations: "운전 현황",
+    actions: "운전 조치",
+    review: "리뷰/KPI",
+    optimization: "공정 최적화",
+    knowledge: "지식/문서",
+    "data-admin": "데이터/설정",
     "oop-outside": "OOP Outside",
     "help": "게시판"
   }
@@ -461,14 +498,14 @@ export function Sidebar({ unreadAlerts = 3 }: SidebarProps) {
   return (
     <aside 
       className={cn(
-        "h-full bg-card border-r border-border flex flex-col transition-all duration-300 flex-shrink-0",
+        "h-full bg-card border-r border-border flex flex-col flex-shrink-0 transition-[width] duration-200 ease-out will-change-[width]",
         isCollapsed ? "w-16" : "w-64"
       )}
     >
       {/* Header */}
-      <div className="h-12 border-b border-border flex items-center justify-between px-4">
+      <div className="h-12 border-b border-border flex items-center justify-between px-4 bg-card">
         {!isCollapsed && (
-          <span className="font-semibold text-sm text-muted-foreground">{menuTitles[currentTopMenu]}</span>
+          <span className="font-semibold text-sm text-foreground">{menuTitles[currentTopMenu]}</span>
         )}
         <Button 
           variant="ghost" 
@@ -480,41 +517,6 @@ export function Sidebar({ unreadAlerts = 3 }: SidebarProps) {
         </Button>
       </div>
 
-      {/* Scope Toggle - 담당공정 / 전체공정 */}
-      {!isCollapsed && (
-        <div className="px-3 py-2 border-b border-border">
-          <div className="flex items-center rounded-md bg-muted p-0.5">
-            <button
-              className={cn(
-                "flex-1 text-xs py-1.5 px-2 rounded-sm font-medium transition-colors text-center",
-                scopeMode === "my-processes"
-                  ? "bg-background text-foreground shadow-sm"
-                  : "text-muted-foreground hover:text-foreground"
-              )}
-              onClick={() => setScopeMode("my-processes")}
-            >
-              담당공정 ({currentUser.assignedProcessIds.length})
-            </button>
-            <button
-              className={cn(
-                "flex-1 text-xs py-1.5 px-2 rounded-sm font-medium transition-colors text-center",
-                scopeMode === "all-processes"
-                  ? "bg-background text-foreground shadow-sm"
-                  : "text-muted-foreground hover:text-foreground"
-              )}
-              onClick={() => setScopeMode("all-processes")}
-            >
-              전체공정 (50)
-            </button>
-          </div>
-          {!isCollapsed && scopeMode === "my-processes" && (
-            <p className="text-xs text-muted-foreground mt-1.5 px-1">
-              {currentUser.roleLabel} {currentUser.name}
-            </p>
-          )}
-        </div>
-      )}
-
       {/* Navigation */}
       <nav className="flex-1 overflow-y-auto py-2">
         {currentMenu.map((section, sectionIndex) => (
@@ -525,7 +527,7 @@ export function Sidebar({ unreadAlerts = 3 }: SidebarProps) {
             <button
               onClick={() => toggleSection(section.id)}
               className={cn(
-                "w-full flex items-center gap-3 px-4 py-2 text-sm font-medium text-muted-foreground hover:text-foreground hover:bg-muted/50 transition-colors",
+                "w-full flex items-center gap-3 px-4 py-2 text-sm font-medium text-muted-foreground hover:text-foreground hover:bg-muted/50",
                 isCollapsed && "justify-center px-2"
               )}
             >
@@ -548,11 +550,12 @@ export function Sidebar({ unreadAlerts = 3 }: SidebarProps) {
                   <div key={item.href}>
                     <Link
                       href={item.href}
+                      prefetch={true}
                       className={cn(
-                        "flex items-center gap-3 px-3 py-2 text-sm rounded-md transition-colors",
+                        "flex items-center gap-3 px-3 py-2 text-sm rounded",
                         isItemActive(item.href)
-                          ? "bg-primary/10 text-primary font-medium"
-                          : "text-muted-foreground hover:text-foreground hover:bg-muted/50"
+                          ? "bg-primary text-primary-foreground font-medium"
+                          : "text-foreground/70 hover:text-foreground hover:bg-muted/50"
                       )}
                     >
                       <item.icon className="h-4 w-4 flex-shrink-0" />
@@ -571,11 +574,12 @@ export function Sidebar({ unreadAlerts = 3 }: SidebarProps) {
                           <Link
                             key={child.href}
                             href={child.href}
+                            prefetch={true}
                             className={cn(
-                              "flex items-center gap-2 px-2 py-1.5 text-xs rounded-md transition-colors",
+                              "flex items-center gap-2 px-2 py-1.5 text-xs rounded",
                               isItemActive(child.href)
-                                ? "bg-primary/10 text-primary font-medium"
-                                : "text-muted-foreground hover:text-foreground hover:bg-muted/50"
+                                ? "bg-primary/15 text-primary font-medium"
+                                : "text-foreground/60 hover:text-foreground hover:bg-muted/50"
                             )}
                           >
                             <child.icon className="h-3 w-3 flex-shrink-0" />

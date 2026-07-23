@@ -1,9 +1,26 @@
 "use client"
 
-import React, { createContext, useContext, useState, type ReactNode } from "react"
+import React, { createContext, useContext, useState, useEffect, useRef, type ReactNode } from "react"
+
+// Cookie keys for persisting user selection (works on both server and client)
+const USER_COOKIE_KEY = "selected-user-id"
+const SCOPE_COOKIE_KEY = "selected-scope-mode"
+
+// Cookie helpers
+function setCookie(name: string, value: string, days = 365) {
+  if (typeof document === "undefined") return
+  const expires = new Date(Date.now() + days * 864e5).toUTCString()
+  document.cookie = `${name}=${encodeURIComponent(value)}; expires=${expires}; path=/; SameSite=Lax`
+}
+
+function getCookie(name: string): string | null {
+  if (typeof document === "undefined") return null
+  const match = document.cookie.match(new RegExp(`(^| )${name}=([^;]+)`))
+  return match ? decodeURIComponent(match[2]) : null
+}
 
 // ============================================================
-// 1) Division / Process Registry
+// 1) Process definitions
 // ============================================================
 export type Division = "Refining" | "Chemical" | "Upgrading"
 
@@ -77,17 +94,24 @@ export const ALL_PROCESSES: ProcessUnit[] = [
 // ============================================================
 // 2) User Roles
 // ============================================================
-export type UserRole = "engineer" | "team-lead" | "division-head" | "plant-head"
+export type UserRole = "engineer" | "team-lead" | "division-head" | "plant-head" | "operator" | "equipment-engineer"
+
+export type Department = "production" | "equipment-tech" | "inspection" | "reliability"
 
 export interface UserProfile {
   id: string
   name: string
   role: UserRole
   roleLabel: string
-  division?: Division       // for division-head
-  assignedProcessIds: string[]  // for engineer / team-lead: list of ProcessUnit ids
-  alertMinSeverity: "info" | "warning" | "critical"  // role-based default filter
+  division?: Division
+  department?: Department
+  assignedProcessIds: string[]
+  alertMinSeverity: "info" | "warning" | "critical"
   showManagementDashboard: boolean
+  showStrategicTasks?: boolean
+  showDataSettings?: boolean
+  showOptimization?: boolean
+  focusArea?: "operations" | "reliability" | "equipment"
 }
 
 export const USER_PROFILES: UserProfile[] = [
@@ -96,27 +120,42 @@ export const USER_PROFILES: UserProfile[] = [
     name: "김철수",
     role: "engineer",
     roleLabel: "생산팀원",
+    department: "production",
     assignedProcessIds: ["HCR", "VGOFCC"],
     alertMinSeverity: "info",
     showManagementDashboard: false,
+    showStrategicTasks: true,
+    showDataSettings: true,
+    showOptimization: true,
+    focusArea: "operations",
   },
   {
     id: "u-engineer-2",
     name: "박영희",
     role: "engineer",
     roleLabel: "생산팀원",
+    department: "production",
     assignedProcessIds: ["1CDU", "2CDU", "1VDU"],
     alertMinSeverity: "info",
     showManagementDashboard: false,
+    showStrategicTasks: true,
+    showDataSettings: true,
+    showOptimization: true,
+    focusArea: "operations",
   },
   {
     id: "u-team-lead",
     name: "이민수",
     role: "team-lead",
     roleLabel: "기술팀장",
+    department: "production",
     assignedProcessIds: ["HCR", "VGOFCC", "RFCC", "VRHR", "1KD", "2KD", "3KD", "4KD", "VBU", "RHDS", "VGHDS", "SRU"],
     alertMinSeverity: "warning",
     showManagementDashboard: true,
+    showStrategicTasks: true,
+    showDataSettings: true,
+    showOptimization: true,
+    focusArea: "operations",
   },
   {
     id: "u-div-head",
@@ -124,18 +163,70 @@ export const USER_PROFILES: UserProfile[] = [
     role: "division-head",
     roleLabel: "부문장",
     division: "Upgrading",
+    department: "production",
     assignedProcessIds: ALL_PROCESSES.filter(p => p.division === "Upgrading").map(p => p.id),
     alertMinSeverity: "warning",
     showManagementDashboard: true,
+    showStrategicTasks: true,
+    showDataSettings: true,
+    showOptimization: true,
+    focusArea: "operations",
   },
   {
-    id: "u-plant-head",
-    name: "한상진",
-    role: "plant-head",
-    roleLabel: "공장장",
+    id: "u-operator-1",
+    name: "최운전",
+    role: "operator",
+    roleLabel: "운전원",
+    department: "production",
+    assignedProcessIds: ["HCR", "VGOFCC", "RFCC"],
+    alertMinSeverity: "info",
+    showManagementDashboard: false,
+    showStrategicTasks: false,
+    showDataSettings: false,
+    showOptimization: false,
+    focusArea: "operations",
+  },
+  {
+    id: "u-equip-eng-1",
+    name: "박설비",
+    role: "equipment-engineer",
+    roleLabel: "설비기술팀원",
+    department: "equipment-tech",
+    assignedProcessIds: ALL_PROCESSES.filter(p => p.division === "Upgrading").map(p => p.id),
+    alertMinSeverity: "info",
+    showManagementDashboard: false,
+    showStrategicTasks: true,
+    showDataSettings: true,
+    showOptimization: false,
+    focusArea: "equipment",
+  },
+  {
+    id: "u-equip-eng-2",
+    name: "이정비",
+    role: "equipment-engineer",
+    roleLabel: "설비기술팀원",
+    department: "equipment-tech",
+    assignedProcessIds: ALL_PROCESSES.filter(p => p.division === "Refining" || p.division === "Chemical").map(p => p.id),
+    alertMinSeverity: "info",
+    showManagementDashboard: false,
+    showStrategicTasks: true,
+    showDataSettings: true,
+    showOptimization: false,
+    focusArea: "equipment",
+  },
+  {
+    id: "u-equip-lead",
+    name: "정기술",
+    role: "equipment-engineer",
+    roleLabel: "설비기술팀장",
+    department: "equipment-tech",
     assignedProcessIds: ALL_PROCESSES.map(p => p.id),
-    alertMinSeverity: "critical",
+    alertMinSeverity: "warning",
     showManagementDashboard: true,
+    showStrategicTasks: true,
+    showDataSettings: true,
+    showOptimization: false,
+    focusArea: "equipment",
   },
 ]
 
@@ -149,19 +240,51 @@ interface UserContextValue {
   setCurrentUser: (user: UserProfile) => void
   scopeMode: ScopeMode
   setScopeMode: (mode: ScopeMode) => void
-  /** Processes visible to the user given the current scope */
   visibleProcesses: ProcessUnit[]
-  /** All assigned (not scope filtered) */
   assignedProcesses: ProcessUnit[]
-  /** Whether the user has management-level view */
   isManagement: boolean
 }
 
 const UserContext = createContext<UserContextValue | null>(null)
 
 export function UserProvider({ children }: { children: ReactNode }) {
-  const [currentUser, setCurrentUser] = useState<UserProfile>(USER_PROFILES[0])
-  const [scopeMode, setScopeMode] = useState<ScopeMode>("my-processes")
+  const initialized = useRef(false)
+  
+  // Initialize deterministically (same on server and client) to avoid hydration
+  // mismatch. Cookie-persisted values are synced in the useEffect below after mount.
+  const [currentUser, setCurrentUserState] = useState<UserProfile>(USER_PROFILES[0])
+
+  const [scopeMode, setScopeModeState] = useState<ScopeMode>("my-processes")
+
+  useEffect(() => {
+    if (initialized.current) return
+    initialized.current = true
+    
+    const savedUserId = getCookie(USER_COOKIE_KEY)
+    if (savedUserId) {
+      const found = USER_PROFILES.find(u => u.id === savedUserId)
+      if (found && found.id !== currentUser.id) {
+        setCurrentUserState(found)
+      }
+    }
+    
+    const savedScope = getCookie(SCOPE_COOKIE_KEY)
+    if (savedScope && (savedScope === "all-processes" || savedScope === "my-processes")) {
+      if (savedScope !== scopeMode) {
+        setScopeModeState(savedScope)
+      }
+    }
+  }, [currentUser.id, scopeMode])
+
+  const setCurrentUser = (user: UserProfile) => {
+    setCurrentUserState(user)
+    setCookie(USER_COOKIE_KEY, user.id)
+  }
+
+  const setScopeMode = (mode: ScopeMode) => {
+    setScopeModeState(mode)
+    setCookie(SCOPE_COOKIE_KEY, mode)
+  }
 
   const assignedProcesses = ALL_PROCESSES.filter(p =>
     currentUser.assignedProcessIds.includes(p.id)
@@ -207,9 +330,30 @@ export function getProcessesByDivision(processes: ProcessUnit[]) {
 
 export function getRoleDescription(role: UserRole): string {
   switch (role) {
-    case "engineer": return "담당 공정(1~3개)에 대한 상세 모니터링 및 운전 관리"
-    case "team-lead": return "팀원 담당 공정 합산(~12개) 관리, 주요 이슈 대시보드 중심"
-    case "division-head": return "부문 내 전체 공정(~17개) 총괄, 경영지표 중심 대시보드"
-    case "plant-head": return "전체 50개 공정 총괄, KPI 요약 및 핵심 지표 중심"
+    case "engineer":
+      return "담당 공정의 실시간 운전 현���을 모니터링하고 이벤트에 대응합니다."
+    case "team-lead":
+      return "팀 내 공정 전체를 관리하고 팀원들의 업무를 조율합니다."
+    case "division-head":
+      return "부문 전체의 운전 현황을 모니터링하고 의사결정을 지원합니다."
+    case "plant-head":
+      return "전 공정의 운전 현황을 모니터링하고 전략적 의사결정을 수행합니다."
+    case "operator":
+      return "현장 운전 현황 모니터링에 집중합니다. 알람 및 실시간 데이터 확인이 주요 업무입니다."
+    case "equipment-engineer":
+      return "설비 건전성 및 Reliability 관점에서 회전기기, 정적기기를 모니터링합니다."
+    default:
+      return ""
+  }
+}
+
+// Helper to get department label for display
+export function getDepartmentLabel(dept?: Department): string {
+  switch (dept) {
+    case "production": return "생산팀"
+    case "equipment-tech": return "설비기술팀"
+    case "inspection": return "검사팀"
+    case "reliability": return "신뢰성팀"
+    default: return ""
   }
 }

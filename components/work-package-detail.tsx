@@ -115,7 +115,7 @@ export function WorkPackageDetail({ workPackage, onClose, onUpdate, readOnly = f
         <div className="flex-1">
           <Badge className={getTypeColor(workPackage.wpType)}>{wpTypeKorean[workPackage.wpType]}</Badge>
           <h3 className="text-lg font-semibold text-foreground mt-2">{workPackage.title}</h3>
-          {readOnly && <p className="text-xs text-muted-foreground mt-1">읽기 전용 (완료된 티켓)</p>}
+          {readOnly && <p className="text-xs text-muted-foreground mt-1">읽기 전용 (완료된 이벤트)</p>}
         </div>
         <Button variant="ghost" size="sm" onClick={onClose}>
           <X className="h-4 w-4" />

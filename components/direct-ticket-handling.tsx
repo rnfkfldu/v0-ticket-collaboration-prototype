@@ -54,7 +54,7 @@ export function DirectTicketHandling({ ticketId, ticketCategory, onCancel, onSuc
     }
 
     // Generate summary
-    let summary = `## ${ticketCategory} 티켓 처리 완료\n\n`
+    let summary = `## ${ticketCategory} 이벤트 처리 완료\n\n`
 
     template.forEach((field) => {
       const value = handlingData[field.label] || "기록 없음"
@@ -74,7 +74,7 @@ export function DirectTicketHandling({ ticketId, ticketCategory, onCancel, onSuc
       <div className="flex items-center justify-between border-b border-border pb-3">
         <div>
           <h3 className="text-lg font-semibold text-foreground">직접 처리</h3>
-          <p className="text-sm text-muted-foreground mt-1">{ticketCategory} 티켓에 대한 처리 내용을 작성해주세요</p>
+          <p className="text-sm text-muted-foreground mt-1">{ticketCategory} 이벤트에 대한 처리 내용을 작성해주세요</p>
         </div>
         <Button variant="ghost" size="sm" onClick={onCancel}>
           <X className="h-4 w-4" />
@@ -127,7 +127,7 @@ export function DirectTicketHandling({ ticketId, ticketCategory, onCancel, onSuc
       <div className="flex gap-2 pt-4 border-t border-border">
         <Button onClick={handleSubmit} className="gap-2">
           <CheckCircle className="h-4 w-4" />
-          티켓 완료
+          이벤트 완료
         </Button>
         <Button variant="outline" onClick={onCancel}>
           취소

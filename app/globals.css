@@ -4,53 +4,53 @@
 @custom-variant dark (&:is(.dark *));
 
 :root {
-  /* Updated to light theme matching the reference image */
-  --background: oklch(0.94 0.005 85); /* Light gray/beige background */
-  --foreground: oklch(0.25 0.01 280); /* Dark text */
-  --card: oklch(1 0 0); /* Pure white cards */
-  --card-highlight: oklch(0.97 0.005 85); /* Very light gray for hover */
-  --card-foreground: oklch(0.25 0.01 280); /* Dark text on cards */
+  /* Industrial Platform Theme - GS Caltex Reference */
+  --background: oklch(0.97 0.003 240); /* Very light gray-blue */
+  --foreground: oklch(0.20 0.01 260); /* Near-black text */
+  --card: oklch(1 0 0); /* Pure white */
+  --card-highlight: oklch(0.97 0.005 180); /* Very light teal tint */
+  --card-foreground: oklch(0.20 0.01 260);
   --popover: oklch(1 0 0);
-  --popover-foreground: oklch(0.25 0.01 280);
-  --primary: oklch(0.58 0.15 185); /* Teal/cyan primary color */
-  --primary-foreground: oklch(1 0 0); /* White text on teal */
-  --secondary: oklch(0.88 0.005 85);
-  --secondary-foreground: oklch(0.25 0.01 280);
-  --muted: oklch(0.88 0.005 85);
-  --muted-foreground: oklch(0.5 0.01 280);
-  --accent: oklch(0.58 0.15 185); /* Teal accent */
+  --popover-foreground: oklch(0.20 0.01 260);
+  --primary: oklch(0.52 0.14 175); /* Deep teal #00897B */
+  --primary-foreground: oklch(1 0 0);
+  --secondary: oklch(0.94 0.005 240);
+  --secondary-foreground: oklch(0.25 0.01 260);
+  --muted: oklch(0.94 0.005 240);
+  --muted-foreground: oklch(0.50 0.01 260);
+  --accent: oklch(0.52 0.14 175); /* Teal accent */
   --accent-foreground: oklch(1 0 0);
-  --destructive: oklch(0.55 0.22 25); /* Red for danger */
+  --destructive: oklch(0.55 0.22 25);
   --destructive-foreground: oklch(1 0 0);
-  --border: oklch(0.85 0.005 85); /* Light gray borders */
-  --input: oklch(0.85 0.005 85);
-  --ring: oklch(0.58 0.15 185); /* Teal focus ring */
+  --border: oklch(0.88 0.005 240);
+  --input: oklch(0.88 0.005 240);
+  --ring: oklch(0.52 0.14 175);
 
-  /* Work Package Type Colors - adjusted for light theme */
-  --status-analysis: oklch(0.55 0.2 240); /* Blue */
+  /* Status Colors */
+  --status-analysis: oklch(0.55 0.2 240);
   --status-analysis-foreground: oklch(1 0 0);
-  --status-decision: oklch(0.6 0.18 285); /* Purple */
+  --status-decision: oklch(0.6 0.18 285);
   --status-decision-foreground: oklch(1 0 0);
-  --status-execution: oklch(0.6 0.22 40); /* Orange */
+  --status-execution: oklch(0.6 0.22 40);
   --status-execution-foreground: oklch(1 0 0);
-  --status-validation: oklch(0.55 0.18 160); /* Green */
+  --status-validation: oklch(0.55 0.18 160);
   --status-validation-foreground: oklch(1 0 0);
 
-  --chart-1: oklch(0.55 0.2 240);
-  --chart-2: oklch(0.6 0.18 285);
-  --chart-3: oklch(0.6 0.22 40);
-  --chart-4: oklch(0.55 0.18 160);
-  --chart-5: oklch(0.55 0.15 200);
+  --chart-1: oklch(0.52 0.14 175);
+  --chart-2: oklch(0.55 0.2 240);
+  --chart-3: oklch(0.60 0.22 40);
+  --chart-4: oklch(0.55 0.18 310);
+  --chart-5: oklch(0.60 0.18 80);
 
-  --radius: 0.5rem;
+  --radius: 0.375rem;
   --sidebar: oklch(1 0 0);
-  --sidebar-foreground: oklch(0.25 0.01 280);
-  --sidebar-primary: oklch(0.58 0.15 185);
+  --sidebar-foreground: oklch(0.25 0.01 260);
+  --sidebar-primary: oklch(0.52 0.14 175);
   --sidebar-primary-foreground: oklch(1 0 0);
-  --sidebar-accent: oklch(0.97 0.005 85);
-  --sidebar-accent-foreground: oklch(0.25 0.01 280);
-  --sidebar-border: oklch(0.85 0.005 85);
-  --sidebar-ring: oklch(0.58 0.15 185);
+  --sidebar-accent: oklch(0.94 0.02 175); /* Light teal tint for active items */
+  --sidebar-accent-foreground: oklch(0.30 0.08 175);
+  --sidebar-border: oklch(0.90 0.005 240);
+  --sidebar-ring: oklch(0.52 0.14 175);
 }
 
 .dark {
@@ -146,6 +146,25 @@
   }
   body {
     @apply bg-background text-foreground antialiased;
+  }
+
+  /* Ensure all interactive elements show pointer cursor */
+  button,
+  [role="button"],
+  [type="button"],
+  [type="submit"],
+  [type="reset"],
+  a[href],
+  select,
+  summary,
+  [tabindex]:not([tabindex="-1"]),
+  [onclick] {
+    cursor: pointer;
+  }
+  
+  /* Clickable elements with onClick in React */
+  [data-clickable="true"] {
+    cursor: pointer;
   }
 
   /* 텍스트 가독성 개선을 위한 기본 스타일 추가 */

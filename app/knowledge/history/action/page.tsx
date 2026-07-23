@@ -154,7 +154,7 @@ export default function ActionHistoryPage() {
                 Action History
               </h1>
               <p className="text-sm text-muted-foreground mt-1">
-                티켓 기반 조치 이력 및 결과 아카이브
+                이벤트 기반 조치 이력 및 결과 아카이브
               </p>
             </div>
           </div>
@@ -169,7 +169,7 @@ export default function ActionHistoryPage() {
                   <div className="relative">
                     <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
                     <Input
-                      placeholder="티켓 ID, 제목 검색..."
+                      placeholder="이벤트 ID, 제목 검색..."
                       value={searchQuery}
                       onChange={(e) => setSearchQuery(e.target.value)}
                       className="pl-10"

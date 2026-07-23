@@ -10,6 +10,7 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs"
 import { cn } from "@/lib/utils"
 import { useUser, getProcessesByDivision, type Division } from "@/lib/user-context"
+import { KpiDimensionFilter, DEFAULT_KPI_DIMENSIONS, type KpiDimensions } from "@/components/kpi-dimension-filter"
 import {
   TrendingUp,
   TrendingDown,
@@ -138,6 +139,7 @@ export default function MonthlyReviewPage() {
   const [selectedMonth, setSelectedMonth] = useState("2025-01")
   const [selectedDivision, setSelectedDivision] = useState<"all" | Division>("all")
   const [activeTab, setActiveTab] = useState("overview")
+  const [kpiDimensions, setKpiDimensions] = useState<KpiDimensions>(DEFAULT_KPI_DIMENSIONS)
 
   const byDivision = getProcessesByDivision(visibleProcesses)
 
@@ -163,13 +165,9 @@ export default function MonthlyReviewPage() {
         <header className="border-b bg-background/95 backdrop-blur px-6 py-4">
           <div className="flex items-center justify-between">
             <div>
-              <h1 className="text-2xl font-bold text-foreground text-balance">Monthly Operation Review</h1>
-              <p className="text-sm text-muted-foreground">
-                {scopeMode === "my-processes"
-                  ? `${currentUser.roleLabel} ${currentUser.name} - 담당 공정 월간 리뷰`
-                  : "전체 공정 월간 운전 리뷰"}
-              </p>
-            </div>
+              <h1 className="text-2xl font-bold text-foreground text-balance">월간 운전 리뷰</h1>
+  <p className="text-sm text-muted-foreground">월간 운전 실적 및 KPI 리뷰</p>
+  </div>
             <div className="flex items-center gap-3">
               <Select value={selectedDivision} onValueChange={(v) => setSelectedDivision(v as "all" | Division)}>
                 <SelectTrigger className="w-[160px]"><SelectValue /></SelectTrigger>
@@ -192,8 +190,11 @@ export default function MonthlyReviewPage() {
           </div>
         </header>
 
-        <main className="flex-1 overflow-auto p-6">
-          <Tabs value={activeTab} onValueChange={setActiveTab}>
+  <main className="flex-1 overflow-auto p-6">
+  <div className="mb-4 p-3 bg-muted/30 border rounded-lg">
+    <KpiDimensionFilter dimensions={kpiDimensions} onChange={setKpiDimensions} />
+  </div>
+  <Tabs value={activeTab} onValueChange={setActiveTab}>
             <TabsList className="mb-6">
               <TabsTrigger value="overview">Plant Overview</TabsTrigger>
               <TabsTrigger value="unit-detail">Unit Detail</TabsTrigger>
@@ -302,7 +303,7 @@ export default function MonthlyReviewPage() {
 
               {/* Ticket throughput */}
               <Card>
-                <CardHeader className="pb-2"><CardTitle className="text-sm">티켓 처리 현황 (6개월)</CardTitle></CardHeader>
+                <CardHeader className="pb-2"><CardTitle className="text-sm">이벤트 처리 현황 (6개월)</CardTitle></CardHeader>
                 <CardContent>
                   <div className="h-48">
                     <ResponsiveContainer width="100%" height="100%">

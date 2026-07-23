@@ -9,6 +9,14 @@
     "start": "next start"
   },
   "dependencies": {
+    "@tiptap/extension-image": "^2.10.3",
+    "@tiptap/extension-link": "^2.10.3",
+    "@tiptap/extension-placeholder": "^2.10.3",
+    "@tiptap/extension-text-align": "^2.10.3",
+    "@tiptap/extension-underline": "^2.10.3",
+    "@tiptap/pm": "^2.10.3",
+    "@tiptap/react": "^2.10.3",
+    "@tiptap/starter-kit": "^2.10.3",
     "@hookform/resolvers": "^3.10.0",
     "@radix-ui/react-accordion": "1.2.2",
     "@radix-ui/react-alert-dialog": "1.1.4",

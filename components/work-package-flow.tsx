@@ -13,7 +13,7 @@ import { addWorkPackageToTicket } from "@/lib/storage"
 interface WorkPackageFlowProps {
   ticket: Ticket
   onUpdate?: () => void
-  readOnly?: boolean // 읽기 전용 모드 추가 (완료된 티켓용)
+  readOnly?: boolean // 읽기 전용 모드 추가 (완료된 이벤트용)
 }
 
 export function WorkPackageFlow({ ticket, onUpdate, readOnly = false }: WorkPackageFlowProps) {

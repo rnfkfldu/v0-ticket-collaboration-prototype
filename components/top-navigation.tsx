@@ -49,59 +49,73 @@ import { Badge } from "@/components/ui/badge"
 import { Input } from "@/components/ui/input"
 import { ScrollArea } from "@/components/ui/scroll-area"
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog"
-import { useUser, USER_PROFILES, getRoleDescription } from "@/lib/user-context"
+import { useUser, USER_PROFILES, getRoleDescription, getDepartmentLabel, type UserProfile } from "@/lib/user-context"
+import { Wrench } from "lucide-react"
 
-const mainMenus = [
+interface MainMenuItem {
+  id: string
+  label: string
+  href: string
+  icon: React.ElementType
+  description: string
+  requiresFlag?: keyof Pick<UserProfile, "showStrategicTasks" | "showDataSettings" | "showOptimization">
+}
+
+const mainMenus: MainMenuItem[] = [
   { 
     id: "operations",
-    label: "Operations", 
+    label: "운전 현황", 
     href: "/operations",
     icon: Activity,
     description: "실시간 운전 현황 모니터링"
   },
   { 
     id: "actions",
-    label: "Actions", 
+    label: "운전 조치", 
     href: "/alerts",
     icon: Zap,
-    description: "티켓 및 업무 관리"
+    description: "이벤트 및 조치 관리"
   },
   { 
     id: "optimization",
-    label: "Optimization", 
+    label: "공정 최적화", 
     href: "/optimization/ai-ml",
     icon: TrendingUp,
-    description: "공정 최적화 및 분석"
+    description: "공정 최적화 및 인사이트",
+    requiresFlag: "showOptimization"
   },
-  { 
-    id: "roadmap",
-    label: "Workbench", 
-    href: "/roadmap",
-    icon: Target,
-    description: "TA Worklist 및 개선과제 관리"
-  },
+  
   { 
     id: "knowledge",
-    label: "Knowledge", 
-    href: "/knowledge",
+    label: "지식/문서", 
+    href: "/knowledge/search",
     icon: BookOpen,
-    description: "지식 관리 및 검색"
+    description: "문서 검색 및 지식 관리"
   },
   { 
     id: "data-admin",
-    label: "Data & Admin", 
+    label: "데이터/설정", 
     href: "/admin",
     icon: Database,
-    description: "데이터 관리 및 시스템 설정"
+    description: "데이터 관리 및 시스템 설정",
+    requiresFlag: "showDataSettings"
   },
   { 
     id: "review",
-    label: "Review", 
+    label: "리뷰/KPI", 
     href: "/review/monthly",
     icon: BarChart3,
-    description: "운전 리뷰 및 거버넌스"
+    description: "운전 리뷰 및 KPI 거버넌스"
   },
 ]
+
+// Get filtered menus based on user role
+function getFilteredMenus(user: UserProfile): MainMenuItem[] {
+  return mainMenus.filter(menu => {
+    if (!menu.requiresFlag) return true
+    return user[menu.requiresFlag] !== false
+  })
+}
 
 // 샘플 알람 데이터
 const recentAlerts = [
@@ -151,7 +165,7 @@ export function TopNavigation() {
     {
       id: "1",
       role: "assistant",
-      content: "안녕하세요! OOP Assistant입니다. 공정 운전 현황, 데이터 분석, 티켓 관리 등에 대해 질문해 주세요.",
+      content: "안녕하세요! OOP Assistant입니다. 공정 운전 현황, 데이터 분석, 이벤트 관리 등에 대해 질문해 주세요.",
       timestamp: new Date().toLocaleTimeString("ko-KR", { hour: "2-digit", minute: "2-digit" })
     }
   ])
@@ -171,6 +185,7 @@ export function TopNavigation() {
   }
 
   const activeMenu = getActiveMenu()
+  const filteredMenus = getFilteredMenus(currentUser)
 
   const handleSendMessage = () => {
     if (!chatInput.trim()) return
@@ -194,8 +209,8 @@ export function TopNavigation() {
         responseContent = "현재 주요 온도 현황입니다:\n\n- HCR Reactor Inlet: 392°C (Guide: 390°C) - 주의\n- VDU Column Top: 125°C (정상)\n- CDU Preheater Outlet: 365°C (정상)\n\nHCR Reactor Inlet 온도가 Guide 대비 2°C 높은 상황입니다. 상세 트렌드를 확인하시겠습니까?"
       } else if (lowerInput.includes("알람") || lowerInput.includes("alert")) {
         responseContent = "현재 활성 알람 현황:\n\n- Critical: 1건 (HCR Reactor Temp High)\n- Warning: 2건\n- Standing Alert: 3건\n\nMy Alert 페이지에서 상세 내용을 확인하실 수 있습니다."
-      } else if (lowerInput.includes("티켓") || lowerInput.includes("ticket")) {
-        responseContent = "현재 티켓 현황입니다:\n\n- Open: 5건\n- In Progress: 8건\n- 마감 임박 (7일 이내): 3건\n\n가장 우선순위가 높은 티켓은 'HCR 촉매 성능 저하 분석' (P1)입니다."
+      } else if (lowerInput.includes("이벤트") || lowerInput.includes("ticket")) {
+        responseContent = "현재 이벤트 현황입니다:\n\n- Open: 5건\n- In Progress: 8건\n- 마감 임박 (7일 이내): 3건\n\n가장 우선순위가 높은 이벤트은 'HCR 촉매 성능 저하 분석' (P1)입니다."
       } else if (lowerInput.includes("촉매") || lowerInput.includes("catalyst")) {
         responseContent = "HCR 촉매 현황 요약:\n\n- 현재 WABT: 385°C\n- SOR WABT: 370°C\n- EOR Target: 400°C\n- 예상 수명: 약 8개월\n\n최근 WABT 상승률이 증가하고 있어 주의가 필요합니다."
       } else {
@@ -229,33 +244,33 @@ export function TopNavigation() {
   }
 
   return (
-    <header className="sticky top-0 z-50 w-full border-b bg-background/95 backdrop-blur supports-[backdrop-filter]:bg-background/60">
-      <div className="flex h-14 items-center px-4">
-        {/* 로고 - OOP */}
-        <Link href="/" className="flex items-center gap-2 mr-8">
-          <div className="w-8 h-8 rounded-lg bg-primary flex items-center justify-center">
-            <span className="text-primary-foreground font-bold text-sm">OP</span>
+    <header className="sticky top-0 z-50 w-full border-b border-[#00695C] bg-[#00897B]">
+      <div className="flex h-12 items-center px-4">
+        {/* 로고 */}
+        <Link href="/" className="flex items-center gap-2.5 mr-8">
+          <div className="w-7 h-7 rounded bg-white/20 flex items-center justify-center">
+            <span className="text-white font-bold text-xs">OOP</span>
           </div>
-          <span className="font-semibold text-lg hidden md:block">OOP</span>
+          <span className="font-semibold text-sm text-white hidden md:block tracking-wide">공정운영최적화플랫폼</span>
         </Link>
 
         {/* 메인 메뉴 */}
-        <nav className="flex items-center gap-1 flex-1">
-          {mainMenus.map((menu) => {
+        <nav className="flex items-center gap-0.5 flex-1">
+          {filteredMenus.map((menu) => {
             const Icon = menu.icon
             const isActive = activeMenu === menu.id
             return (
               <Link
                 key={menu.id}
                 href={menu.href}
+                prefetch={true}
                 className={cn(
-                  "flex items-center gap-2 px-4 py-2 rounded-md text-sm font-medium transition-colors",
+                  "flex items-center gap-1.5 px-3.5 py-1.5 rounded text-sm font-medium",
                   isActive 
-                    ? "bg-primary text-primary-foreground" 
-                    : "text-muted-foreground hover:text-foreground hover:bg-muted"
+                    ? "bg-white/20 text-white" 
+                    : "text-white/70 hover:text-white hover:bg-white/10"
                 )}
               >
-                <Icon className="h-4 w-4" />
                 <span>{menu.label}</span>
               </Link>
             )
@@ -264,24 +279,23 @@ export function TopNavigation() {
 
         {/* 우측 액션 */}
         <div className="flex items-center gap-2">
-          {/* Event Request 버튼 - new-ticket 페이지로 이동 */}
+          {/* 이벤트 생성 버튼 */}
           <Link href="/new-ticket">
             <Button 
-              variant="default" 
               size="sm" 
-              className="gap-2"
+              className="gap-1.5 bg-white/20 hover:bg-white/30 text-white border-0 h-8 text-xs"
             >
-              <Plus className="h-4 w-4" />
-              <span className="hidden md:inline">Event Request</span>
+              <Plus className="h-3.5 w-3.5" />
+              <span className="hidden md:inline">이벤트 생성</span>
             </Button>
           </Link>
 
           {/* OOP Assistant 버튼 */}
           <Sheet open={isAssistantOpen} onOpenChange={setIsAssistantOpen}>
             <SheetTrigger asChild>
-              <Button variant="outline" size="sm" className="gap-2 bg-transparent">
-                <Bot className="h-4 w-4" />
-                <span className="hidden md:inline">OOP Assistant</span>
+              <Button size="sm" className="gap-1.5 bg-white/10 hover:bg-white/20 text-white border-0 h-8 text-xs">
+                <Bot className="h-3.5 w-3.5" />
+                <span className="hidden md:inline">AI Chat</span>
               </Button>
             </SheetTrigger>
             <SheetContent className="w-[400px] sm:w-[500px] flex flex-col p-0">
@@ -369,43 +383,45 @@ export function TopNavigation() {
                     variant="outline" 
                     size="sm" 
                     className="text-xs bg-transparent"
-                    onClick={() => setChatInput("내 티켓 현황")}
+                    onClick={() => setChatInput("내 이벤트 현황")}
                   >
-                    티켓 현황
+                    이벤트 현황
                   </Button>
                 </div>
               </div>
             </SheetContent>
           </Sheet>
 
-          {/* OOP Outside - 외부 접근용 (지구본 아이콘) */}
+          {/* 외부 협업 */}
           <Button 
             variant="ghost" 
             size="icon"
+            className="text-white/70 hover:text-white hover:bg-white/10 h-8 w-8"
             onClick={() => router.push("/oop-outside")}
-            title="OOP Outside (3rd Party 접근)"
+            title="외부 협업"
           >
-            <Globe className="h-5 w-5" />
+            <Globe className="h-4 w-4" />
           </Button>
 
-          {/* 게시판 - 클릭 시 왼쪽 사이드바 메뉴로 이동 */}
+          {/* 게시판 */}
           <Button 
             variant="ghost" 
             size="icon"
+            className="text-white/70 hover:text-white hover:bg-white/10 h-8 w-8"
             onClick={() => router.push("/help/notice")}
             title="게시판"
           >
-            <CircleHelp className="h-5 w-5" />
+            <CircleHelp className="h-4 w-4" />
           </Button>
 
-          {/* 알림 - Popover로 Alert 정보 표시 */}
+          {/* 알림 */}
           <Popover>
             <PopoverTrigger asChild>
-              <Button variant="ghost" size="icon" className="relative">
-                <Bell className="h-5 w-5" />
-                <Badge className="absolute -top-1 -right-1 h-5 w-5 flex items-center justify-center p-0 text-xs">
+              <Button variant="ghost" size="icon" className="relative text-white/70 hover:text-white hover:bg-white/10 h-8 w-8">
+                <Bell className="h-4 w-4" />
+                <span className="absolute -top-0.5 -right-0.5 h-4 w-4 flex items-center justify-center rounded-full bg-red-500 text-white text-[10px] font-bold">
                   {recentAlerts.length}
-                </Badge>
+                </span>
               </Button>
             </PopoverTrigger>
             <PopoverContent className="w-96 p-0" align="end">
@@ -471,15 +487,14 @@ export function TopNavigation() {
           {/* 사용자 메뉴 */}
           <DropdownMenu>
             <DropdownMenuTrigger asChild>
-              <Button variant="ghost" className="gap-2">
-                <div className="w-7 h-7 rounded-full bg-primary/10 flex items-center justify-center">
-                  <User className="h-4 w-4" />
+              <Button variant="ghost" className="gap-2 text-white/80 hover:text-white hover:bg-white/10 h-8">
+                <div className="w-6 h-6 rounded-full bg-white/20 flex items-center justify-center">
+                  <User className="h-3.5 w-3.5 text-white" />
                 </div>
                 <div className="hidden md:flex flex-col items-start">
-                  <span className="text-sm leading-tight">{currentUser.name}</span>
-                  <span className="text-xs text-muted-foreground leading-tight">{currentUser.roleLabel}</span>
+                  <span className="text-xs leading-tight text-white">{currentUser.name}</span>
                 </div>
-                <ChevronDown className="h-4 w-4" />
+                <ChevronDown className="h-3 w-3 text-white/60" />
               </Button>
             </DropdownMenuTrigger>
             <DropdownMenuContent align="end" className="w-56">
@@ -506,51 +521,53 @@ export function TopNavigation() {
           <DialogHeader>
             <DialogTitle>계정 전환</DialogTitle>
           </DialogHeader>
-          <div className="space-y-3 py-2">
-            {USER_PROFILES.map((profile) => {
-              const isActive = currentUser.id === profile.id
-              return (
-                <button
-                  key={profile.id}
-                  className={cn(
-                    "w-full text-left border rounded-lg p-4 transition-colors cursor-pointer",
-                    isActive
-                      ? "border-primary bg-primary/5"
-                      : "hover:bg-muted/50"
-                  )}
-                  onClick={() => {
-                    setCurrentUser(profile)
-                    setShowUserSwitchDialog(false)
-                  }}
-                >
-                  <div className="flex items-center justify-between mb-1">
-                    <div className="flex items-center gap-3">
-                      <div className={cn(
-                        "w-8 h-8 rounded-full flex items-center justify-center text-xs font-bold",
-                        isActive ? "bg-primary text-primary-foreground" : "bg-muted text-muted-foreground"
-                      )}>
-                        {profile.name.charAt(0)}
-                      </div>
-                      <div>
-                        <p className="font-medium text-sm">{profile.name}</p>
-                        <p className="text-xs text-muted-foreground">{profile.roleLabel}</p>
-                      </div>
-                    </div>
-                    {isActive && (
-                      <Badge variant="secondary" className="text-xs">현재</Badge>
+          <ScrollArea className="max-h-[60vh] pr-4">
+            <div className="space-y-3 py-2">
+              {USER_PROFILES.map((profile) => {
+                const isActive = currentUser.id === profile.id
+                return (
+                  <button
+                    key={profile.id}
+                    className={cn(
+                      "w-full text-left border rounded-lg p-4 transition-colors cursor-pointer",
+                      isActive
+                        ? "border-primary bg-primary/5"
+                        : "hover:bg-muted/50"
                     )}
-                  </div>
-                  <p className="text-xs text-muted-foreground mt-2 ml-11">
-                    {getRoleDescription(profile.role)}
-                  </p>
-                  <p className="text-xs text-muted-foreground mt-1 ml-11">
-                    담당 공정: {profile.assignedProcessIds.length}개
-                    {profile.division && ` | ${profile.division} 부문`}
-                  </p>
-                </button>
-              )
-            })}
-          </div>
+                    onClick={() => {
+                      setCurrentUser(profile)
+                      setShowUserSwitchDialog(false)
+                    }}
+                  >
+                    <div className="flex items-center justify-between mb-1">
+                      <div className="flex items-center gap-3">
+                        <div className={cn(
+                          "w-8 h-8 rounded-full flex items-center justify-center text-xs font-bold",
+                          isActive ? "bg-primary text-primary-foreground" : "bg-muted text-muted-foreground"
+                        )}>
+                          {profile.name.charAt(0)}
+                        </div>
+                        <div>
+                          <p className="font-medium text-sm">{profile.name}</p>
+                          <p className="text-xs text-muted-foreground">{profile.roleLabel}</p>
+                        </div>
+                      </div>
+                      {isActive && (
+                        <Badge variant="secondary" className="text-xs">현재</Badge>
+                      )}
+                    </div>
+                    <p className="text-xs text-muted-foreground mt-2 ml-11">
+                      {getRoleDescription(profile.role)}
+                    </p>
+                    <p className="text-xs text-muted-foreground mt-1 ml-11">
+                      담당 공정: {profile.assignedProcessIds.length}개
+                      {profile.division && ` | ${profile.division} 부문`}
+                    </p>
+                  </button>
+                )
+              })}
+            </div>
+          </ScrollArea>
         </DialogContent>
       </Dialog>
     </header>

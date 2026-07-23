@@ -51,7 +51,7 @@ const TYPE_LABELS: Record<string, { label: string; color: string }> = {
   "closure-report": { label: "종료 Report", color: "bg-blue-50 text-blue-700 border-blue-200" },
   "monthly-report": { label: "월간 Report", color: "bg-green-50 text-green-700 border-green-200" },
   "analysis": { label: "분석", color: "bg-purple-50 text-purple-700 border-purple-200" },
-  "ticket-report": { label: "티켓 Report", color: "bg-amber-50 text-amber-700 border-amber-200" },
+  "ticket-report": { label: "이벤트 Report", color: "bg-amber-50 text-amber-700 border-amber-200" },
   "review": { label: "리뷰", color: "bg-teal-50 text-teal-700 border-teal-200" },
   "attachment": { label: "첨부파일", color: "bg-gray-50 text-gray-700 border-gray-200" },
 }
@@ -77,7 +77,7 @@ export default function KnowledgeAssetsPage() {
         <header className="border-b border-border bg-card">
           <div className="px-6 py-4">
             <h1 className="text-lg font-semibold">Knowledge Asset</h1>
-            <p className="text-sm text-muted-foreground mt-1">OOP에서 생성된 티켓, 레포트, 분석 자료가 체계화된 형태로 자동 저장됩니다</p>
+            <p className="text-sm text-muted-foreground mt-1">OOP에서 생성된 이벤트, 레포트, 분석 자료가 체계화된 형태로 자동 저장됩니다</p>
           </div>
         </header>
 
@@ -191,7 +191,7 @@ export default function KnowledgeAssetsPage() {
                 {selectedAsset.relatedTicketId && (
                   <div className="p-3 bg-primary/5 border border-primary/20 rounded-lg flex items-center gap-2 text-sm">
                     <Link className="h-4 w-4 text-primary" />
-                    <span>연결 티켓: <strong className="text-primary">#{selectedAsset.relatedTicketId}</strong> {selectedAsset.relatedTicketTitle}</span>
+                    <span>연결 이벤트: <strong className="text-primary">#{selectedAsset.relatedTicketId}</strong> {selectedAsset.relatedTicketTitle}</span>
                   </div>
                 )}
                 <div className="flex items-center gap-1.5 flex-wrap">

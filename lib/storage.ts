@@ -1,10 +1,71 @@
 import type { Ticket, WorkPackage, WorkPackageLog, WorkPackageAttachment, TicketMessage } from "./types"
+import type { WorkItem } from "./workbench-data"
 import { getMockTickets } from "./mock-data"
+import { INITIAL_WORK_ITEMS } from "./workbench-data"
 
 const STORAGE_KEY = "tickets"
+const STORAGE_VERSION_KEY = "tickets_version"
+const CURRENT_VERSION = "v4-quick-inquiry"
+
+// Worklist storage
+const WORKLIST_STORAGE_KEY = "worklists"
+const WORKLIST_VERSION_KEY = "worklists_version"
+const WORKLIST_CURRENT_VERSION = "v1-worklist"
+
+export function getWorklists(): WorkItem[] {
+  if (typeof window === "undefined") return INITIAL_WORK_ITEMS
+
+  const storedVersion = localStorage.getItem(WORKLIST_VERSION_KEY)
+  if (storedVersion !== WORKLIST_CURRENT_VERSION) {
+    localStorage.setItem(WORKLIST_STORAGE_KEY, JSON.stringify(INITIAL_WORK_ITEMS))
+    localStorage.setItem(WORKLIST_VERSION_KEY, WORKLIST_CURRENT_VERSION)
+    return INITIAL_WORK_ITEMS
+  }
+
+  const stored = localStorage.getItem(WORKLIST_STORAGE_KEY)
+  if (!stored) {
+    localStorage.setItem(WORKLIST_STORAGE_KEY, JSON.stringify(INITIAL_WORK_ITEMS))
+    return INITIAL_WORK_ITEMS
+  }
+
+  return JSON.parse(stored)
+}
+
+export function saveWorklist(worklist: WorkItem): void {
+  const worklists = getWorklists()
+  worklists.unshift(worklist)
+  localStorage.setItem(WORKLIST_STORAGE_KEY, JSON.stringify(worklists))
+}
+
+export function updateWorklist(worklistId: string, updates: Partial<WorkItem>): void {
+  const worklists = getWorklists()
+  const index = worklists.findIndex((w) => w.id === worklistId)
+  if (index !== -1) {
+    worklists[index] = { ...worklists[index], ...updates }
+    localStorage.setItem(WORKLIST_STORAGE_KEY, JSON.stringify(worklists))
+  }
+}
+
+export function getWorklistById(id: string): WorkItem | undefined {
+  return getWorklists().find((w) => w.id === id)
+}
+
+export function deleteWorklist(worklistId: string): void {
+  const worklists = getWorklists()
+  const filtered = worklists.filter((w) => w.id !== worklistId)
+  localStorage.setItem(WORKLIST_STORAGE_KEY, JSON.stringify(filtered))
+}
 
 export function getTickets(): Ticket[] {
   if (typeof window === "undefined") return getMockTickets()
+
+  const storedVersion = localStorage.getItem(STORAGE_VERSION_KEY)
+  if (storedVersion !== CURRENT_VERSION) {
+    const mockTickets = getMockTickets()
+    localStorage.setItem(STORAGE_KEY, JSON.stringify(mockTickets))
+    localStorage.setItem(STORAGE_VERSION_KEY, CURRENT_VERSION)
+    return mockTickets
+  }
 
   const stored = localStorage.getItem(STORAGE_KEY)
   if (!stored) {
@@ -20,8 +81,10 @@ export function resetSystem(): void {
   if (typeof window === "undefined") return
 
   localStorage.removeItem(STORAGE_KEY)
+  localStorage.removeItem(STORAGE_VERSION_KEY)
   const mockTickets = getMockTickets()
   localStorage.setItem(STORAGE_KEY, JSON.stringify(mockTickets))
+  localStorage.setItem(STORAGE_VERSION_KEY, CURRENT_VERSION)
 }
 
 export function saveTicket(ticket: Ticket): void {
@@ -186,7 +249,7 @@ export function addLogToWorkPackage(
 
       wp.logs.push(newLog)
 
-      // 티켓 히스토리에도 메시지 추가
+      // 이벤트 히스토리에도 메시지 추가
       const historyMessage: TicketMessage = {
         id: `msg-${Date.now()}`,
         ticketId,
@@ -268,7 +331,7 @@ export function closeTicket(ticketId: string): void {
               return `**${wp.wpType} - ${wp.title}** (${wp.ownerTeam})\nStatus: ${wp.status}\n${logSummary}\nAttachments: ${wp.attachments?.length || 0} file(s)`
             })
             .join("\n\n")
-        : "티켓이 종결되었습니다."
+        : "이벤트이 종결되었습니다."
 
     tickets[index].status = "Closed"
     tickets[index].closedDate = new Date().toISOString()
@@ -405,7 +468,7 @@ export function addInquiryToTicket(ticketId: string, content: string, author: st
     content,
   })
 
-  // 티켓 상태를 다시 Open으로 변경
+  // 이벤트 상태를 다시 Open으로 변경
   const tickets = getTickets()
   const index = tickets.findIndex((t) => t.id === ticketId)
   if (index !== -1) {

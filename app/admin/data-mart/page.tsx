@@ -146,7 +146,7 @@ export default function DataMartPage() {
       <div className="p-6 space-y-6">
         <div className="flex items-center justify-between">
           <div>
-            <h1 className="text-2xl font-bold">Data Mart</h1>
+            <h1 className="text-2xl font-bold">데이터 마트</h1>
             <p className="text-muted-foreground">OOP 내부 생성 운전 데이터 카탈로그</p>
           </div>
           <div className="flex items-center gap-3">

@@ -18,7 +18,7 @@ export default function ProcessInterconnectionPage() {
     <AppShell>
       <div className="p-6 space-y-6">
         <div>
-          <h1 className="text-2xl font-bold">Process Interconnection</h1>
+          <h1 className="text-2xl font-bold">공정간 연계</h1>
           <p className="text-muted-foreground">공정 간 스트림 연결 현황</p>
         </div>
 

@@ -57,7 +57,7 @@ export function NotificationPanel() {
     setShowCloseDialog(false)
     setSelectedTicket(null)
     loadNotifications()
-    alert("티켓이 종결되었습니다")
+    alert("이벤트이 종결되었습니다")
   }
 
   const handleInquiry = () => {
@@ -102,7 +102,7 @@ export function NotificationPanel() {
             <SheetTitle>알람</SheetTitle>
             <SheetDescription>
               {filterType === "unread"
-                ? `새로운 의견이 도착한 티켓 ${unreadNotifications.length}개`
+                ? `새로운 의견이 도착한 이벤트 ${unreadNotifications.length}개`
                 : `전체 알람 ${allNotifications.length}개`}
             </SheetDescription>
           </SheetHeader>
@@ -159,7 +159,7 @@ export function NotificationPanel() {
                       }}
                     >
                       <CheckCircle className="h-3 w-3" />
-                      티켓 종결
+                      이벤트 종결
                     </Button>
                     <Button
                       size="sm"
@@ -185,14 +185,14 @@ export function NotificationPanel() {
       <AlertDialog open={showCloseDialog} onOpenChange={setShowCloseDialog}>
         <AlertDialogContent>
           <AlertDialogHeader>
-            <AlertDialogTitle>티켓 종결</AlertDialogTitle>
+            <AlertDialogTitle>이벤트 종결</AlertDialogTitle>
             <AlertDialogDescription>
               {selectedTicket?.title}을(를) 종결하시겠습니까? 모든 작업이 완료되었는지 확인해주세요.
             </AlertDialogDescription>
           </AlertDialogHeader>
           <AlertDialogFooter>
             <AlertDialogCancel>취소</AlertDialogCancel>
-            <AlertDialogAction onClick={handleCloseTicket}>티켓 종결</AlertDialogAction>
+            <AlertDialogAction onClick={handleCloseTicket}>이벤트 종결</AlertDialogAction>
           </AlertDialogFooter>
         </AlertDialogContent>
       </AlertDialog>

@@ -268,9 +268,9 @@ export default function AlertHistoryDetailPage({ params }: { params: Promise<{ i
                 {entry.relatedTicket && (
                   <div className="mt-4 p-3 bg-white rounded-lg border flex items-center gap-2">
                     <FileText className="h-4 w-4 text-blue-600" />
-                    <span className="text-sm">관련 티켓: {entry.relatedTicket}</span>
+                    <span className="text-sm">관련 이벤트: {entry.relatedTicket}</span>
                     <Button variant="link" size="sm" className="text-blue-600 p-0 h-auto ml-auto">
-                      티켓 보기
+                      이벤트 보기
                     </Button>
                   </div>
                 )}

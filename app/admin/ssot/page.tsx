@@ -160,7 +160,7 @@ export default function SSoTManagementPage() {
         <header className="border-b border-border bg-card">
           <div className="px-6 py-4 flex items-center justify-between">
             <div>
-              <h1 className="text-lg font-semibold">SSoT Management</h1>
+              <h1 className="text-lg font-semibold">SSoT 관리</h1>
               <p className="text-sm text-muted-foreground mt-1">KPI 지표별 데이터 소스 정합성 및 산출 체계 현황</p>
             </div>
             <div className="flex items-center gap-2">

@@ -188,7 +188,7 @@ export default function KnowledgePage() {
     return matchesSearch && matchesUnit
   })
 
-  // 가이드 실행 모드 (수치 입력 후 티켓화)
+  // 가이드 실행 모드 (수치 입력 후 이벤트화)
   if (viewMode === "execute" && selectedGuide) {
     return (
       <AppShell>
@@ -664,7 +664,7 @@ export default function KnowledgePage() {
               </Button>
               <Button variant="outline">
                 <Send className="h-4 w-4 mr-1" />
-                티켓으로 송부
+                이벤트으로 송부
               </Button>
               <Button onClick={() => alert("계산 실행")}>
                 계산 실행

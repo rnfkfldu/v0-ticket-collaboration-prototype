@@ -3,6 +3,7 @@
 import type { ReactNode } from "react"
 import { Sidebar } from "./sidebar"
 import { TopNavigation } from "./top-navigation"
+import { FloatingQuickAccess } from "./floating-quick-access"
 
 interface AppShellProps {
   children: ReactNode
@@ -24,6 +25,7 @@ export function AppShell({ children, showSidebar = true, showTopNav = true }: Ap
           {children}
         </main>
       </div>
+      <FloatingQuickAccess />
     </div>
   )
 }

@@ -13,7 +13,7 @@ export default function HelpDeskPage() {
         <header className="border-b border-border bg-card px-6 py-4">
           <div className="flex items-center gap-3">
             <Headset className="h-5 w-5 text-primary" />
-            <h1 className="text-lg font-semibold">Help Desk</h1>
+            <h1 className="text-lg font-semibold">고객지원</h1>
           </div>
         </header>
         <main className="p-6 max-w-3xl space-y-6">

@@ -30,7 +30,7 @@ import { cn } from "@/lib/utils"
 // 종료 Report 필요 여부 판단 로직
 export function requiresClosureReport(params: {
   type: "ticket" | "worklist"
-  // 티켓용
+  // 이벤트용
   ticketType?: string
   priority?: string
   impact?: string
@@ -41,13 +41,13 @@ export function requiresClosureReport(params: {
   linkedTicketCount?: number
 }): { required: boolean; reason: string } {
   if (params.type === "ticket") {
-    // P1/P2 티켓은 반드시 리포트 필요
+    // P1/P2 이벤트은 반드시 리포트 필요
     if (params.priority === "P1" || params.priority === "P2") {
-      return { required: true, reason: "고우선순위(P1/P2) 티켓은 종료 리포트가 필수입니다." }
+      return { required: true, reason: "고우선순위(P1/P2) 이벤트은 종료 리포트가 필수입니다." }
     }
     // Trouble 유형은 반드시 리포트 필요
     if (params.ticketType === "Trouble") {
-      return { required: true, reason: "Troubleshooting 티켓은 원인 분석 및 재발 방지를 위해 종료 리포트가 필수입니다." }
+      return { required: true, reason: "Troubleshooting 이벤트은 원인 분석 및 재발 방지를 위해 종료 리포트가 필수입니다." }
     }
     // ProcessTest 유형은 반드시 리포트 필요
     if (params.ticketType === "ProcessTest") {
@@ -55,11 +55,11 @@ export function requiresClosureReport(params: {
     }
     // Safety/Quality impact는 반드시 리포트 필요
     if (params.impact === "Safety" || params.impact === "Quality") {
-      return { required: true, reason: "안전/품질 영향 티켓은 종료 리포트가 필수입니다." }
+      return { required: true, reason: "안전/품질 영향 이벤트은 종료 리포트가 필수입니다." }
     }
     // WP가 3개 이상이면 리포트 필요
     if ((params.workPackageCount || 0) >= 3) {
-      return { required: true, reason: "3개 이상의 Work Package가 포함된 티켓은 종료 리포트가 필수입니다." }
+      return { required: true, reason: "3개 이상의 Work Package가 포함된 이벤트은 종료 리포트가 필수입니다." }
     }
     return { required: false, reason: "" }
   }
@@ -73,7 +73,7 @@ export function requiresClosureReport(params: {
       return { required: true, reason: "촉매/내부구조물 관련 항목은 종결 리포트가 필수입니다." }
     }
     if ((params.linkedTicketCount || 0) >= 2) {
-      return { required: true, reason: "2개 이상의 티켓이 연결된 워크리스트는 종결 리포트가 필수입니다." }
+      return { required: true, reason: "2개 이상의 이벤트이 연결된 워크리스트는 종결 리포트가 필수입니다." }
     }
     return { required: false, reason: "" }
   }
@@ -91,7 +91,7 @@ function generateAIReport(params: {
   workPackages?: string[]
 }) {
   const ticketSection = params.linkedTickets && params.linkedTickets.length > 0
-    ? `\n\n[관련 티켓]\n${params.linkedTickets.map(t => `- #${t.id}: ${t.title}`).join("\n")}`
+    ? `\n\n[관련 이벤트]\n${params.linkedTickets.map(t => `- #${t.id}: ${t.title}`).join("\n")}`
     : ""
 
   const wpSection = params.workPackages && params.workPackages.length > 0
@@ -117,6 +117,7 @@ interface ClosureReportDialogProps {
   ticketType?: string
   linkedTickets?: { id: string; title: string }[]
   workPackages?: string[]
+  teamOpinions?: { team: string; reviewer: string; opinion: string }[]
   onSubmit: (report: ClosureReport) => void
 }
 
@@ -131,6 +132,7 @@ export interface ClosureReport {
   results: string
   lessons: string
   recommendations: string
+  teamOpinions?: { team: string; reviewer: string; opinion: string }[]
   status: "draft" | "pending-approval" | "approved" | "rejected"
   createdDate: string
   author: string
@@ -147,6 +149,7 @@ export function ClosureReportDialog({
   ticketType,
   linkedTickets,
   workPackages,
+  teamOpinions,
   onSubmit,
 }: ClosureReportDialogProps) {
   const [step, setStep] = useState<"generating" | "editing" | "preview">("generating")
@@ -193,6 +196,7 @@ export function ClosureReportDialog({
       results,
       lessons,
       recommendations,
+      teamOpinions: teamOpinions || [],
       status: "pending-approval",
       createdDate: new Date().toISOString().split("T")[0],
       author: "김지수",
@@ -279,7 +283,7 @@ export function ClosureReportDialog({
                 {isGenerating ? "GenAI가 리포트를 생성하고 있습니다..." : "리포트 생성 준비 중"}
               </p>
               <p className="text-sm text-muted-foreground mt-1">
-                {isGenerating ? "티켓, 워크패키지, 이력 데이터를 종합 분석 중" : "잠시만 기다려주세요"}
+                {isGenerating ? "이벤트, 워크패키지, 이력 데이터를 종합 분석 중" : "잠시만 기다려주세요"}
               </p>
             </div>
           </div>

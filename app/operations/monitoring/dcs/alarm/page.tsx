@@ -105,7 +105,7 @@ export default function AlarmContextPage() {
               </div>
               <div className="flex gap-2">
                 <Button size="sm">상세 분석</Button>
-                <Button size="sm" variant="outline">티켓 생성</Button>
+                <Button size="sm" variant="outline">이벤트 생성</Button>
                 <Button size="sm" variant="outline">리포트 생성</Button>
               </div>
             </CardContent>
