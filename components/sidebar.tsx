@@ -50,7 +50,8 @@ import {
   CalendarDays,
   Search,
   RefreshCw,
-  FolderOpen
+  FolderOpen,
+  Home
 } from "lucide-react"
 import Link from "next/link"
 import { usePathname } from "next/navigation"
@@ -99,6 +100,14 @@ export function Sidebar({ unreadAlerts = 3 }: SidebarProps) {
 
   // Operations 메뉴 구조
   const operationsMenu: MenuSection[] = [
+    {
+      id: "home",
+      label: "홈",
+      icon: Home,
+      items: [
+        { label: "홈 대시보드", href: "/", icon: Home },
+      ]
+    },
     {
       id: "live-monitoring",
       label: "실시간 모니터링",
